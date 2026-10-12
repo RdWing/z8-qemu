@@ -105,7 +105,7 @@ static bool nikon_z8_lossless14_encode(const uint8_t *input, size_t input_size,
                 /* Negative differences use the complement representation
                  * of their magnitude in the selected category's bit width. */
                 unsigned payload = difference < 0 ?
-                    (unsigned)(difference - 1) & ((1U << bits) - 1) : difference;
+                    (unsigned)(difference - 1) & ((1U << bits) - 1) : (unsigned)difference;
                 if (bits && !nikon_z8_lossless_put(&b, payload, bits)) {
                     return false;
                 }

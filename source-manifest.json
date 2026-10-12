@@ -23,7 +23,7 @@
     "qemu/nikon-z8-d980.h": "dd88d7d8dd81ebe0982b341897bf2c5bb73523eccc8fb19412fd95e4d2e87b8b",
     "qemu/nikon-z8-jpeg.h": "4607f839fd4e03027a7b154e771c1e6c46822a04e0f635b43830e9920e8716e3",
     "qemu/nikon-z8-lab.c": "5885024faf86f55a343d9c1ca7042d40cc81f24b6f66f99e178fecbf77e11653",
-    "qemu/nikon-z8-lossless.h": "00b86c32e01df06a7069ff86ba61ffb4ee5df85881ad6b13ac07105bab1b81dd",
+    "qemu/nikon-z8-lossless.h": "6f6ef0da9d01571dcf3470ccf1b160fb1c50c5859b6b70ef78d63b4bc97e9100",
     "qemu/nikon-z8-pcie.h": "39e8b766444f9bd32da732f8b9473aa4c3b9f71315e63af58b1507973b35429d",
     "qemu/nikon-z8-pixels.h": "1464e23e12d8a9b48450e603f0dfc3b8619a336b3845da2424fa29146f8bffca",
     "qemu/nikon-z8-raw-pixels.h": "9929fc857f17a56db0bfe11e8444ba8e340df9b54325a4fb9bd2f7861ebd21e1",
