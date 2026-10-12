@@ -1,6 +1,26 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026 RdWing
 import struct
+
+def require_lossless14(tags, linearization):
+    """Reject the packed-pixel payload that LibRaw accepts by size alone.
+
+    C3.11's F0 metadata declares Nikon lossless entropy coding with four
+    2048 predictors. A packed Bayer transport buffer is not that bitstream.
+    This checks the profile before the independent decoder checks pixels.
+    """
+    if [tags.get(k) for k in (256, 257, 258, 259)] != [[8280], [5520], [14], [34713]]:
+        raise ValueError('Expected Z8 8280x5520 14-bit Nikon-compressed RAW IFD')
+    if not linearization.startswith(b'F0' + struct.pack('<4H', *([2048] * 4))):
+        raise ValueError('Expected F0 lossless metadata with four 2048 predictors')
+    sizes = tags.get(279, [])
+    packed_sizes = [((8280 * 7 * channels // 4 + 15) // 16 * 16) * 5520
+                    for channels in (1, 3)]
+    if len(sizes) != 1 or sizes[0] <= 4:
+        raise ValueError('Expected one complete Nikon lossless RAW strip')
+    if sizes[0] in packed_sizes:
+        raise ValueError('RAW strip matches LibRaw packed-size fallback; Nikon lossless encoding is unverified')
+
 def image_ifds(data):
     if data[:4] != b'II*\0':
         raise ValueError('Expected actual little-endian TIFF NEF')

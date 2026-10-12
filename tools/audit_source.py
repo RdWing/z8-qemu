@@ -12,7 +12,7 @@ def main():
         path = root/name
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             raise ValueError('Source inventory mismatch: ' + name)
-    actual = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()
+    actual = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file() and p.name != '.DS_Store'
               and not any(x in ('.git', '.local', '__pycache__') for x in p.relative_to(root).parts)}
     if actual != set(manifest['files']) | {'source-manifest.json'}:
         raise ValueError('Unexpected source inventory additions or omissions')

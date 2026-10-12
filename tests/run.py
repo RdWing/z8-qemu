@@ -29,13 +29,28 @@ def main():
                      else [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
             assert all(n.split('.')[0] in allowed for n in names), (p.name, names)
     with tempfile.TemporaryDirectory(prefix='z8-tests-') as temp:
-        for name in ['region', 'serial', 'timed']:
+        for name in ['region', 'serial', 'timed', 'lossless']:
             exe = Path(temp)/name
-            subprocess.run([os.environ.get('CC','cc'), '-Wall', '-Wextra', '-Werror', str(ROOT/f'tests/verify_{name}.c'), '-o', str(exe)], check=True)
+            flags = ['-fsanitize=address,undefined'] if name == 'lossless' else []
+            subprocess.run([os.environ.get('CC','cc'), '-Wall', '-Wextra', '-Werror', *flags, str(ROOT/f'tests/verify_{name}.c'), '-o', str(exe)], check=True)
             subprocess.run([str(exe)], check=True)
         sys.path.insert(0, str(ROOT/'tools'))
         from copy_card import copy_card
         from rom_inputs import attach
+        from nef_ifds import require_lossless14
+        import struct
+        profile = {256:[8280],257:[5520],258:[14],259:[34713],279:[34338928]}
+        linearization = b'F0' + struct.pack('<4H',2048,2048,2048,2048)
+        require_lossless14(profile, linearization)
+        # Regression: a Nikon-compressed IFD containing 80,017,920 packed
+        # bytes passed LibRaw sample checks but rendered incorrectly in Adobe.
+        for invalid in ({**profile,279:[80017920]}, {**profile,259:[1]}):
+            try:
+                require_lossless14(invalid, linearization)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError('Invalid lossless profile accepted')
         source, target = Path(temp)/'source.raw', Path(temp)/'target.raw'
         with source.open('wb') as f:
             f.write(b'header'); f.seek(1024*1024); f.write(b'tail')
@@ -48,7 +63,7 @@ def main():
         assert len(g.data['synthetic_rom_inputs']['rows']) == 11
         assert all((g.out/x['file']).is_file() for x in g.data['synthetic_rom_inputs']['rows'])
     subprocess.run([sys.executable, str(ROOT/'tests/test_display_bank.py')], check=True)
-    print('PASS source syntax, entry points, dependency closure, ROM fixtures, card copying, region/serial/timed contracts and actual display renderer')
+    print('PASS source syntax, entry points, dependency closure, ROM fixtures, card copying, region/serial/timed/lossless contracts, compressed-profile rejection and actual display renderer')
 
 if __name__ == '__main__':
     main()

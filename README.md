@@ -20,9 +20,9 @@ The tools generate synthetic sensor and card inputs.
 Compared with the upstream revision linked above, this adaptation adds:
 
 - **Boot and controls:** Z8 C3.11 [hardware mappings](qemu/nikon-z8-lab.c), [boot sequence](tools/boot_z8.py#L38) and [controller/menu bindings](tools/z8_navigation_input.py#L11).
-- **Display:** [framebuffer-bank switching](qemu/nikon-z8-lab.c#L4678), [active-bank acknowledgement](qemu/nikon-z8-lab.c#L15395) and [indexed palette overlays](qemu/nikon-z8-lab.c#L4627).
-- **Capture:** Z8 [preparation inputs](tools/capture.py#L36), [display-region](qemu/nikon-z8-lab.c#L4003)/[serial register retention](qemu/nikon-z8-lab.c#L7126) and [timed single-frame completion fixes](qemu/nikon-z8-d980.h#L179) enabling full NEF capture.
-- **Movie mode:** additional [configuration-register retention and initialization handling](qemu/nikon-z8-lab.c#L6974); recording remains incomplete.
+- **Display:** [framebuffer-bank switching](qemu/nikon-z8-lab.c#L4679), [active-bank acknowledgement](qemu/nikon-z8-lab.c#L15411) and [indexed palette overlays](qemu/nikon-z8-lab.c#L4628).
+- **Capture:** Z8 [preparation inputs](tools/capture.py#L36), [display-region](qemu/nikon-z8-lab.c#L4004)/[serial register retention](qemu/nikon-z8-lab.c#L7127) and [timed single-frame completion fixes](qemu/nikon-z8-d980.h#L179) enabling full NEF capture, with [Nikon lossless14 encoding](qemu/nikon-z8-lossless.h) of the guest-produced Bayer data.
+- **Movie mode:** additional [configuration-register retention and initialization handling](qemu/nikon-z8-lab.c#L6975); recording remains incomplete.
 - **Tooling:** [QEMU 11 compatibility](qemu/prepare_source.py), [portable Z8 launchers](tools/run.py), [macOS builds](tools/build.py#L28)/[card creation](tools/virtual_recording_card.py#L65) and [adapted NEF auditing](tools/audit_nef.py).
 
 The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
@@ -33,15 +33,16 @@ The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
 | --- | --- |
 | Original menus, shooting HUD, controller input and four AArch64 CPU contexts | Synthetic boot and peripheral inputs; selected paths tested. |
 | Selected native graphics, four framebuffer banks and indexed palette overlays | Functional rendering; physical AF and display color accuracy remain open. |
-| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic models; Nikon ISP and proprietary RAW codecs are not reproduced. |
-| Firmware-written 8280 × 5520, 14-bit NEFs on virtual NVMe/exFAT | Independent decoding checked all 45,705,600 samples. Capture requires three explicit experimental options and the Lossless menu setting. |
-| Picture Control metadata and Camera Raw defaults | Auto and Standard outputs inspected. |
+| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. |
+| Firmware-written 8280 × 5520, 14-bit NEFs on virtual NVMe/exFAT | LibRaw and Adobe decoding checked all 45,705,600 samples. Capture requires three explicit experimental options and the Lossless menu setting. |
+| Picture Control metadata and Camera Raw defaults | Metadata inspected for Auto and Standard; lossless decoding checked with Auto. |
 | Movie configuration registers and selector handling | Movie initialization remains incomplete; playable recording and physical AF/lens drive are unqualified. |
 
 A complete QEMU build, native menu navigation and single NEF capture have
-passed on macOS. Independent auditing checked every RAW sample and all three
-JPEG previews. Source and model-contract checks cover the display renderer
-and selected peripheral behavior. Repeated shooting and post-shot recovery
+passed on macOS. LibRaw and Adobe DNG Converter independently decoded every
+RAW sample with zero mismatches; all three JPEG previews also decoded. Source
+and model-contract checks cover the display renderer and selected peripheral
+behavior. Repeated shooting and post-shot recovery
 remain open.
 
 ## Quick start

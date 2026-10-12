@@ -36,6 +36,7 @@
 #include "target/arm/cpu.h"
 #include "target/arm/arm-powerctl.h"
 #include "nikon-z8-raw-pixels.h"
+#include "nikon-z8-lossless.h"
 
 static void cpu_physical_memory_read(hwaddr a, void *p, hwaddr n) { address_space_read(&address_space_memory,a,MEMTXATTRS_UNSPECIFIED,p,n); }
 static void cpu_physical_memory_write(hwaddr a, const void *p, hwaddr n) { address_space_write(&address_space_memory,a,MEMTXATTRS_UNSPECIFIED,p,n); }
@@ -14849,31 +14850,45 @@ static bool engine1540_frame_write(NikonZ8State *s, hwaddr addr, uint64_t value,
     if (address_space_read(&address_space_memory, source, MEMTXATTRS_UNSPECIFIED, buffer, bytes) != MEMTX_OK) {
         g_free(buffer); unknown_access(s, addr, value, size, true); return true;
     }
+    /* C3.11 writes F0 lossless metadata with four 2048 predictors. Encode
+     * the actual151 Bayer output to match that declaration. A plain packed
+     * copy is accepted by LibRaw's size heuristic but garbles in Adobe.
+     * This bounded profile models file encoding, not the physical codec.
+     * The declared output buffer is a hard capacity, including padding. */
+    const uint16_t seeds[4] = {2048, 2048, 2048, 2048};
+    uint8_t *encoded = g_try_malloc(bytes);
+    size_t encoded_bytes = 0;
+    if (!encoded || !nikon_z8_lossless14_encode(buffer, bytes, w, h, pitch,
+            seeds, encoded, bytes, &encoded_bytes)) {
+        g_free(encoded); g_free(buffer);
+        unknown_access(s, addr, value, size, true); return true;
+    }
+    g_free(buffer);
     uint64_t hash = UINT64_C(14695981039346656037);
-    for (uint64_t i = 0; i < bytes; i++) { hash = (hash ^ buffer[i]) * UINT64_C(1099511628211); }
-    if (address_space_write(&address_space_memory, target, MEMTXATTRS_UNSPECIFIED, buffer, bytes) != MEMTX_OK ||
-        address_space_read(&address_space_memory, target, MEMTXATTRS_UNSPECIFIED, buffer, bytes) != MEMTX_OK) {
-        g_free(buffer); unknown_access(s, addr, value, size, true); return true;
+    for (size_t i = 0; i < encoded_bytes; i++) { hash = (hash ^ encoded[i]) * UINT64_C(1099511628211); }
+    if (address_space_write(&address_space_memory, target, MEMTXATTRS_UNSPECIFIED, encoded, encoded_bytes) != MEMTX_OK ||
+        address_space_read(&address_space_memory, target, MEMTXATTRS_UNSPECIFIED, encoded, encoded_bytes) != MEMTX_OK) {
+        g_free(encoded); unknown_access(s, addr, value, size, true); return true;
     }
     uint64_t readback = UINT64_C(14695981039346656037);
-    for (uint64_t i = 0; i < bytes; i++) { readback = (readback ^ buffer[i]) * UINT64_C(1099511628211); }
-    g_free(buffer);
+    for (size_t i = 0; i < encoded_bytes; i++) { readback = (readback ^ encoded[i]) * UINT64_C(1099511628211); }
+    g_free(encoded);
     if (hash != readback) { unknown_access(s, addr, value, size, true); return true; }
-    s->engine1540_frame_jobs++; s->engine1540_frame_bytes += bytes;
+    s->engine1540_frame_jobs++; s->engine1540_frame_bytes += encoded_bytes;
     s->engine1540_frame_frame = s->engine151_raw_output_frame;
     s->engine1540_frame_source = source; s->engine1540_frame_target = target;
     s->engine1540_frame_hash = hash; s->engine1540_frame_readback = readback;
     /* Publish only the last successfully completed output, never a configured
      * capacity, cumulative total, guessed compression ratio or host file. */
-    s->engine1540_frame_result_bytes = bytes;
+    s->engine1540_frame_result_bytes = encoded_bytes;
     /* Actual registered callback40cb6a40/handler40cb74dc treats bit0 as
      * error; bit8 wakes the normal wait. Data and readback precede IRQ. */
     s->engine1540_frame_pending = 0x100;
     engine1540_frame_update_irq(s);
     fprintf(stderr, "Z8_1540_FRAME_PASS source=%" PRIx64 " target=%" PRIx64
-        " bytes=%" PRIu64 " frame=%" PRIu64 " fnv64=%" PRIx64
-        "; neutral packed14 RAM transport, bit8 completion, LUT/codec unverified\n",
-        source, target, bytes, s->engine1540_frame_frame, hash);
+        " bytes=%zu frame=%" PRIu64 " fnv64=%" PRIx64
+        "; Nikon lossless14 output, bit8 completion, physical codec unverified\n",
+        source, target, encoded_bytes, s->engine1540_frame_frame, hash);
     return true;
 }
 
@@ -14897,7 +14912,8 @@ static char *get_engine1540_frame_pass_state(Object *obj, Error **errp)
         ",\"fnv64\":%" PRIu64 ",\"readback_fnv64\":%" PRIu64 ",\"acks\":%" PRIu64
         ",\"pending\":%u,\"irq_intid\":305,\"completion_events\":%" PRIu64
         ",\"results\":[0,%u,0],\"last_result_bytes\":%u,\"physical_algorithm_verified\":false,\"native_nef_saved\":false,"
-        "\"scope\":\"neutral actual151 packed14 RAM transport and completed-output length; no LUT/entropy/codec proof\"}",
+        "\"encoding\":\"nikon-lossless14\",\"predictor_seed\":2048,"
+        "\"scope\":\"F0 lossless encoding of actual151 Bayer output; bounded C3.11 profile, no physical codec or LUT claim\"}",
         s->engine1540_frame_pass_model ? "true" : "false", s->engine1540_frame_jobs, s->engine1540_frame_bytes,
         s->engine1540_frame_source, s->engine1540_frame_target, s->engine1540_frame_frame,
         s->engine1540_frame_hash, s->engine1540_frame_readback, s->engine1540_frame_acks,

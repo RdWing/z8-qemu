@@ -13,7 +13,7 @@ python tools/build.py --qemu-source /path/to/qemu-11.1.1 \
 ```
 
 The integration helper validates the version and plans all changes before
-writing. It installs eight Z8 source files, enables device dependencies and
+writing. It installs nine Z8 source files, enables device dependencies and
 libjpeg, and applies the DesignWare DMA and SMP breakpoint fixes.
 Existing source inputs are preserved under `.z8-qemu-backup/` in the selected
 QEMU tree. Unexpected source context or divergent Z8 files stop preparation.

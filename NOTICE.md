@@ -14,6 +14,10 @@ SPDX identifiers and attribution. QEMU retains its upstream licensing; see
 [COPYING](COPYING) and [LICENSES/QEMU-LICENSE.txt](LICENSES/QEMU-LICENSE.txt).
 The DesignWare DMA and SMP breakpoint fixes are adapted upstream requirements.
 
+The lossless encoder implements the Nikon 14-bit F0 stream format using
+[LibRaw’s Nikon decoder](https://github.com/LibRaw/LibRaw/blob/master/src/decoders/decoders_dcraw.cpp)
+as a format reference (LibRaw LLC and Dave Coffin).
+
 Nikon has not sponsored, endorsed or supplied this project. Nikon and Z8
 identify the interoperability target; their owners retain their rights.
 No source license here grants rights to Nikon firmware or proprietary data.

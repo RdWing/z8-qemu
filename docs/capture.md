@@ -2,8 +2,10 @@
 
 The capture workflow requires three explicit experimental options and
 selects **RAW → Lossless compression** through Nikon’s original menu.
-High efficiency★ reached an unsupported RAW destination. The functional
-packed-14 model does not implement Nikon’s proprietary lossless codec.
+High efficiency★ reached an unsupported RAW destination. The output stage
+encodes the guest-produced Bayer buffer as a Nikon 14-bit lossless stream,
+matching the firmware’s F0 metadata and four 2048 predictor seeds. This is a
+bounded file-format model; physical codec hardware and HE/HE* remain unmodeled.
 
 On Linux, install exfatprogs (`mkfs.exfat`, `fsck.exfat`). macOS uses its native
 `newfs_exfat` and `fsck_exfat` utilities through a temporary, unmounted disk
@@ -45,10 +47,29 @@ python tools/audit_nef.py --output .local/runs/capture-001 \
 ```
 
 The audit checks extraction integrity, all RAW samples against the supplied
-synthetic input, the available guest RAW producer snapshot, metadata and three
-JPEG previews. Each run records the supplied input hash and uses that input for comparison.
+synthetic input, the required guest RAW producer snapshot, metadata and three
+JPEG previews. It rejects the packed-size fallback that can make LibRaw accept
+uncompressed bytes under a Nikon-compressed tag. Each run records the supplied
+input hash and uses that input for comparison.
 
-Auto and Standard outputs have been independently decoded. Repeat the complete
-workflow to qualify a new build. Repeated shooting,
+For a second decoder, convert the captured NEF with Adobe DNG Converter, then
+pass its DNG to the same audit:
+
+```sh
+python tools/audit_nef.py --output .local/runs/capture-001 \
+  --firmware /path/to/z8-main-payload.bi --raw .local/sensor-14bit.raw \
+  --adobe-dng /path/to/DSC_0001.dng
+```
+
+This compares the DNG’s underlying RAW samples, not its preview. The audit
+reports `full_file_accepted` only when this second-decoder comparison passes.
+
+Earlier packed-copy outputs could have correct previews and metadata while
+rendering garbled RAW data in Adobe. Their LibRaw sample checks used its
+uncompressed-size fallback and did not establish lossless-format validity.
+Recapture those files with the lossless encoder.
+
+The lossless workflow has been checked with Picture Control Auto. Repeat the
+complete workflow to qualify other settings or a new build. Repeated shooting,
 burst capture, robust post-shot recovery and preview-to-encoder byte matching
 remain open.

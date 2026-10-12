@@ -29,5 +29,5 @@
   "press_seconds": 0.1,
   "release_settle_seconds": 0.6,
   "basis": "Native menu sequence: RAW recording High efficiency star -> Lossless compression",
-  "pixels": "Synthetic NZ9RAW1; simplified processing and functional packed14 transport, no proprietary compression claim"
+  "pixels": "Synthetic NZ9RAW1; simplified processing, packed14 internal transport and Nikon F0 lossless file encoding; physical codec and HE/HE* unmodeled"
 }

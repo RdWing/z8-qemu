@@ -29,6 +29,14 @@ Synthetic RGGB input, generic Bayer/NV16 processing, JPEG encoding and
 PCIe/NVMe provide the experimental capture path. Nikon’s code writes the
 file structure and metadata. The input fixture format uses `NZ9RAW1` magic.
 
+The `engine1540-frame-pass-model` output stage retains its existing option
+name but now encodes the actual151 packed Bayer buffer as a Nikon 14-bit
+lossless stream. It uses the F0 profile’s four 2048 predictors, Bayer-parity
+prediction and canonical Huffman coding. Input row padding is skipped; the
+result register reports encoded bytes. Buffer capacity is enforced, and
+completion is raised only after successful encoding, guest DMA and readback.
+This models file-format output, not physical codec hardware or timing.
+
 Serial configuration retains eight words per channel, including `+0x48`
 read-modify-write accesses that preserve the upper half. Configuration
 storage does not implement FIFO service or transfer completion.
