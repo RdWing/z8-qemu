@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026 RdWing
-"""Create a fresh 8 GiB MBR/exFAT virtual card using exfatprogs."""
+"""Create a fresh 8 GiB MBR/exFAT virtual card using host exFAT tools."""
 import argparse,json
 from pathlib import Path
 from virtual_recording_card import create

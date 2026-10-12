@@ -15,9 +15,12 @@ Renderer checks cover four framebuffer banks, valid-fetch active latching,
 rejected addresses, region positioning and clipping, palette banks, partial
 alpha, transparency and invalid DMA or stride rejection.
 
-The camera model has compiled against QEMU 11 generated headers. Source
-integration has been checked for repeatable preparation. These checks do not
-replace a complete QEMU build or a native Z8 boot and capture run.
+A complete macOS QEMU 11.1.1 build, native boot and menu navigation, and
+single NEF capture have passed with fresh synthetic sensor and card inputs.
+Independent decoding checked all 45,705,600 RAW samples against the sensor
+input and guest producer buffer, and decoded all three JPEG previews. The
+read-only card audit passed. Source integration is repeatable. Linux runtime
+qualification, repeated shooting and post-shot recovery remain separate work.
 
 For runtime acceptance, record firmware, binary and input hashes. Check
 preparation callbacks, ready notification, shutter consumption, full-frame

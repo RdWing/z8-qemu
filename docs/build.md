@@ -3,7 +3,8 @@
 Supply a separate QEMU **11.1.1** source checkout or extraction.
 Install a C toolchain, Python 3.12+, Ninja, pkg-config, GLib, Pixman, zlib,
 libfdt and libjpeg development files. Python requirements are separate from
-QEMU’s build dependencies.
+QEMU’s build dependencies. On macOS the builder disables QEMU’s unrelated
+paravirtualized graphics device, whose APIs are unavailable in recent SDKs.
 
 ```sh
 python qemu/prepare_source.py /path/to/qemu-11.1.1 --check
@@ -21,6 +22,5 @@ Use a fresh source tree and a dedicated build directory. Repeating preparation
 with unchanged inputs is supported. Build output and its receipt remain in
 the supplied build directory. QEMU’s configure step may fetch its dependencies.
 
-The camera model has compiled without warnings against QEMU 11 generated
-headers. A complete build and runtime qualification are required for a new
-QEMU installation.
+A complete QEMU 11.1.1 build has passed on macOS. Use the boot and capture
+workflows to qualify a new binary or host environment.

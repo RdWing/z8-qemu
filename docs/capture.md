@@ -5,10 +5,11 @@ selects **RAW → Lossless compression** through Nikon’s original menu.
 High efficiency★ reached an unsupported RAW destination. The functional
 packed-14 model does not implement Nikon’s proprietary lossless codec.
 
-Install exfatprogs (`mkfs.exfat`, `fsck.exfat`) and, for independent audit,
+On Linux, install exfatprogs (`mkfs.exfat`, `fsck.exfat`). macOS uses its native
+`newfs_exfat` and `fsck_exfat` utilities through a temporary, unmounted disk
+image. Only the newly created regular image is attached and formatted, then
+detached; physical disks are not selected. For independent audit, install
 ExifTool and `requirements-capture.txt` in addition to the base requirements.
-On macOS, make the exfatprogs executables available on PATH. No host block
-device is formatted: card creation requires a fresh regular file.
 
 ```sh
 python -m pip install -r requirements-capture.txt

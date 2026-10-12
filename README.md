@@ -26,14 +26,16 @@ The tools generate synthetic sensor and card inputs.
 | Picture Control metadata and Camera Raw defaults | Auto and Standard outputs inspected. |
 | Movie configuration registers and selector handling | Movie initialization remains incomplete; playable recording and physical AF/lens drive are unqualified. |
 
-Source and model-contract checks cover the display renderer and selected
-peripheral behavior. A fresh full QEMU build and end-to-end capture remain
-separate validation steps. Repeated shooting and post-shot recovery are open.
+A complete QEMU build, native menu navigation and single NEF capture have
+passed on macOS. Independent auditing checked every RAW sample and all three
+JPEG previews. Source and model-contract checks cover the display renderer
+and selected peripheral behavior. Repeated shooting and post-shot recovery
+remain open.
 
 ## Quick start
 
 Use macOS or Linux, Python 3.12+, a C toolchain, Ninja, pkg-config, GLib,
-Pixman, zlib, libfdt and libjpeg. For a fresh exFAT card, install exfatprogs.
+Pixman, zlib, libfdt and libjpeg. Linux card creation needs exfatprogs; macOS uses native exFAT tools.
 Supply a separate **QEMU 11.1.1** source tree.
 
 ```sh

@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 import subprocess
+import sys
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -25,7 +26,12 @@ def main():
     receipt = prepare.prepare(source)
     build.mkdir(parents=True, exist_ok=True)
     if not (build/'build.ninja').exists():
-        subprocess.run([str(source/'configure'), '--target-list=aarch64-softmmu', '--disable-docs', '--disable-werror'], cwd=build, check=True)
+        configure = [str(source/'configure'), '--target-list=aarch64-softmmu', '--disable-docs', '--disable-werror']
+        if sys.platform == 'darwin':
+            # The camera uses its own scanout; Apple's unrelated PVG device
+            # uses APIs removed from recent SDKs.
+            configure.append('--disable-pvg')
+        subprocess.run(configure, cwd=build, check=True)
     subprocess.run(['ninja', '-C', str(build), '-j', str(args.jobs), 'qemu-system-aarch64'], check=True)
     binary = build/'qemu-system-aarch64'
     manifest = {'qemu_version': '11.1.1', 'overlay': receipt,
