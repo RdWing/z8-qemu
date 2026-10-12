@@ -31,10 +31,14 @@ if args.experimental_timed_single:
  g.command[g.command.index('-M')+1]+=',z8-timed-single-model=on'
  g.data['experimental_timed_single']={'enabled':True,'physical_timing_verified':False,'completion_requires_real_dma':True}
 attach(g)
+# Supply the external bank-8 byte read during native preparation. This is
+# a synthetic configuration hypothesis, not a firmware instruction patch.
 if args.experimental_preparation_profile:
  p=out/'experimental-bank8-999.bin';p.write_bytes(b'\x01')
  g.command+=['-device',f'loader,file={p},addr=0x45a403e7,force-raw=on']
  g.data['experimental_preparation_profile']={'address':'0x45a403e7','value':1,'basis':'Original bank8 descriptor and offset999 branch; synthetic hypothesis, not recovered factory configuration','guest_code_modified':False}
+# Select the observed processing record through an external ROM byte. The
+# missing record coefficients are not recovered by this selector input.
 if args.experimental_capture_selector5:
  p=out/'experimental-selector5.bin';p.write_bytes(b'\x01')
  g.command+=['-device',f'loader,file={p},addr=0x47f5af45,force-raw=on']

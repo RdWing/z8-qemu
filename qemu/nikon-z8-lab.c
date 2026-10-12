@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2026 RdWing
  * Nikon Z8 C3.11 functional board. Experimental, not a hardware specification.
- * Input evidence and all unverified mappings: ../README.md.
+ * Z8 scope and synthetic-input assumptions: ../README.md.
+ * Upstream model attribution and retained licensing: ../NOTICE.md.
  * Deliberately independent of the frozen Z7 board and its CPU/GIC patches.
  */
 #include "qemu/osdep.h"
@@ -71,12 +72,12 @@ static const struct {
     { 0x1b000000, 0x04000 }, { 0x1b200000, 0x04000 },
 };
 
-/* Opt-in storage for the union of 21 original C5.32 software pool extents.
- * Native 148 pool owners and paused-CPU translations establish the addresses;
+/* Inherited opt-in storage for 21 Z9 C5.32 software pool extents.
+ * Upstream pool-owner observations establish these software addresses;
  * they do not measure physical DRAM capacity or a sensor layout. Keep the
  * observed 512-byte gap unmapped. RAM is demand-backed, never prefilled with
  * scene pixels, and produces no readiness or image-completion event.
- * Evidence: ../evidence/z8-image-bank-149-profile.json. */
+ * These inherited spans are not an independently measured Z8 memory map. */
 static const struct {
     hwaddr base, end;
 } image_bank_ranges[] = {
@@ -7720,7 +7721,7 @@ static bool nand_register_write(NikonZ8State *s, hwaddr addr, unsigned size,
     return false;
 }
 
-/* Z8 C5.32 native GPIO descriptors observed in run446:
+/* Inherited Z9 C5.32 GPIO descriptors:
  * logical23/24 -> input0d15100c bits4/5, IRQ bank0 bits4/5, INTID59/60.
  * Original40c16258 acknowledges +10, reads the input and rearms polarity.
  * This opt-in functional edge model covers those two inputs only. Timing,
@@ -8681,7 +8682,7 @@ static void statistics_tick(void *opaque)
     if (!statistics_active(s) || s->statistics_pending) {
         return;
     }
-    /* Bounded C5.32 software-view profile, observed 146/148/151. Lane1
+    /* Inherited bounded Z9 C5.32 software-view profile. Lane1
      * has two enabled records and a 1536-byte slot. Preserve padding and
      * the unclassified second half. Count/format fields are accepted only
      * in the observed states; not a generic 150d hardware specification.
@@ -9064,7 +9065,7 @@ static void engine1524_irq_update(NikonZ8State *s)
     }
 }
 
-/* Explicit C5.32 functional adapter. The 672x448 byte luma plane and
+/* Inherited Z9 C5.32 functional adapter. The 672x448 byte luma plane and
  * destination's 16-byte ARM record view come from captured descriptors.
  * Tight pitch and the score mapping are hypotheses; no CEVA implementation
  * or hardware timing is claimed. */
@@ -18182,7 +18183,7 @@ static void set_engine1548_scanout_model(Object *obj, bool value, Error **errp)
 static void nikon_z8_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
-    mc->desc = "Nikon Z8 C5.32 experimental bring-up (not complete camera)";
+    mc->desc = "Nikon Z8 C3.11 experimental bring-up (not complete camera)";
     object_class_property_add_str(oc, "runtime-clock-state", get_runtime_clock_state, NULL);
     object_class_property_add_bool(oc, "service-core-event-model", get_service_core_event_model, set_service_core_event_model);
     mc->init = nikon_z8_init;

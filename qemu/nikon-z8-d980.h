@@ -171,6 +171,9 @@ static void primary_d980_single_complete(NikonZ8State *s)
         }
 }
 
+/* Z8 timing hypothesis: periodic input may own an armed single request.
+ * Complete only after primary_d980_receive writes the full frame; an armed
+ * request or a source-ready bitmap alone is not a completion event. */
 static void primary_d980_tick(NikonZ8State *s)
 {
     if (s->z8_timed_single_model && s->primary_d980_single_armed) {

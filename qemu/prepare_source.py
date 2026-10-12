@@ -9,11 +9,15 @@ import re
 
 HERE = Path(__file__).resolve().parent
 
+# Inherited integration fix: the ATU limit contains only the low address
+# word, so a DMA window above 4 GiB must retain the base's upper bits.
 DMA_OLD = '''    const uint64_t size   = (uint64_t)viewport->limit - base + 1;
     const bool enabled    = viewport->cr[1] & DESIGNWARE_PCIE_ATU_ENABLE;'''
 DMA_NEW = '''    const uint64_t limit = (base & ~UINT64_C(0xffffffff)) | viewport->limit;
     const uint64_t size = limit >= base ? limit - base + 1 : 0;
     const bool enabled = size && (viewport->cr[1] & DESIGNWARE_PCIE_ATU_ENABLE);'''
+# Inherited integration fix: remove the breakpoint from every vCPU even
+# when it is absent on one CPU; stop only for errors other than ENOENT.
 TCG_OLD = '''    case GDB_BREAKPOINT_SW:
     case GDB_BREAKPOINT_HW:
         CPU_FOREACH(cpu) {
