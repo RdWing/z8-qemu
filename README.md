@@ -15,6 +15,18 @@ See [NOTICE.md](NOTICE.md) for attribution and licensing.
 NEFs, screenshots, recordings and compiled emulator binaries are not included.
 The tools generate synthetic sensor and card inputs.
 
+## Z8 additions over the Z9 base
+
+Compared with the upstream revision linked above, this adaptation adds:
+
+- **Boot and controls:** Z8 C3.11 [hardware mappings](qemu/nikon-z8-lab.c), [boot sequence](tools/boot_z8.py#L38) and [controller/menu bindings](tools/z8_navigation_input.py#L11).
+- **Display:** [framebuffer-bank switching](qemu/nikon-z8-lab.c#L4677), [active-bank acknowledgement](qemu/nikon-z8-lab.c#L15394) and [indexed palette overlays](qemu/nikon-z8-lab.c#L4626).
+- **Capture:** Z8 [preparation inputs](tools/capture.py#L34), [display-region](qemu/nikon-z8-lab.c#L4002)/[serial register retention](qemu/nikon-z8-lab.c#L7125) and [timed single-frame completion fixes](qemu/nikon-z8-d980.h#L176) enabling full NEF capture.
+- **Movie mode:** additional [selector](qemu/nikon-z8-lab.c#L888) and [initialization handling](qemu/nikon-z8-lab.c#L6973); recording remains incomplete.
+- **Tooling:** [QEMU 11 compatibility](qemu/prepare_source.py), [portable Z8 launchers](tools/run.py), [macOS builds](tools/build.py#L28)/[card creation](tools/virtual_recording_card.py#L65) and [adapted NEF auditing](tools/audit_nef.py).
+
+The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
+
 ## Current scope
 
 | Implemented or observed on Z8 | Qualification |
