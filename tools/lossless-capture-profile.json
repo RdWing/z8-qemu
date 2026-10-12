@@ -1,0 +1,33 @@
+{
+  "camera": "Z8",
+  "firmware": "3.11",
+  "firmware_sha256": "2b43a31c9de838f84b12416de4348a7004e65be07f853ec56ec2b10f3a8e3853",
+  "qemu": ".local/build/qemu-system-aarch64",
+  "experimental_flags": [
+    "--experimental-preparation-profile",
+    "--experimental-capture-selector5",
+    "--experimental-timed-single"
+  ],
+  "menu_actions": [
+    "menu",
+    "down",
+    "down",
+    "down",
+    "down",
+    "down",
+    "down",
+    "down",
+    "down",
+    "down",
+    "down",
+    "ok",
+    "up",
+    "ok",
+    "menu",
+    "menu"
+  ],
+  "press_seconds": 0.1,
+  "release_settle_seconds": 0.6,
+  "basis": "Native menu sequence: RAW recording High efficiency star -> Lossless compression",
+  "pixels": "Synthetic NZ9RAW1; simplified processing and functional packed14 transport, no proprietary compression claim"
+}

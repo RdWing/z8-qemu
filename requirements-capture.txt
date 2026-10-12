@@ -1,0 +1,2 @@
+# Independent NEF decoding for --audit; no Nikon software or firmware.
+rawpy>=0.20,<1

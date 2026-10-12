@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "Z8 camera model compiled without warnings against QEMU 11 generated headers",
+    "Repeated source preparation produces identical configuration and overlay inputs",
+    "Python syntax, CLI entry points, dependency closure, ROM fixtures and sparse-card copying passed",
+    "Strict region, serial and timed-single contracts and display sanitizer tests passed"
+  ],
+  "full_fresh_qemu_build": false,
+  "native_firmware_replay": false
+}

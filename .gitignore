@@ -1,0 +1,16 @@
+.local/
+__pycache__/
+*.py[cod]
+.DS_Store
+*.raw
+*.cdr
+*.NEF
+*.nef
+*.bi
+*.bin
+*.ppm
+*.jpg
+*.png
+*.o
+*.d
+qemu-system-aarch64
