@@ -1,7 +1,10 @@
 # Native Z8 HE stills
 
-Original Z8 C3.11 can save one HE or HE★ NEF per cold boot with the opt-in
+Original Z8 C3.11 MAIN with a declared host controller peer can save one HE or
+HE★ NEF per cold boot with the opt-in
 functional HE receiver and explicit synthetic sensor/ROM preparation inputs.
+The original-EX attachment has separate [capture acceptance](native-mcu.md);
+these host-peer results do not transfer to it.
 The guest constructs the file and writes the virtual card. The host extracts
 initialized file bytes without repairing or replacing the container.
 

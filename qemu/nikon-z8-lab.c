@@ -742,6 +742,7 @@ struct NikonZ8State {
     bool z8_timed_single_model;
     QEMUTimer *primary_d980_single_timer;
     uint64_t primary_d980_input_epoch, primary_d980_single_epoch, primary_d980_single_frames;
+    uint64_t primary_d980_single_request_epoch;
     uint64_t primary_d980_single_cancelled, primary_d980_single_requests;
     unsigned primary_d980_single_attempts;
     bool primary_d980_source_notify_model;
@@ -11693,6 +11694,20 @@ static uint32_t primary_direct_map(uint32_t bits, unsigned group, bool inverse)
     return result;
 }
 
+/* A finite Photo request owns 401e even with the shared Movie models on.
+ * Retain its request generation across timeout/cancellation; a later source
+ * enable invalidates that ownership. This routes control only and supplies no
+ * DMA, drain completion or acknowledgement. */
+static bool primary_capture_stop_owner(NikonZ8State *s, uint32_t units)
+{
+    return s->z8_still && s->primary_capture_direct_stop_model &&
+           units == 0x401e && !s->primary_reset_stage &&
+           (s->engine150c_active & units) == units &&
+           s->primary_d980_input_epoch &&
+           s->primary_d980_single_request_epoch == s->primary_d980_input_epoch &&
+           !video_raw_descriptor(s);
+}
+
 /* The native aggregate capture stop waits for group0 bit10, distinct
  * from each unit's direct-end bits. Only an already transferred single
  * input may drain; no new input, DMA or task completion is invented. */
@@ -11810,7 +11825,8 @@ static bool engine150c_stop_write(NikonZ8State *s, hwaddr addr,
         }
         s->engine_150c_init[(addr & 0xffff) / 4] = value;
     } else if (addr == 0x150c000c) {
-        bool forced_video = s->video_forced_stop_model && s->video_raw_transport_model && (value&0xc000);
+        bool forced_video = s->video_forced_stop_model && s->video_raw_transport_model &&
+                            (value&0xc000) && !primary_capture_stop_owner(s, value);
         if (forced_video) {
             /* Request registers accept drain intent while upstream owns
              * data. The producer already fences new packets on requested.

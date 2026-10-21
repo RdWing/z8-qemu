@@ -245,3 +245,38 @@ and selects sequence 3. Only active reason 37 intersects the current mask; activ
 The probe stops cleanly at virtual 71.270584 with 1,622 MAIN / 1,533 EX frames,
 no checksum failures and no image-engine jobs. These are firmware gate
 observations; no reason bit or firmware instruction is changed to force a shot.
+
+
+## Stock date setup and capture permission
+
+The declared MCU RTC calendar alone does not clear the original MAIN date
+permission reason. The stock Setup → Time zone and date → Date and time
+editor is independently checked: changing the day from 2 to 3 and confirming
+changes DateTimeService status from 0 to 2 and clears reason 37. After return
+to Photo, permission becomes one and the next paired release selects sequence
+3, submits D980 configuration and requests one finite frame. Use
+`tools/native-date-setup-contacts.json` with the original-EX contact replay
+recipe and idle `G1=1:G13=1:G14=1:G15=1`. It starts from the fresh Photo-menu
+state and fixed virtual 2026-01-02 calendar; it returns to Photo after the date
+commit. This tests stock UI/EX behavior without injecting a controller reply.
+
+This is a startup setup contract, not HE capture acceptance. The checked
+finite request produces no frame and expires after 65 attempts while source
+control remains `0x4000`, without the model's `0x201` finite-input admission.
+The subsequent Photo `0x401e` stop was incorrectly routed to the shared Movie
+forced-stop handler. A current-generation finite Photo request now retains its
+existing direct-stop route even when Movie models are enabled. Active video
+descriptors, stale request generations and other unit sets retain their own
+checks. This routes cancellation/control only; no DMA or frame completion is
+created by the classifier. Full original-EX HE capture remains unqualified.
+
+
+The original-EX rerun confirms the routing correction: `0x401e` reaches the
+direct-stop path, clears active units and retains its unit-end causes. It does
+not create a frame or HE output. The next SfltDriver bank-1 start correctly
+rejects the absent D980 source, so this is a bounded failed capture, not a
+passing guest harness. The run has 1,217 MAIN / 1,205 EX frames, zero checksum
+failures, one cancelled finite request after 65 attempts and clean owned-process
+cleanup. The frame-validity guard remains intact; the source-input trigger is
+the next capture gap. Firmware-free routing tests reject stale generations,
+active video descriptors and unrelated unit sets.

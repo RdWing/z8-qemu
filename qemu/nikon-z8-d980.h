@@ -294,6 +294,7 @@ static void primary_d980_single_tick(void *opaque)
 static void primary_d980_single_arm(NikonZ8State *s)
 {
     s->primary_d980_single_armed = true;
+    s->primary_d980_single_request_epoch = s->primary_d980_input_epoch;
     s->primary_d980_single_attempts = 0;
     s->primary_d980_single_requests++;
     primary_d980_input_trace(s, "arm", 0, 0);

@@ -10,7 +10,7 @@ from source_helpers import ROOT, function
 class CaptureDrain(unittest.TestCase):
     def test_primary_stop_contract(self):
         source = (ROOT/'qemu/nikon-z8-lab.c').read_text()
-        names = ['primary_capture_drain_ready', 'primary_capture_drain_ack',
+        names = ['primary_capture_stop_owner', 'primary_capture_drain_ready', 'primary_capture_drain_ack',
                  'engine150c_stop_read', 'engine150c_stop_irq_update']
         production = '\n'.join(function(source, n) for n in names)
         declarations = r'''
@@ -23,7 +23,7 @@ typedef struct {
  bool engine150c_stop_model,engine150d_control_model;
  uint32_t primary_reset_stage,engine150c_active,primary_capture_drain_pending;
  uint64_t primary_capture_drain_acks,primary_d980_single_frames;
- uint64_t primary_d980_single_epoch,primary_d980_input_epoch;
+ uint64_t primary_d980_single_epoch,primary_d980_input_epoch,primary_d980_single_request_epoch;
  uint32_t engine150c_stop_pending,engine150c_stop_done;
  uint32_t engine150c_direct_stop_pending,engine150c_direct_stop_pending1;
  uint32_t primary_empty_end_pending,engine150c_bit2_pending,engine150c_bit6_pending;
@@ -32,7 +32,8 @@ typedef struct {
  uint32_t engine_150c_init[0x224/4];
  int engine150c_irq;
 } NikonZ8State;
-static int irq;
+static int irq,video_descriptor;
+static bool video_raw_descriptor(NikonZ8State*s){(void)s;return video_descriptor;}
 static void qemu_set_irq(int line,int level){(void)line;irq=level;}
 static void statistics_update(NikonZ8State*s){(void)s;}
 static void primary_empty_end_update(NikonZ8State*s){(void)s;}
@@ -43,6 +44,17 @@ int main(void){
   .engine150c_stop_model=true,.engine150c_active=0x401e,
   .primary_d980_single_frames=1,.primary_d980_single_epoch=7,
   .primary_d980_input_epoch=7};
+ assert(!primary_capture_stop_owner(&s,0x401e));
+ s.primary_d980_single_request_epoch=7;
+ assert(primary_capture_stop_owner(&s,0x401e));
+ assert(!primary_capture_stop_owner(&s,0x4000));
+ s.primary_d980_single_request_epoch=6;assert(!primary_capture_stop_owner(&s,0x401e));
+ s.primary_d980_single_request_epoch=7;
+ video_descriptor=1;assert(!primary_capture_stop_owner(&s,0x401e));video_descriptor=0;
+ s.primary_reset_stage=1;assert(!primary_capture_stop_owner(&s,0x401e));s.primary_reset_stage=0;
+ s.engine150c_active=0x4000;assert(!primary_capture_stop_owner(&s,0x401e));s.engine150c_active=0x401e;
+ s.z8_still=false;assert(!primary_capture_stop_owner(&s,0x401e));s.z8_still=true;
+ s.primary_capture_direct_stop_model=false;assert(!primary_capture_stop_owner(&s,0x401e));s.primary_capture_direct_stop_model=true;
  assert(primary_capture_drain_ready(&s,0x401e));
  assert(!primary_capture_drain_ready(&s,0x4000));
  s.primary_d980_single_armed=true;assert(!primary_capture_drain_ready(&s,0x401e));

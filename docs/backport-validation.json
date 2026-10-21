@@ -96,5 +96,27 @@
   "original_ex_capture_permission_blockers": [
     37
   ],
-  "original_ex_capture_initial_sequence": 1
+  "original_ex_capture_initial_sequence": 1,
+  "original_ex_date_setup_verified": true,
+  "original_ex_capture_permission_after_date_setup": 1,
+  "original_ex_capture_initial_sequence_after_date_setup": 3,
+  "original_ex_d980_submissions_after_date_setup": 1,
+  "original_ex_sensor_frames_after_date_setup": 0,
+  "native_photo_stop_routing_regression_tests": true,
+  "native_photo_stop_routing_original_ex_verified": true,
+  "original_ex_capture_guard": "SfltDriver bank 1 start rejects absent D980 source after finite-input timeout; no complete native-EX capture accepted",
+  "original_ex_date_setup_repeat": true,
+  "original_ex_stop_routing_probe": {
+    "main_frames": 1217,
+    "ex_frames": 1205,
+    "checksum_failures": 0,
+    "d980_submissions": 1,
+    "finite_requests": 1,
+    "finite_cancelled": 1,
+    "finite_attempts": 65,
+    "sensor_frames": 0,
+    "he_jobs": 0,
+    "harness_passed": false,
+    "owned_qemu_stopped": true
+  }
 }

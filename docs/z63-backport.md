@@ -268,3 +268,19 @@ Native Session → Save session log now copies the stopped launcher's single log
 through a Save dialog, retaining the source. A 103-byte export matches exactly;
 active-session disable, stopped-session enable and dialog cancellation are
 checked. Card/NEF export and the remaining debug/USB/plugin routes are separate.
+
+
+## Original-EX date gate and Photo stop routing
+
+A stock date-editor commit clears the original MAIN date permission reason;
+the next release selects sequence 3 and submits D980 configuration. A
+source-only date-setup contact replay preserves that workflow. No host reply or
+firmware-state patch sets permission. The finite source still times out without
+a frame, and the downstream SfltDriver start remains rejected for absent input.
+
+The enabled shared Movie models previously intercepted that Photo `0x401e`
+stop and raised an unmodeled-access error. Retaining the finite request's source
+generation now selects the existing direct Photo stop path. The native rerun
+confirms that correction before reaching the downstream source-validity guard;
+it does not pass capture acceptance. All 42 host tests run (41 pass, one optional
+legacy comparison skipped), 18 board MMIO checks and 77 MCU checks pass.
