@@ -200,3 +200,24 @@ state. The desktop adds a cold Session restart using a fresh output directory
 and the same inputs/card. Native-window startup cancellation and two cold
 restarts now pass, including card review after the original firmware's terminal
 power-down. This does not close physical wake or fastboot parity.
+
+
+## Full-release report mapping
+
+Original Z8 EX independently confirms PG13 low while PG1 is held: byte 7
+remains one and byte 8 becomes one in the original 124-byte switch report.
+PG13 release clears byte 8; PG1 release clears byte 7. The bounded replay sends
+half at virtual 16.030, PG13 at 18.021, release at 22.037 and half release at
+23.033. It stops cleanly with 609 MAIN / 573 EX frames and zero checksum failures.
+Use `tools/native-full-report-contacts.json` with the original-EX contact-replay
+recipe. This validates a Z8 report binding independently of donor names.
+
+The desktop does not expose full capture yet: a switch report alone does
+not qualify image capture or the separately modeled MAIN half/full GPIO inputs.
+Earlier PF2 controls produce no byte-8 report, including a four-second hold
+with actual input delivery observed. Runtime inspection validates all 19 direct
+input descriptors; PF2 resolves to port 0x40021400/mask 4, so the negative result
+is not a source-ID translation error. Expander 0x22 bit 2 and bit 5 instead
+produce report bytes 5 and 14. These numerical bindings assign no additional
+physical button names. Native full capture remains separate from the accepted
+host-peer HE/HE★ workflow.

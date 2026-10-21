@@ -72,5 +72,9 @@
     "early_firmware_boot"
   ],
   "desktop_session_log_export_verified": true,
-  "desktop_session_log_export_bytes": 103
+  "desktop_session_log_export_bytes": 103,
+  "original_ex_full_release_report": true,
+  "original_ex_full_release_contact": "PG13 active low; PG1 half held",
+  "original_ex_full_capture": false,
+  "original_ex_direct_input_descriptors_verified": 19
 }
