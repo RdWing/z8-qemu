@@ -62,3 +62,8 @@ ELF `.text` itself. All 69 checks pass across zero/one/two MCU resets: A53
 heartbeat isolation, SRAM/flash/RTC backup retention, ordinary peripheral/core
 reset and AIRCR negative controls. This is model validation, not camera capture
 qualification.
+
+The [desktop workbench](../desktop/README.md) can inspect this attachment with
+an `mcu` configuration path. Camera buttons remain disabled in native mode;
+Stop and window-close still own the session lifecycle. The default desktop
+controller remains the separately accepted host peer.

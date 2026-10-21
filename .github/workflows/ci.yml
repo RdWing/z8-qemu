@@ -23,3 +23,13 @@ jobs:
         run: python tests/run.py
       - name: Shared-model host tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  macos-desktop:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native workbench without Nikon inputs
+        run: python3 desktop/build.py
+      - name: Verify ad-hoc bundle signature
+        run: codesign --verify --deep --strict .local/desktop/Z8.app

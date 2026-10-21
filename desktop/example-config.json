@@ -1,0 +1,8 @@
+{
+  "python": "/absolute/path/to/python3",
+  "firmware": "/private/path/to/Z8-MAIN.bi",
+  "qemu": "/absolute/path/to/qemu-system-aarch64",
+  "raw": "/private/path/to/synthetic.raw",
+  "output": "/private/path/to/new-z8-session",
+  "seconds": 3600
+}

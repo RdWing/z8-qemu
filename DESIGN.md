@@ -59,6 +59,19 @@ Seven-pixel control corners and a rectangular LCD. Preserve the established D-pa
 
 `Control` in `tools/control.py` owns the bounded input queue, token validation, readiness and stale-session state. `stream.py` owns MCU delivery. The selector stays latched across button press and release records; applied input state is distinct from the camera's accepted mode. MENU and selector use the same queue and feedback. Offline/stale state disables every camera control while retaining the last image. Arrow shortcuts must not intercept a focused native select or IME composition. This single screen needs no separate UX contract.
 
+## Desktop window
+
+`desktop/Z8.swift` embeds the same workbench in WKWebView. The bundle builder
+extracts startup/error CSS directly from `tools/control.html`; it does not own
+a second palette or button system. AppKit owns configuration/save dialogs and
+menu keyboard behavior. Session → Open configuration is available only while
+stopped; Save display requires a live session. Closing the window stops its
+owned session. The native shell uses English copy and loopback navigation only. Playback uses
+the shared button/queue and requires an explicit virtual card plus model on
+both frontend and server. Native EX inspection identifies original controller
+replies and disables camera inputs while retaining Stop.
+`--compact` starts the same responsive workbench at 680px width for small screens.
+
 ## Motion
 
 No decorative motion. Polling updates status and replaces the LCD image only when its content changes.

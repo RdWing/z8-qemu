@@ -49,8 +49,9 @@ The cumulative Z63 C2.00/C2.01 shared-device changes are adapted through
 `5c3b47c`, including functional HE, JPEG provenance/cancellation, playback resize,
 capture ownership and video-domain models. This is a **partial feature backport**:
 Native HE/HE★ single captures and saved-preview playback are accepted in bounded
-virtual runs. Movie/recovery, complete native MCU controls and the native desktop
-frontend remain incomplete. An optional original EX attachment now reaches the
+virtual runs. Movie/recovery, complete native MCU controls and full desktop parity remain incomplete.
+An initial [macOS desktop workbench](desktop/README.md) now supports the shared
+controls, display saving, saved-photo playback and native EX display inspection. An optional original EX attachment now reaches the
 shooting display; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
 preserved and freshly accepted by LibRaw and Adobe. See the
 [feature disposition and checks](docs/z63-backport.md) before enabling the

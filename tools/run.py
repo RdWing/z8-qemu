@@ -15,6 +15,7 @@ def main():
     p.add_argument('--seconds', type=int, default=1800)
     p.add_argument('--port', type=int, default=8778)
     p.add_argument('--smoke', action='store_true')
+    p.add_argument('--experimental-independent-pixel-clock', action='store_true', help='Use the baseline periodic pixel clock instead of donor capture-tick pacing; requires shared profile')
     p.add_argument('--experimental-boundary-inputs', action='store_true', help='Include declared auxiliary1 and global0-bit26 diagnostic boundaries; requires shared profile')
     p.add_argument('--experimental-preparation-profile', action='store_true', help='Synthetic bank8 offset999=1; missing factory preparation data remains unqualified')
     p.add_argument('--experimental-yuv-channels', action='store_true', help='Enable empty YUV channel readiness acknowledgement; no pixel completion')
@@ -26,7 +27,8 @@ def main():
     p.add_argument('--experimental-playback', action='store_true', help='Enable the imported JPEG decoder/resize model; Z8 saved-photo guest acceptance remains unqualified')
     p.add_argument('--check-only', action='store_true')
     a = p.parse_args()
-    if not 1 <= a.seconds <= 3600 or not 1024 <= a.port <= 65535: p.error('Invalid duration or port')
+    if not 1 <= a.seconds <= 3600 or not (a.port == 0 or 1024 <= a.port <= 65535): p.error('Invalid duration or port')
+    if a.experimental_independent_pixel_clock and not a.experimental_shared221: p.error('--experimental-independent-pixel-clock requires --experimental-shared221')
     if a.experimental_boundary_inputs and not a.experimental_shared221: p.error('--experimental-boundary-inputs requires --experimental-shared221')
     firmware, manifest = verify(a.firmware)
     if not a.qemu.is_file() or not a.raw.is_file(): p.error('QEMU and synthetic RAW inputs must exist')
@@ -57,6 +59,9 @@ def main():
         profile=json.loads(Path(__file__).with_name('experimental-shared221-profile.json').read_text())
         g.command[g.command.index('-M')+1]+=','+','.join(k+'='+v for k,v in profile['properties'].items())
         g.data['experimental_shared221']=profile
+    if a.experimental_independent_pixel_clock:
+        g.command[g.command.index('-M')+1]+=',z8-liveview-frame-done=off'
+        g.data['experimental_independent_pixel_clock']=True
     if a.experimental_yuv_channels:
         g.command[g.command.index('-M')+1]+=',yuvcmp-config-model=on,yuvcmp-channels-model=on,yuvcmp-channel-ready-model=on'
     if a.card:
@@ -79,7 +84,9 @@ def main():
         g.command+=['-device',f'loader,file={selector},addr=0x47f5af50,force-raw=on']
         g.data['experimental_movie_selector16']={'address':'0x47f5af50','value':1,'factory_calibration':False,'basis':'native selector16 underflows absent table record at 41170d84'}
     g.data['command'] = g.command
-    control = replay or (None if a.smoke else Control(a.port))
+    control = replay or (None if a.smoke else Control(a.port,playback=a.experimental_playback))
+    if control and not replay:
+        control.write_endpoint(g.out)
     if control: signal.signal(signal.SIGTERM, lambda *_: control.stop.set())
     try:
         with g:
