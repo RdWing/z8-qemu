@@ -15,7 +15,7 @@ def check(code):
         p=Path(temp);(p/'test.c').write_text(code)
         flags=subprocess.check_output(['pkg-config','--cflags','--libs','glib-2.0'],text=True).split()
         subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Wno-unused-function',
-                        '-fsanitize=address,undefined',str(p/'test.c'),'-o',str(p/'test'),*flags],check=True)
+                        '-fsanitize=address,undefined',str(p/'test.c'),'-o',str(p/'test'),'-lm',*flags],check=True)
         subprocess.run([str(p/'test')],check=True)
 
 

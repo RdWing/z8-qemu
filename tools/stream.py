@@ -61,6 +61,9 @@ def run(g,seconds=60,control=None):
     g.qmp.command('screendump',filename=str(frame))
     if control:
      control.publish(frame,row,ready=phase>=3 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==1)
+     if hasattr(control,'captured') and len(control.captured)>len(g.data.get('parity_snapshots',[])):
+      g.data.setdefault('parity_snapshots',[]).append(dict(control.captured[-1],raw=raw,
+       models={name:state(name) for name in ['engine150c-state','engine151-control-state','engine1543-control-state','engine1518-state','z8-playback-state']}))
      if control.ready:phase=5  # Startup MENU retry must never undo a user's later MENU/half-shutter.
      (g.out/'live-status.json').write_text(json.dumps(dict(control.status(),interactive_inputs=g.data.get('interactive_inputs',[])))+'\n')
     preparation_ready=(bool(g.data.get('experimental_preparation_profile')) and
