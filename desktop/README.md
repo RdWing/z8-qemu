@@ -63,6 +63,10 @@ baseline run passed 1,117 harness checks. Private process-group timeout cleanup
 and readiness/session/playback admission have firmware-free tests. The strict
 frontend audit reports zero findings.
 
+The explicit host-peer Movie profile was exercised from the desktop selector:
+667 movie frames, followed by Photo/Menu/half-shutter recovery and 2,366 total
+RAW frames at clean window-close shutdown.
+
 Original-EX desktop half-shutter and Menu inputs also reached the native Menu,
 with clean owned-process shutdown and zero checksum failures.
 

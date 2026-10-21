@@ -176,3 +176,9 @@ No movie container, audio, physical cadence or original-EX movie workflow is
 qualified. Saved-photo playback still fails to resume Photo pixels. Posting
 A1 finite-input-end bit 16 after actual reads/writes did not fix that lifecycle
 and is excluded from the accepted model.
+
+The macOS workbench also exercised this explicit Movie profile: selector inputs
+at 42.61/68.05 virtual seconds entered Movie then Photo; Menu at 99.04 and half
+at 138.88 reached their original displays. It produced 667 movie frames and
+2,366 total RAW frames by 161.5 virtual seconds, then closed without a guest
+error and reaped its owned child.
