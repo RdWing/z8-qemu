@@ -19,7 +19,7 @@ Z63 firmware on the Z8 machine.
 | --- | --- | --- |
 | Shared221 capture, HE forward/inverse, RAW transport, capture pool, programmed clock, DSP boot, motion, main output and Wave5 | Included as source with explicit opt-in properties and dependencies. Original DSP microcode, physical ISP equations and R3D integration are excluded. | Synthetic host tests and actual board MMIO; native single HE/HE★ captures separately accepted. Movie recording remains open. |
 | NV12 live-view JPEG and cancellation | Ported mode `0x32`, completed-generation tracking, overwrite invalidation, once-only consumption and pending-result guards. Existing NV16 remains covered. | Host codec/provenance tests; Z8 PTP/RTSP delivery remains unqualified. |
-| JPEG decode and saved-preview resize | Ported both JPEG cores, per-core epochs, NV16 geometry/span/padding/overlap checks and output-before-IRQ ownership. | Production resize/rendering tests and one native saved-photo display accepted. Zoom and return-to-Photo recovery remain open. |
+| JPEG decode and saved-preview resize | Ported both JPEG cores, per-core epochs, NV16 geometry/span/padding/overlap checks and output-before-IRQ ownership. | Production resize/rendering tests and one native saved-photo display accepted. Normal two-cycle Photo/Menu return is accepted; zoom and idle-wake remain open. |
 | Capture drains and movie exit | Ported source/processing ownership, deferred drains, masked-statistics reset and finite/continuous input separation. | Synthetic tests; repeated Z8 capture and movie return remain unqualified. |
 | Task `0xff` status clear | Separate `task1500-ff-clear-model`, off by default. Z8's original zero clear is preserved. | Empty-status clear/arm/start controls; neither value creates task data. |
 | Graphics/display | Preserve Z8 four-bank active acknowledgments, indexed overlays, region storage and additional rendering paths; add full-height NV16 direct scanout. | Actual renderer tests and original menu regression; physical panel/color fidelity unqualified. |
@@ -173,7 +173,7 @@ together with `--replay tools/movie-recovery-replay.json`; omit the still-prepar
 negative control. Movie input is functional 4,140×2,344 Bayer with a simplified
 1920×1080 ISP output. A 2160p30 UI label does not establish 4K recording.
 No movie container, audio, physical cadence or original-EX movie workflow is
-qualified. Saved-photo playback still fails to resume Photo pixels. Posting
+qualified. The earlier delayed saved-photo exit did not resume Photo pixels. Posting
 A1 finite-input-end bit 16 after actual reads/writes did not fix that lifecycle
 and is excluded from the accepted model.
 
@@ -182,3 +182,27 @@ at 42.61/68.05 virtual seconds entered Movie then Photo; Menu at 99.04 and half
 at 138.88 reached their original displays. It produced 667 movie frames and
 2,366 total RAW frames by 161.5 virtual seconds, then closed without a guest
 error and reaped its owned child.
+
+## Finite playback ordering
+
+The saved-preview transfer now executes at A1 START using a retained,
+epoch-checked decoded input and validated F4/B4 geometry. Both output planes
+precede input first/data/end and B4 writer notifications. Enabled source-14
+luma statistics consume the same actual input and expose 256 saturating
+24-bit bins before the E event. Original W1C owns every cause. A B6 pulse
+produces control only: source inspection places it in timeout cleanup, after
+the finite initializer has already awaited input and histogram data.
+
+Two cold-boot controls display the retained NEF with successful original
+input/histogram waits and initializer return, one 1,396,736-byte resize each.
+This corrects the earlier display-after-timeout ordering. A separate final
+source run completes two Play/half/Menu/half cycles: two 1,396,736-byte resize
+jobs, with fresh Photo RAW counts 435 after the first return, 786 after the
+second and 960 after its final Menu/half. Exit occurs six virtual seconds after
+Play input. Use `--replay tools/playback-recovery-replay.json` with the explicit
+shared/boundary/playback/card/sensor-source-clock recipe. Idle-wake and zoom
+remain open: in the delayed control, MAIN left playback for mode 0 before
+right/half inputs arrived, accompanied by MCU mode request 9. Transport
+completion alone did not wake that state.
+Production tests cover immutable input, padding, decoder epochs, pending
+owners, cancellation and absence of pixel work from the timeout pulse.

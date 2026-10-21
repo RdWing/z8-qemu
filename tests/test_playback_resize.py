@@ -33,7 +33,10 @@ class PlaybackResize(unittest.TestCase):
 #define BASE UINT64_C(0xa00000000)
 typedef uint64_t hwaddr;
 typedef struct {
- bool z8_jdec_on,z8_playback_requested,z8_jdec_output_valid[2];
+ bool raw_pipeline_output_done,z8_e_armed,raw_histogram_luma;
+ uint32_t raw_histogram[3][256];uint64_t raw_histogram_samples,raw_histogram_frames;unsigned raw_histogram_source;
+ bool z8_jdec_on,z8_playback_requested,z8_playback_active,z8_jdec_output_valid[2];
+ uint8_t *z8_playback_pixels;
  uint64_t z8_jdec_y[2],z8_jdec_uv[2],z8_jdec_output_epoch[2],z8_playback_decode_epoch;
  unsigned z8_playback_decode_core;
  uint32_t z8_jdec_width[2],z8_jdec_height[2],z8_jdec_yp[2],z8_jdec_cp[2],z8_jdec_format[2];
@@ -56,7 +59,9 @@ static int address_space_write(void*a,uint64_t p,int attrs,const void*b,size_t n
  (void)a;(void)attrs;assert(dma_ram_range(NULL,p,n));writes++;memcpy(ram+p-BASE,b,n);return 0;
 }
 static void raw_pipeline_irq_update(NikonZ8State*s){
- assert(writes==4);assert(s->engine1542_pending[1]==0x11);
+ assert(reads==2);
+ if(s->engine1542_pending[1]==0x10011)assert(writes==4&&s->engine1542_pending[7]==0x1000);
+ else assert(s->engine1542_pending[1]==0x10000);
  assert(!s->engine1542_pending[11]);irq++;
 }
 static void unknown_access(NikonZ8State*s,hwaddr a,uint64_t v,unsigned n,bool w){
@@ -90,28 +95,48 @@ static void setup(NikonZ8State*s){
 int main(void){
  NikonZ8State s;setup(&s);
  assert(z8_playback_control(&s,0x15421104,0x5001));
- assert(s.z8_playback_requested&&s.z8_playback_requests==1&&!reads&&!writes&&!irq);
- z8_playback_control(&s,0x15421104,0x5001);assert(invalid==1&&!writes);
- z8_playback_output_control(&s,9,0x15422604,1);
- assert(s.z8_playback_jobs==1&&s.z8_playback_bytes==16&&reads==2&&writes==4&&irq==1);
+ assert(!s.z8_playback_requested&&s.z8_playback_requests==1&&reads==2&&writes==4&&irq==1);
+ assert(s.z8_playback_jobs==1&&s.z8_playback_bytes==16&&!s.z8_playback_pixels);
  for(unsigned r=0;r<2;r++)for(unsigned x=0;x<8;x++){
   assert(ram[512+r*8+x]==(x<4?r*20+x*2:0xcd));
   assert(ram[768+r*8+x]==(x<4?100+r*20+(x&~1)*2+(x&1):0xcd));
  }
- assert(!s.z8_playback_requested);z8_playback_control(&s,0x15421104,0x5000);
- assert(s.engine1542_config[1][1]==0x5000);
+ z8_playback_control(&s,0x15421104,0x5001);assert(invalid==1&&writes==4);
+ z8_playback_output_control(&s,9,0x15422604,1);assert(writes==4&&irq==1); /* Pulse is not DMA. */
+ s.engine1542_pending[1]=s.engine1542_pending[7]=0;
+ z8_playback_control(&s,0x15421104,0x5000);
+ assert(s.engine1542_pending[1]==0x10000&&irq==2&&!s.z8_playback_active);
+ s.engine1542_pending[1]=0;z8_playback_control(&s,0x15421104,0x5000);assert(irq==2);
  setup(&s);s.z8_jdec_output_valid[0]=false;assert(!z8_playback_prepare(&s));
  setup(&s);s.z8_jdec_format[0]=2;assert(!z8_playback_prepare(&s));
  setup(&s);s.engine1542_pending[1]=0x10;assert(!z8_playback_prepare(&s));
+ setup(&s);s.engine1542_pending[1]=0x10000;assert(!z8_playback_prepare(&s));
+ setup(&s);s.engine1542_pending[7]=0x1000;assert(!z8_playback_prepare(&s));
+ setup(&s);s.engine1542_pending[14]=0x10;assert(!z8_playback_prepare(&s));
  setup(&s);s.engine1542_config[19][0x10/4]=8<<14;assert(!z8_playback_prepare(&s));
  setup(&s);pair(s.engine1542_config[7],0x20,BASE);assert(!z8_playback_prepare(&s));
  setup(&s);pair(s.engine1542_config[7],0x20,BASE+4096);assert(!z8_playback_prepare(&s));
- assert(!z8_playback_span(&s,UINT64_MAX-31,64));
- assert(!reads&&!writes&&!irq);
+ assert(!z8_playback_span(&s,UINT64_MAX-31,64));assert(!reads&&!writes&&!irq);
  setup(&s);assert(z8_playback_prepare(&s));s.engine1542_config[9][8]=1;
- z8_playback_output_control(&s,9,0x15422604,1);assert(invalid==1&&!writes);
+ z8_playback_output_control(&s,9,0x15422604,1);assert(invalid==1&&!writes);g_free(s.z8_playback_pixels);
  setup(&s);assert(z8_playback_prepare(&s));s.z8_jdec_output_epoch[0]++;
- z8_playback_output_control(&s,9,0x15422604,1);assert(invalid==1&&!writes);
+ s.z8_playback_outputs_armed=2;z8_playback_run(&s);assert(invalid==1&&!writes&&!irq&&!s.z8_playback_pixels);
+ /* A retained read cannot be replaced by later edits to source RAM. */
+ setup(&s);assert(z8_playback_prepare(&s));memset(ram,0xee,48);s.z8_playback_outputs_armed=2;
+ z8_playback_run(&s);assert(ram[512]==0&&ram[513]==2&&writes==4);
+ setup(&s);assert(z8_playback_prepare(&s));z8_playback_control(&s,0x15421104,0x5000);
+ assert(!writes&&irq==1&&!s.z8_playback_pixels&&!s.z8_playback_requested);z8_playback_run(&s);assert(!writes);
+ setup(&s);s.raw_pipeline_output_done=s.z8_e_armed=true;
+ uint32_t*e=s.engine1542_config[14];e[0]=1;e[1]=0xe0;e[2]=1;e[0x50/4]=0x11;
+ assert(z8_playback_prepare(&s));z8_playback_histogram(&s);
+ assert(s.engine1542_pending[14]==1&&s.raw_histogram_frames==1&&s.raw_histogram_samples==32&&s.raw_histogram_source==14);
+ unsigned count=0;for(unsigned b=0;b<256;b++)count+=s.raw_histogram[0][b];assert(count==32&&s.raw_histogram[0][0xcd]==0);
+ s.z8_e_armed=true;z8_playback_histogram(&s);assert(s.raw_histogram_frames==1);
+ s.engine1542_pending[14]=0;e[1]=0xd0;z8_playback_histogram(&s);assert(!s.engine1542_pending[14]);
+ e[1]=0xe0;e[2]=0;z8_playback_histogram(&s);assert(s.raw_histogram_frames==1);
+ e[2]=1;e[0x50/4]=0;z8_playback_histogram(&s);assert(s.raw_histogram_frames==1);
+ e[0x50/4]=0x11;s.raw_pipeline_output_done=false;z8_playback_histogram(&s);assert(s.raw_histogram_frames==1);
+ z8_playback_control(&s,0x15421104,0x5000);
  return 0;
 }
 '''

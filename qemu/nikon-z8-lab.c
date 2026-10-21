@@ -763,7 +763,8 @@ struct NikonZ8State {
     unsigned z8_jdec_phase[2];             /* 0 idle, 1 at the header, 2 done */
     uint32_t z8_jdec_pending[2], z8_jdec_core[2], z8_jdec_hold[2];
     uint64_t z8_jdec_jobs, z8_jdec_errors;
-    bool z8_jdec_output_valid[2], z8_playback_requested;
+    bool z8_jdec_output_valid[2], z8_playback_requested, z8_playback_active;
+    uint8_t *z8_playback_pixels;
     uint64_t z8_jdec_y[2], z8_jdec_uv[2], z8_jdec_output_epoch[2];
     uint64_t z8_playback_decode_epoch;
     unsigned z8_playback_decode_core;
@@ -15404,7 +15405,7 @@ static bool engine1542_write(NikonZ8State *s, hwaddr addr, uint64_t value,
         return engine1543_control_write(s, i, addr, value);
     }
     if (s->z8_jdec_on && i == 9 && off == 4 &&
-        s->z8_playback_requested) {
+        s->z8_playback_requests) {
         return z8_playback_output_control(s, i, addr, value);
     }
     if (s->z8_jdec_on && i == 1 && off == 4 &&
@@ -23309,6 +23310,7 @@ static void nikon_z8_finalize(Object *obj)
     if (s->serial_write_peer_wire_hash) { g_checksum_free(s->serial_write_peer_wire_hash); }
     g_free(s->statistics_raw_path);
     nikon_raw_pixels_free(s->raw_pixels);
+    g_free(s->z8_playback_pixels);
     g_free(s->primary_d980_cache);
     g_free(s->video_raw_packet_extra);
     if (s->primary_d980_single_timer) { timer_free(s->primary_d980_single_timer); }

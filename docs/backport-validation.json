@@ -26,7 +26,7 @@
     1129
   ],
   "native_playback_display": true,
-  "native_playback_recovery": false,
+  "native_playback_recovery": true,
   "native_mcu_reset_contact_checks": 73,
   "native_mcu_qualified_controls": [
     "menu",
@@ -37,5 +37,10 @@
     "right",
     "i",
     "half"
-  ]
+  ],
+  "native_playback_finite_waits_complete": true,
+  "native_playback_trigger": "A1 START; B6 timeout control produces no DMA",
+  "native_playback_idle_wake": false,
+  "native_playback_zoom": false,
+  "native_playback_recovery_cycles": 2
 }
