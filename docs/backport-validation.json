@@ -4,8 +4,8 @@
   "host_family": "macOS Apple Silicon",
   "full_fresh_qemu_build": true,
   "host_tests": {
-    "run": 39,
-    "pass": 38,
+    "run": 42,
+    "pass": 41,
     "skip_optional_legacy": 1
   },
   "actual_board_mmio_checks": 18,
@@ -27,7 +27,7 @@
   ],
   "native_playback_display": true,
   "native_playback_recovery": true,
-  "native_mcu_reset_contact_checks": 73,
+  "native_mcu_reset_contact_checks": 76,
   "native_mcu_qualified_controls": [
     "menu",
     "down",
@@ -54,5 +54,14 @@
   "original_ex_idle_wake": false,
   "original_ex_movie_with_card_frames": 114,
   "original_ex_desktop_playback_recovery": true,
-  "original_ex_desktop_movie_selection": false
+  "original_ex_desktop_movie_selection": true,
+  "original_ex_desktop_movie_surface": "Native Camera menu; popup automation remains separate",
+  "original_ex_desktop_movie_frames": 135,
+  "native_power_down_detector_host_tests": true,
+  "desktop_cold_restart_workflow_verified": false,
+  "native_power_resume": false,
+  "native_power_down_detector_original_firmware": true,
+  "native_power_down_detected_virtual_seconds": 33.2,
+  "desktop_startup_cancellation_workflow_verified": false,
+  "desktop_recovery_validation_blocker": "Manual macOS unlock required for remaining native-window checks"
 }

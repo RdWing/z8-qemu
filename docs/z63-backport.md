@@ -222,15 +222,38 @@ Separate cold-boot contact and interactive workbench runs produced 97 and 261
 Movie frames with matching ISP/source acknowledgments, then recovered through
 Photo/Menu/half. Native card review independently completed two finite resize
 jobs, with normal early Photo/Menu/half return and fresh RAW frames. The later
-review idle transition still fails the tested half/Menu wake sequence. See
+review idle transition reaches original firmware terminal power-down and still
+fails the tested half/Menu wake sequence. See
 [native MCU evidence and replay](native-mcu.md#native-movie-and-card-workflows).
 
 B6 timeout cleanup now retains only its control pulse, independent of a past
 playback epoch or geometry. It performs no DMA and creates no completion.
 Actual output remains exclusively guarded at A1 START. Production-function
 ASan/UBSan tests preserve invalid-pulse rejection, pending-owner checks and
-pixel/epoch admission. The updated host suite passes 38 of 39 tests with one
+pixel/epoch admission. The updated host suite passes 41 of 42 tests with one
 optional legacy comparison skipped; all 18 board MMIO checks and the strict
 frontend audit pass. The macOS bundle builds and its signature verifies.
 Encoded recording, repeated still capture, idle wake/zoom and full desktop
 integration remain open; this PR remains a bounded backport.
+
+
+## Desktop commands and terminal power-down checkpoint
+
+Native AppKit Camera commands now use the same guarded selector as the browser
+popup, with proper menu validation and origin-checked readiness. An original-EX
+window completes Movie→Photo→Menu→half with 135 Movie frames, matching ISP/source
+acknowledgments and 870 RAW frames. There are zero checksum/pixel errors and
+window close stops the owned session. The popup automation limit is separate.
+
+Read-only CPU/GPIO observations distinguish terminal firmware power-down from
+an ordinary playback wait. The backend detects the verified C3.11 three-core
+SRAM park, disables controls and cancels pending inputs while retaining the last
+frame. Original-firmware readiness changes from true to false at 33.2 virtual
+seconds in a clean test. All 76 MCU reset/contact/read-only checks pass.
+
+Desktop input checks now run off the UI thread, with exact-file access recovery
+and startup cancellation. Session restart waits for the owned launcher to exit
+before opening the same card in a fresh cold session. These recovery paths
+build and have source review; full native-window restart/cancellation validation
+is pending a manual macOS unlock. Physical wake/reset/fastboot, remaining MCU
+contacts and complete desktop parity remain open.

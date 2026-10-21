@@ -21,6 +21,7 @@ from native_contact_replay import ContactReplay
 from native_inputs import Inputs, CONTACTS
 import movie_inputs
 import virtual_card
+from native_power import powered_down
 
 p=arguments(__doc__)
 p.add_argument('--port',type=int,help='Loopback native-MCU display and optional qualified contacts')
@@ -99,19 +100,23 @@ try:
    spi8.clock_if_ready(channels[8]);spi9.clock_if_ready(channels[9])
    now=time.monotonic()
    if now>=next_sample:
-    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
+    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-io-state','capture-gpio-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
     row['ui_control_hex']=g.read_bytes(0xa03228fa4,32).hex()
     row['main_switch_cache_hex']=g.read_bytes(0xa0320169c,44).hex()
+    row['powered_down']=powered_down(row['runtime-clock-state'],int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little'))
+    g.data['native_powered_down']=g.data.get('native_powered_down',False) or row['powered_down']
     g.data.setdefault('native_samples',[]).append(row)
     if control:
      g.qmp.command('stop');frame=g.out/'current.ppm';g.qmp.command('screendump',filename=str(frame))
-     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9),ready=a.native_controls and row['raw-pipeline-state']['frames']>=8 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
+     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9,powered_down=row['powered_down']),ready=a.native_controls and row['raw-pipeline-state']['frames']>=8 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
      g.qmp.command('cont')
     (g.out/'native-live.json').write_text(json.dumps(row)+'\n');next_sample=now+.5
    time.sleep(.002)
   if inputs:inputs.release()
   g.qmp.command('stop')
   g.qmp.command('memsave',val=0x2000d000,size=7964,filename=str(g.out/'mcu-initialized-data.bin'),**{'cpu-index':4})
+  # EX boot copies 0x1c4 vector bytes here, then service registration replaces handlers.
+  g.qmp.command('memsave',val=0x20000000,size=0x1c4,filename=str(g.out/'mcu-vectors.bin'),**{'cpu-index':4})
   g.data['native_cpus']={str(i):g.qmp.hmp('info registers',i) for i in range(5)}
   if a.experimental_shared221 or a.experimental_playback:
    g.data['native_model_state']={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['raw-pipeline-state','z8-playback-state','engine15e2-jpeg-state','event1508-channel-state','engine1543-control-state']}

@@ -33,6 +33,14 @@ loopback queue serve both desktop and browser. Sessions choose an unused
 loopback port and publish it atomically to `control-endpoint.json` in their
 private output directory. The webview only navigates within that origin.
 
+Camera → Switch to Photo / Switch to Movie (Cmd-1 / Cmd-2) offers native
+commands alongside the popup. Both use the same guarded input queue, and
+the commands stay disabled until the selected controller profile is ready.
+The app checks configured input access off the UI thread before starting
+Python. If access pauses, Session → Allow input access opens the configured
+file picker; Stop emulator cancels startup. A denied file can also open that
+exact-input picker. No broader folder permission is requested.
+
 ## Controller modes
 
 The default uses the established host MCU peer. Add an existing `card` path
@@ -76,10 +84,11 @@ with clean owned-process shutdown and zero checksum failures. The shared
 workbench separately exercised native Movie/Photo. A rebuilt AppKit window
 also completed native Play/half/Menu/half with one 1,396,736-byte review transfer,
 fresh Photo frames (518 RAW frames at shutdown), 761 MAIN / 710 EX frames, zero
-checksum failures or pixel rejects and clean window-close cleanup. Native
-Movie selection was not completed in that desktop test because popup
-automation was interrupted; shared-browser native Movie acceptance remains
-separate.
+checksum failures or pixel rejects and clean window-close cleanup. A later native Camera-menu run separately completes Movie→Photo→Menu→half
+with 135 Movie frames, matched ISP/source acknowledgments, 870 RAW frames,
+1,047 MAIN / 937 EX frames, zero checksum/pixel errors and clean window close.
+The native commands avoid depending on popup automation; both use the same
+shared selector queue.
 
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
 top-panel drawing, recording, playback idle wake/zoom, USB/plugins, a firmware console/debug
@@ -87,3 +96,18 @@ dock, photo/log export dialogs and Linux/Windows desktop bundles remain open.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
 Z8 controls. Native HE/HE★ capture remains available through the separately
 qualified capture launcher.
+
+
+## Firmware power-down
+
+The native controller path can reach the original firmware's terminal SRAM
+park after review idle. The workbench recognizes the checked C3.11 CPU states,
+pauses camera controls, cancels pending inputs and keeps the last frame.
+Session → Restart session (Cmd-Shift-R) provides a cold restart with the same
+inputs/card and a fresh output directory. The old owned process exits before
+the new session starts. This does not implement physical controller wake or
+preserve firmware RAM across a reset.
+
+The detector and request cancellation have host tests. Full native-window
+restart and startup-cancellation qualification remains pending; this is draft
+recovery work. Native Camera-menu Movie/Photo recovery is separately verified.

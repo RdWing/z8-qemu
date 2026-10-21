@@ -174,6 +174,14 @@ def main():
                     check('Invalid contact batch is rejected atomically',rejected and switches()==pressed)
                     qmp.command('qom-set',path='/machine',property='mcu-contacts',value='23.6=1:23.13=1')
                     check('External contacts release to idle',all(x['inputs']==0xffffff for x in switches()['expanders']))
+                    def io():
+                        return json.loads(qmp.command('qom-get',path='/machine',property='native-mcu-io-state'))
+                    initial_io=io()
+                    check('Paused IO observation has no status-clearing side effects',initial_io==io())
+                    qmp.command('qom-set',path='/machine',property='mcu-pins',value='G1=1')
+                    check('IO observation sees explicit external GPIO level',next(x for x in io()['gpio'] if x['port']==6)['input']&2)
+                    qmp.command('qom-set',path='/machine',property='mcu-pins',value='G1=0')
+                    check('IO observation sees GPIO return low without serial work',not(next(x for x in io()['gpio'] if x['port']==6)['input']&2) and all(not x['tx_queued'] and not x['rx_queued'] for x in io()['serial']))
                     native=json.loads(qmp.command('qom-get',path='/machine',property='native-mcu-state'))
                     check('Contact inputs fabricate no MCU messages',switches()['frames']==0 and native['main_frames']==native['mcu_frames']==0 and not native['host_message_replies'])
         except Exception as error:

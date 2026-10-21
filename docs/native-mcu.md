@@ -60,9 +60,9 @@ python tests/check_mcu_reset.py --qemu /path/to/qemu-system-aarch64 \
 ```
 
 Clang with AArch64/Thumb targets is required. The script extracts relocation-free
-ELF `.text` itself. All 73 checks pass across zero/one/two MCU resets: A53
+ELF `.text` itself. All 76 checks pass across zero/one/two MCU resets: A53
 heartbeat isolation, SRAM/flash/RTC backup retention, ordinary peripheral/core
-reset and AIRCR negative controls, plus contact isolation, release, atomic invalid-batch rejection and absence of fabricated messages. This is model validation, not camera capture
+reset and AIRCR negative controls, plus contact isolation, release, atomic invalid-batch rejection, read-only GPIO/EXTI/serial state and absence of fabricated messages. This is model validation, not camera capture
 qualification.
 
 ## Original EX controls
@@ -159,3 +159,43 @@ window close. One 1,396,736-byte review job completes, with 761 MAIN / 710 EX
 frames, zero checksum failures, zero pixel rejects and clean owned shutdown.
 The native Movie popup selection was not committed in this desktop test;
 shared-browser Movie and finite replay acceptance do not imply that action.
+
+
+The native Camera menu separately completes Movie/Photo/Menu/half: Movie input
+at virtual 13.474, Photo at 25.555, Menu at 33.545 and half at 40.501. It
+produces 135 Movie frames with 135 ISP/source acknowledgments, then advances
+to 870 RAW frames. Serial totals are 1,047 MAIN / 937 EX, zero checksum failures,
+zero pixel rejects and clean window-close cleanup. Camera commands and the
+popup share one selector function; native commands stay disabled during boot
+and respect the same in-flight, capability and stale-session checks.
+
+`native-mcu-io-state` observes MAIN GPIO levels/mask/pending/polarity/enable,
+MCU GPIO input/output modes, EXTI routing/edges and serial ownership without
+reading status-clearing device registers. Reset/contact checks now include
+repeatable paused observation and explicit GPIO levels (76 checks). A bounded
+idle reproduction confirms PG1 reaches its input at 36.077 virtual seconds,
+while serial totals remain 750 MAIN / 694 EX after idle. That establishes
+delivery to the pin, not a recovered wake path or physical wiring.
+
+
+## Terminal power-down and recovery
+
+The later review-idle failure reaches the original MAIN shutdown callback,
+then terminal SRAM WFI loops on all three MAIN cores. Ordinary half/Menu inputs
+cannot restore that state. A paired MAIN half-GPIO edge also fails to resume it;
+no physical wake/reset wiring is inferred from these negative controls.
+
+Read-only `runtime-clock-state` includes each CPU PC; `native-mcu-io-state`
+records MAIN GPIO, EX GPIO/EXTI and serial state without clearing status or
+creating interrupts. The C3.11 detector requires UI mode 0 and all three halted
+MAIN cores at their verified terminal park addresses. Boot or scheduler WFI
+alone does not qualify. It never redirects a CPU or edits firmware RAM.
+
+An original MAIN/EX run first becomes ready, then detects power-down at 33.2
+virtual seconds. The loopback status becomes `powered_down: true` and
+`ready: false`, preserves the last display and rejects further camera inputs.
+It stops cleanly with 750 MAIN / 694 EX frames and zero checksum failures.
+Host tests additionally cover queued-input cancellation and sticky terminal
+state. The desktop adds a cold Session restart using a fresh output directory
+and the same inputs/card; native-window restart and startup-cancellation checks
+remain pending. This does not close physical wake or fastboot parity.

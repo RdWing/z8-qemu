@@ -11001,10 +11001,10 @@ static char *get_runtime_clock_state(Object *obj, Error **errp)
         all_cpu_threads_idle() ? "true" : "false");
     bool comma = false;
     CPU_FOREACH(cpu) {
-        g_string_append_printf(out, "%s{\"index\":%d,\"halted\":%s,\"stopped\":%s,"
+        g_string_append_printf(out, "%s{\"index\":%d,\"pc\":%" PRIu64 ",\"halted\":%s,\"stopped\":%s,"
             "\"event_pending\":%s,\"event_waiting\":%s,"
             "\"event_sleeps\":%" PRIu64 ",\"event_wakes\":%" PRIu64 "}",
-            comma ? "," : "", cpu->cpu_index, cpu->halted ? "true" : "false",
+            comma ? "," : "", cpu->cpu_index, (uint64_t)CPU_GET_CLASS(cpu)->get_pc(cpu), cpu->halted ? "true" : "false",
             cpu->stopped ? "true" : "false",
             ARM_CPU(cpu)->env.event_register ? "true" : "false",
             (cpu->halted && !ARM_CPU(cpu)->env.event_register) ? "true" : "false",
@@ -22905,6 +22905,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "task1500-ff-clear-model", get_task1500_ff_clear_model, set_task1500_ff_clear_model);
     object_class_property_add_str(oc,"mcu-image",get_z8_mcu_image,set_z8_mcu_image);
     object_class_property_add_str(oc,"native-mcu-state",get_z8_mcu_state,NULL);
+    object_class_property_add_str(oc,"native-mcu-io-state",get_z8_mcu_io,NULL);
     object_class_property_add_str(oc,"mcu-pins",get_z8_mcu_pins,set_z8_mcu_pins);
     object_class_property_add_str(oc,"mcu-contacts",get_z8_mcu_contacts,set_z8_mcu_contacts);
     object_class_property_add_str(oc,"native-mcu-switch-state",get_z8_mcu_switches,NULL);

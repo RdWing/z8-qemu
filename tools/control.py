@@ -29,7 +29,7 @@ def png_from_ppm(path):
 
 class Control:
  def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None,native_modes=False):
-  self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes)
+  self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes);self.powered_down=False;self.cancelled=0
   self.allowed_buttons=set(BUTTONS if not native_mcu else native_buttons or [])
   self.playback=bool(playback)
   self.stop=threading.Event();self.queue=queue.Queue(maxsize=8);self.png=None;self.info={'state':'Booting original Z8 MAIN…'};self.token=secrets.token_hex(24)
@@ -77,19 +77,26 @@ class Control:
   target=Path(out)/'control-endpoint.json';temporary=target.with_suffix('.tmp')
   temporary.write_text(json.dumps({'url':f'http://127.0.0.1:{self.server.server_address[1]}/','session':self.session})+'\n');temporary.replace(target)
  def next_input(self):
+  if self.powered_down:return None
   try:return self.queue.get_nowait()
   except queue.Empty:return None
  def mark_sent(self):self.sent+=1
  def status(self):
   stale=self.last_publish is not None and time.monotonic()-self.last_publish>5
   ready=self.ready and (not self.native_mcu or bool(self.allowed_buttons)) and not stale and not self.stop.is_set()
-  info=dict(self.info,allowed_buttons=sorted(self.allowed_buttons),mode_available=not self.native_mcu or bool(self.native_modes and self.allowed_buttons),controller='native_ex' if self.native_mcu else 'host_peer',playback_available=self.playback,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
+  info=dict(self.info,powered_down=self.powered_down,cancelled_inputs=self.cancelled,allowed_buttons=sorted(self.allowed_buttons),mode_available=not self.native_mcu or bool(self.native_modes and self.allowed_buttons),controller='native_ex' if self.native_mcu else 'host_peer',playback_available=self.playback,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
   if self.stop.is_set():info['state']='Stopping emulator…'
   elif stale:info['state']='Emulator is not advancing. Controls paused.'
   return info
  def publish(self,path,row,ready=False):
   png=png_from_ppm(path)
   if png!=self.png:self.png=png;self.frame_version+=1
-  self.ready=(self.ready or ready) and (not self.native_mcu or bool(self.allowed_buttons));self.last_publish=time.monotonic()
+  self.powered_down=self.powered_down or bool(row.get('powered_down'))
+  if self.powered_down:
+   while not self.queue.empty():
+    try:self.queue.get_nowait();self.cancelled+=1
+    except queue.Empty:break
+  self.ready=(self.ready or ready) and not self.powered_down and (not self.native_mcu or bool(self.allowed_buttons));self.last_publish=time.monotonic()
   self.info={'state':(('Running original MAIN/EX firmware' if self.ready else 'Original MAIN/EX running · camera inputs paused') if self.native_mcu and self.allowed_buttons else 'Original MAIN/EX running · display-only session' if self.native_mcu else 'Running original Z8 firmware' if self.ready else 'Starting camera display and menus…'),'virtual_seconds':round(row['virtual_seconds'],1),'display_frames':row['lcd']['frames'],'sensor_frames':row['raw']['frames']}
+  if self.powered_down:self.info['state']='Camera firmware entered power-down. Restart the session to continue.'
  def close(self):self.server.shutdown();self.server.server_close()

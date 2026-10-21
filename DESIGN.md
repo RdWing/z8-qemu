@@ -73,8 +73,31 @@ replies. Its optional qualified-contact mode enables Menu, arrows, OK, i and
 half-shutter. Card/model checks enable Play; the full experimental Movie profile
 enables the latched native lever. Capability checks disable unsupported actions.
 Display-only native mode retains Stop.
+Camera → Switch to Photo / Switch to Movie (Cmd-1 / Cmd-2) call the same
+`z8Workbench.selectMode` function as the popup. That function owns readiness,
+capability, in-flight and session-error behavior. A same-origin, main-frame
+WK message supplies menu enable state; server admission remains authoritative.
+`NSMenuItemValidation` applies the native menu rules during boot and shutdown.
+Configured input files are opened before child launch; macOS access denial can
+be resolved through a native file picker restricted to the configured file.
 `--compact` starts the same responsive workbench at 680px width for small screens.
 
 ## Motion
 
 No decorative motion. Polling updates status and replaces the LCD image only when its content changes.
+
+
+## Power-down and restart
+
+The original firmware's terminal SRAM park is distinct from a temporary mode
+transition. Its read-only PC/state detector pauses input admission, cancels
+queued inputs and retains the last display. Session → Restart session
+(Cmd-Shift-R) waits for owned-child shutdown, then starts a fresh output folder
+with the same supplied inputs and card. This is a cold session restart; it does
+not assert physical MCU power/reset or firmware fastboot support.
+
+AppKit startup defers until launch notification completes. Input checks run off
+the UI thread; Session → Allow input access targets only the current configured
+file. Stop cancels startup, and generation checks discard stale completions.
+Only the active child may update the webview. Python receives a private,
+immutable configuration snapshot that is removed after admission or exit.

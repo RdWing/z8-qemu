@@ -55,3 +55,25 @@ class ControlAdmission(unittest.TestCase):
             owner.native_modes=False;self.assertEqual(mode(),409)
             self.assertEqual(owner.queue.qsize(),0)
         finally:connection.close();owner.close()
+
+    def test_terminal_power_cancels_queue_and_keeps_last_frame(self):
+        import tempfile
+        from pathlib import Path
+        owner=Control(0,native_mcu=True,native_buttons={'half','menu'},native_modes=True)
+        connection=http.client.HTTPConnection('127.0.0.1',owner.server.server_address[1],timeout=3)
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                frame=Path(temp)/'frame.ppm';frame.write_bytes(b'P6\n1 1\n255\n\x11\x22\x33')
+                row={'raw':{'frames':20},'lcd':{'frames':30},'virtual_seconds':20}
+                owner.publish(frame,row,ready=True);pixels=owner.png
+                owner.queue.put_nowait(('button',7))
+                owner.publish(frame,dict(row,powered_down=True),ready=True)
+                self.assertEqual(owner.png,pixels);self.assertFalse(owner.status()['ready'])
+                self.assertTrue(owner.status()['powered_down']);self.assertEqual(owner.status()['cancelled_inputs'],1)
+                self.assertEqual(owner.queue.qsize(),0);self.assertIsNone(owner.next_input())
+                owner.publish(frame,row,ready=True);self.assertFalse(owner.status()['ready'])
+                connection.request('POST','/mode/movie',headers={'X-Control-Token':owner.token})
+                reply=connection.getresponse();reply.read();self.assertEqual(reply.status,503)
+                connection.request('POST','/stop',headers={'X-Control-Token':owner.token})
+                reply=connection.getresponse();reply.read();self.assertEqual(reply.status,200)
+        finally:connection.close();owner.close()

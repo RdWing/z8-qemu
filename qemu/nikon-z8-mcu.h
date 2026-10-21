@@ -180,6 +180,31 @@ static char *get_z8_mcu_state(Object *obj,Error **errp)
         m->chip.armv7m.cpu->env.regs[15],m->chip.system_resets,m->link[0].words,m->link[1].words,
         m->link[0].frames[0],m->link[1].frames[1],m->link[0].bad_frames[0]+m->link[1].bad_frames[1],m->panel.packets,m->panel.lines);
 }
+/* Read state directly: diagnostic sampling must not clear peripheral status. */
+static char *get_z8_mcu_io(Object *obj,Error **errp)
+{
+    NikonZ8State *s=NIKON_Z8_LAB(obj);Z8McuBridge *m=s->native_mcu;
+    if (!m) { return g_strdup("{\"enabled\":false}"); }
+    GString *out=g_string_new(NULL);
+    g_string_append_printf(out,"{\"enabled\":true,\"main_gpio\":{\"port3\":%u,\"port4\":%u,\"mask\":%u,\"pending\":%u,\"polarity\":%u,\"enable\":%u},\"exti\":{\"mask\":%u,\"rising\":%u,\"falling\":%u,\"pending\":%u},\"routes\":[%u,%u,%u,%u],\"gpio\":[",
+        s->syscon[0x100c/4],s->syscon[0x1010/4],s->gpio_irq_config[0][0],s->gpio_irq_config[0][2],s->gpio_irq_config[0][5],s->gpio_irq_config[0][6],
+        m->chip.exti.exti_imr,m->chip.exti.exti_rtsr,m->chip.exti.exti_ftsr,m->chip.exti.exti_pr,
+        m->chip.syscfg[2],m->chip.syscfg[3],m->chip.syscfg[4],m->chip.syscfg[5]);
+    const unsigned ports[]={1,3,4,6};
+    for (unsigned i=0;i<ARRAY_SIZE(ports);i++) {
+        Z8Stm32Gpio *g=&m->chip.gpio[ports[i]];
+        g_string_append_printf(out,"%s{\"port\":%u,\"mode\":%u,\"pull\":%u,\"input\":%u,\"output\":%u,\"driven\":%u}",
+            i ? "," : "",ports[i],g->moder,g->pupdr,z8_stm32_gpio_idr(g),g->odr,g->driven);
+    }
+    g_string_append(out,"],\"serial\":[");
+    for (unsigned i=0;i<2;i++) {
+        Z8SerialPIO *p=&s->serial_pio[i];
+        g_string_append_printf(out,"%s{\"channel\":%u,\"active\":%s,\"tx_queued\":%u,\"rx_queued\":%u,\"pending\":%u,\"mcu_cr1\":%u,\"mcu_cr2\":%u}",
+            i ? "," : "",i,p->active ? "true" : "false",p->tx_queued,p->rx_queued,p->pending,
+            m->chip.spi[i ? 3 : 0].r[0],m->chip.spi[i ? 3 : 0].r[1]);
+    }
+    g_string_append(out,"]}");return g_string_free(out,false);
+}
 static char *get_z8_mcu_toplcd(Object *obj,Error **errp)
 {
     Z8McuBridge *m=NIKON_Z8_LAB(obj)->native_mcu;GString *out=g_string_new(NULL);
