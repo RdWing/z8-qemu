@@ -18,6 +18,8 @@ struct Z8McuBridge {
     QEMUTimer *timer;
     qemu_irq irq[2];
     bool pumping;
+    uint8_t switch_report[124], switch_wire[256];
+    uint64_t switch_frames;
 };
 
 static void z8_mcu_gpio_update(NikonZ8State *s)
@@ -87,6 +89,10 @@ static bool z8_mcu_exchange(Z8McuLink *l,uint16_t input,uint16_t *output)
             if (!f[0]) { continue; }
             for (unsigned i=0;i<256;i++) { sum+=f[i]; }
             l->frames[dir]++;l->bad_frames[dir]+=(sum&255)!=255;
+            if (l->channel==1 && dir==1 && (sum&255)==255 && f[0]==2 &&
+                lduw_le_p(f+2)==124 && f[8]==1) {
+                memcpy(l->bridge->switch_report,f+8,124);memcpy(l->bridge->switch_wire,f,256);l->bridge->switch_frames++;
+            }
             if (l->frames[dir]<=8) {
                 fprintf(stderr,"Z8_NATIVE_MCU SPI%u %s family=%u kind=%u length=%u checksum=%s\n",
                     l->spi+1,dir ? "MCU->MAIN" : "MAIN->MCU",f[0],f[8],lduw_le_p(f+2),(sum&255)==255 ? "ok" : "BAD");
@@ -133,6 +139,7 @@ static void z8_mcu_schedule(NikonZ8State *s,unsigned ch)
     }
 }
 static void z8_mcu_kick(void *opaque) { z8_mcu_schedule(((Z8McuBridge *)opaque)->owner,0); }
+static bool z8_mcu_apply_contacts(Z8McuBridge *m,const char *value,Error **errp);
 static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
 {
     if (!s->mcu_image || !*s->mcu_image) { return; }
@@ -154,6 +161,7 @@ static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
     m->chip.spi[1].sink=z8_toplcd_byte;m->chip.spi[1].sink_opaque=&m->panel;
     z8_stm32_gpio_drive(&m->chip.gpio[3],13,true); /* explicit virtual battery idle */
     z8_stm32_pins(&m->chip,s->mcu_pins,&error_fatal);
+    z8_mcu_apply_contacts(m,s->mcu_contacts,&error_fatal);
 }
 static char *get_z8_mcu_image(Object *obj,Error **errp) { return g_strdup(NIKON_Z8_LAB(obj)->mcu_image); }
 static void set_z8_mcu_image(Object *obj,const char *value,Error **errp)
@@ -206,4 +214,54 @@ static char *get_z8_mcu_wire(Object *obj,Error **errp)
         }
     }
     g_string_append_c(out,']');return g_string_free(out,false);
+}
+
+static bool z8_mcu_apply_contacts(Z8McuBridge *m,const char *value,Error **errp)
+{
+    if (value && strlen(value)>1024) { error_setg(errp,"MCU contact input too long");return false; }
+    g_auto(GStrv) items=g_strsplit_set(value ? value : "",":",-1);
+    for (char **it=items;*it;it++) {
+        unsigned addr,bit,level;char tail;
+        if (!**it) { continue; }
+        if (sscanf(*it,"%x.%u=%u%c",&addr,&bit,&level,&tail)!=3 ||
+            (addr!=0x22 && addr!=0x23) || bit>23 || level>1) {
+            error_setg(errp,"MCU contact '%s': expected 22/23.<bit 0..23>=<level 0/1>",*it);return false;
+        }
+    }
+    for (char **it=items;*it;it++) {
+        unsigned addr,bit,level;
+        if (!**it) { continue; }
+        sscanf(*it,"%x.%u=%u",&addr,&bit,&level);
+        if (!z8_stm32_expander_set(&m->chip,addr,bit,!level)) {
+            error_setg(errp,"MCU contact expander not realized");return false;
+        }
+    }
+    return true;
+}
+static char *get_z8_mcu_contacts(Object *obj,Error **errp)
+{
+    return g_strdup(NIKON_Z8_LAB(obj)->mcu_contacts);
+}
+static void set_z8_mcu_contacts(Object *obj,const char *value,Error **errp)
+{
+    NikonZ8State *s=NIKON_Z8_LAB(obj);
+    if (s->native_mcu && !z8_mcu_apply_contacts(s->native_mcu,value,errp)) { return; }
+    g_free(s->mcu_contacts);s->mcu_contacts=g_strdup(value);
+}
+static char *get_z8_mcu_switches(Object *obj,Error **errp)
+{
+    Z8McuBridge *m=NIKON_Z8_LAB(obj)->native_mcu;
+    if (!m) { return g_strdup("{\"enabled\":false}"); }
+    GString *out=g_string_new(NULL);
+    g_string_append_printf(out,"{\"enabled\":true,\"frames\":%"PRIu64",\"report_hex\":\"",m->switch_frames);
+    for (unsigned i=0;i<124;i++) { g_string_append_printf(out,"%02x",m->switch_report[i]); }
+    g_string_append(out,"\",\"frame_hex\":\"");
+    for (unsigned i=0;i<256;i++) { g_string_append_printf(out,"%02x",m->switch_wire[i]); }
+    g_string_append(out,"\",\"expanders\":[");unsigned count=0;
+    for (unsigned i=0;i<ARRAY_SIZE(m->chip.i2c_dev);i++) {
+        struct Z8Stm32I2cDev *d=&m->chip.i2c_dev[i];
+        if (!d->expander) { continue; }
+        g_string_append_printf(out,"%s{\"address\":%u,\"inputs\":%u}",count++ ? "," : "",d->addr,d->inputs);
+    }
+    g_string_append(out,"]}");return g_string_free(out,false);
 }

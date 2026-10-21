@@ -1,6 +1,6 @@
 {
   "source": "RdWing/z63-qemu@5c3b47c6428310e923520d81df74eff86fe1451c",
-  "scope": "Experimental translated Z63 C2.00/C2.01 device configuration. No Z8 HE/movie/playback acceptance claim. Z8 host controller and boundary peer retain their own map.",
+  "scope": "Translated Z63 device configuration; Z8 source-clock input and native workflow acceptance remain explicit and separate from recording or complete MCU parity.",
   "properties": {
     "bootstrap-fixtures": "on",
     "image-bank-model": "on",
@@ -105,7 +105,8 @@
     "z8-liveview-frame-done": "on",
     "z8-vd-statistics": "on",
     "z8-liveview-jpeg": "on",
-    "z8-jpeg-decode": "on"
+    "z8-jpeg-decode": "on",
+    "task1500-global-pulse-model": "on"
   },
   "attachment_only_options_not_reused": {
     "z8-boundary-ms": "33",

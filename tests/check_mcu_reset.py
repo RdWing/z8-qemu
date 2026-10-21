@@ -159,6 +159,23 @@ def main():
                     for offset, value in expected.items():
                         check(f'Reset/control field {offset:#x} equals {value:#x}',
                               words[offset//4] == value)
+                if resets == 0:
+                    def switches():
+                        return json.loads(qmp.command('qom-get',path='/machine',property='native-mcu-switch-state'))
+                    qmp.command('qom-set',path='/machine',property='mcu-contacts',value='23.6=0:23.13=0')
+                    pressed=switches()
+                    expander=next(x['inputs'] for x in pressed['expanders'] if x['address']==0x23)
+                    check('External expander contacts change only requested bits',expander==(0xffffff&~((1<<6)|(1<<13))))
+                    rejected=False
+                    try:
+                        qmp.command('qom-set',path='/machine',property='mcu-contacts',value='23.6=1:ff.7=0')
+                    except RuntimeError:
+                        rejected=True
+                    check('Invalid contact batch is rejected atomically',rejected and switches()==pressed)
+                    qmp.command('qom-set',path='/machine',property='mcu-contacts',value='23.6=1:23.13=1')
+                    check('External contacts release to idle',all(x['inputs']==0xffffff for x in switches()['expanders']))
+                    native=json.loads(qmp.command('qom-get',path='/machine',property='native-mcu-state'))
+                    check('Contact inputs fabricate no MCU messages',switches()['frames']==0 and native['main_frames']==native['mcu_frames']==0 and not native['host_message_replies'])
         except Exception as error:
             record['error'] = repr(error)
         finally:

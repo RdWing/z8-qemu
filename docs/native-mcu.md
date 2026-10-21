@@ -3,7 +3,7 @@
 The optional `mcu-image` attachment runs the user-supplied original Z8 EX03.00
 alongside C3.11 MAIN. The existing host-peer launcher remains the capture/menu
 baseline. This attachment uses no host MCU replies or firmware instruction
-patches. It is experimental and is not a complete native-control workflow.
+patches. It is experimental; Menu/navigation/half-shutter contacts are qualified separately below.
 
 ```sh
 python tools/run_native.py --firmware /private/MAIN.bi --mcu /private/EX.bi \
@@ -46,8 +46,8 @@ The compatible MCU clock is 180 MHz, timer clocks 90 MHz, RTC starts at
 128×128 top-panel behavior and its ready delay remain functional fixtures. The
 panel received one clear packet and zero line packets in the native run.
 The donor mechanical shutter is unarmed and its position pins are not driven.
-Exact physical chip identity/clock, full Z8 key/lens/power mappings, native
-capture, Movie, playback, recovery and top-panel drawing remain unqualified.
+Exact physical chip identity/clock, remaining Z8 key/lens/power mappings, native
+capture, Movie, card-backed playback, recovery and top-panel drawing remain unqualified.
 No host-peer acceptance transfers to this attachment.
 
 Firmware-free reset checks:
@@ -58,12 +58,46 @@ python tests/check_mcu_reset.py --qemu /path/to/qemu-system-aarch64 \
 ```
 
 Clang with AArch64/Thumb targets is required. The script extracts relocation-free
-ELF `.text` itself. All 69 checks pass across zero/one/two MCU resets: A53
+ELF `.text` itself. All 73 checks pass across zero/one/two MCU resets: A53
 heartbeat isolation, SRAM/flash/RTC backup retention, ordinary peripheral/core
-reset and AIRCR negative controls. This is model validation, not camera capture
+reset and AIRCR negative controls, plus contact isolation, release, atomic invalid-batch rejection and absence of fabricated messages. This is model validation, not camera capture
 qualification.
 
-The [desktop workbench](../desktop/README.md) can inspect this attachment with
-an `mcu` configuration path. Camera buttons remain disabled in native mode;
-Stop and window-close still own the session lifecycle. The default desktop
-controller remains the separately accepted host peer.
+## Original EX controls
+
+`--native-controls --port 0` enables Menu, arrows, OK, i and half-shutter in the
+shared browser workbench. Each action changes an external active-low contact;
+original EX creates the switch report and MAIN consumes it. No host switch
+messages or firmware memory edits implement these actions. Other buttons and
+the Photo/Movie selector stay disabled in this mode.
+
+| Input | External contact | Original switch-report byte |
+| --- | --- | --- |
+| Menu | expander `0x23`, bit 6 | `0x43` |
+| Down | expander `0x23`, bit 13 | `0x25` |
+| OK | expander `0x23`, bit 11 | `0x4A` |
+| Left | expander `0x23`, bit 12 | `0x23` |
+| Up | expander `0x23`, bit 15 | `0x24` |
+| Right | expander `0x23`, bit 14 | `0x22` |
+| i | expander `0x23`, bit 7 | `0x48` |
+| Half-shutter | PG1 | `0x07` |
+
+Explicit idle inputs PG1/PG13/PG14/PG15 are high. Releasing PG14/PG15 clears
+report fields `0x6F/0x70`; leaving them low kept Menu blocked in the earlier
+experiment. Their physical switch names remain unqualified. The original
+124-byte report and checksummed wire frame are observable through
+`native-mcu-switch-state`. `mcu-contacts` accepts validated atomic batches such
+as `23.6=0:23.13=1`; malformed batches change no contacts.
+
+A finite contact replay reached original Menu and returned to synthetic Photo
+pixels with half-shutter. By 40.36 virtual seconds it exchanged 920 MAIN and
+863 EX frames with zero checksum failures. A separate macOS desktop session
+sent actual half-shutter/Menu contacts, displayed original Menu and stopped
+cleanly, with 1,413 MAIN / 1,301 EX frames and zero checksum failures. These
+checks establish the stated contacts and workflows, not native capture or
+card support. `--contact-replay` accepts finite ordered external contacts for
+investigation and excludes interactive controls in the same run.
+
+The [desktop workbench](../desktop/README.md) enables these contacts with both
+`mcu` and `native_controls: true` in its configuration. Display-only native
+inspection remains available by omitting `native_controls`.

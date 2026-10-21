@@ -261,7 +261,7 @@ typedef struct Ex7CaptureSurface {
 
 struct NikonZ8State {
     MachineState parent;
-    char *mcu_image, *mcu_pins;
+    char *mcu_image, *mcu_pins, *mcu_contacts;
     struct Z8McuBridge *native_mcu;
 
     MemoryRegion image_ram;
@@ -649,6 +649,8 @@ struct NikonZ8State {
     bool z8_lv_jpeg;
     Z8LVBuffers z8_lv_buffers;
     uint64_t z8_lv_jpeg_jobs, z8_lv_jpeg_generation, z8_lv_jpeg_cancels;
+    bool z8_sensor_source_clock;
+    uint64_t z8_sensor_source_ticks;
     bool raw_pipeline_output_done;     /* z8-lv-frame-done */
     bool z8_e_armed;                  /* the RSZ E unit was enabled */
     unsigned z8_raw_owed;             /* capture ticks without their frame */
@@ -7268,6 +7270,10 @@ static char *get_event_secondary_timing_state(Object *obj, Error **errp)
  * recovered physical sensor clock specification. It supplies only status
  * edges to two already modeled IRQ paths, without modifying guest RAM/PC. */
 static bool z8_sensor_timing(NikonZ8State *s);
+static bool source_input_clock_running(NikonZ8State *s)
+{
+    return s->event_timing_active || (s->z8_sensor_source_clock && z8_sensor_timing(s));
+}
 
 static void event_timing_update(NikonZ8State *s)
 {
@@ -7445,12 +7451,14 @@ static char *get_event_channel_state(Object *obj, Error **errp)
     NikonZ8State *s = NIKON_Z8_LAB(obj);
     return g_strdup_printf("{\"enabled\":%s,\"pending\":%u,\"mask\":%u,"
         "\"irq\":%s,\"inputs\":%" PRIu64 ",\"acks\":%" PRIu64 ",\"timing_enabled\":%s,"
-        "\"timing_active\":%s,\"period_ns\":%" PRIu64 ",\"ticks\":%" PRIu64 ",\"pixel_bytes\":0}",
+        "\"timing_active\":%s,\"period_ns\":%" PRIu64 ",\"ticks\":%" PRIu64 ",\"source_clock_enabled\":%s,\"source_clock_running\":%s,\"source_ticks\":%"PRIu64",\"input_control\":%u,\"pixel_bytes\":0}",
         s->event1508_channel_model ? "true" : "false", s->event_pending_1508, s->event_mask_1508,
         s->event1508_channel_model && (s->event_pending_1508 & s->event_mask_1508) ? "true" : "false",
         s->event_channel_inputs, s->event_channel_acks,
         s->event1508_timing_model ? "true" : "false", s->event_timing_active ? "true" : "false",
-        s->event_timing_period_ns, s->event_timing_ticks);
+        s->event_timing_period_ns, s->event_timing_ticks,
+        s->z8_sensor_source_clock ? "true":"false",source_input_clock_running(s) ? "true":"false",
+        s->z8_sensor_source_ticks,s->event_control_1508[3]);
 }
 
 static bool get_event1508_aux_model(Object *obj, Error **errp)
@@ -15021,9 +15029,15 @@ static bool engine1543_video_ready(NikonZ8State *s, unsigned j)
     /* Original486 uses the second observed internal bank topology.
      * Neither token represents CPU RAM; all four rows must agree. */
     uint64_t alternate = c[0x280/4] | ((uint64_t)c[0x284/4] << 32);
-    if (alternate != UINT64_C(0xe000f780) && alternate != UINT64_C(0xe0043800)) {
+    /* Z8 C3.11 40c26810 also submits the e000e100 topology at 1920x1080,
+     * RGB row 5760 / aligned supplier pitch 5888. All four low/high pairs
+     * still must match; these tokens remain internal ports, never CPU RAM. */
+    if (alternate != UINT64_C(0xe000f780) && alternate != UINT64_C(0xe0043800) &&
+        alternate != UINT64_C(0xe000e100)) {
         return false;
     }
+    if (alternate==UINT64_C(0xe000e100) &&
+        (a[0x4c/4]!=1920 || a[0x50/4]!=1080 || a[0x38/4]!=5888)) { return false; }
     const uint64_t bases[4] = {
         UINT64_C(0xe0000000), alternate, UINT64_C(0xe0000000), alternate
     };
@@ -15217,6 +15231,15 @@ static bool engine1543_control_write(NikonZ8State *s, unsigned i,
     return true;
 }
 
+static void z8_json_nonzero_words(GString *out,const uint32_t *words,size_t count)
+{
+    g_string_append_c(out,'{');bool comma=false;
+    for (unsigned k=0;k<count;k++) {
+        if (words[k]) { g_string_append_printf(out,"%s\"0x%x\":%u",comma ? "," : "",k*4,words[k]);comma=true; }
+    }
+    g_string_append_c(out,'}');
+}
+
 static char *get_engine1543_control_state(Object *obj, Error **errp)
 {
     NikonZ8State *s = NIKON_Z8_LAB(obj);
@@ -15239,14 +15262,29 @@ static char *get_engine1543_control_state(Object *obj, Error **errp)
                 comma = true;
             }
         }
-        g_string_append(out, "}}");
+        g_string_append(out, "},\"programmed\":");
+        z8_json_nonzero_words(out,s->engine1542_config[j+10],ARRAY_SIZE(s->engine1542_config[j+10]));
+        g_string_append_c(out,'}');
     }
     g_string_append_printf(out, "],\"video_control_enabled\":%s,\"retained_start_enabled\":%s,"
         "\"prior_video_program_known\":%s,\"retained_starts\":%" PRIu64
         ",\"scope\":\"header control; optional previously accepted own-program START while adjacent configuration changes; data readiness unchanged, no pixels/IRQ\"}",
         s->engine1543_video_control_model ? "true" : "false",s->engine1543_retained_start_model ? "true" : "false",
         s->engine1543_video_program_known ? "true" : "false",s->engine1543_retained_starts);
-    return g_string_free(out, false);
+    g_string_truncate(out,out->len-1);g_string_append(out,",\"video_input\":{\"supplier\":");
+    z8_json_nonzero_words(out,s->engine1542_config[1],ARRAY_SIZE(s->engine1542_config[1]));
+    g_string_append(out,",\"source0\":");z8_json_nonzero_words(out,s->engine1518[0].config,ARRAY_SIZE(s->engine1518[0].config));
+    g_string_append(out,",\"source2\":");z8_json_nonzero_words(out,s->engine1518[2].config,ARRAY_SIZE(s->engine1518[2].config));
+    g_string_append(out,",\"isp0\":");z8_json_nonzero_words(out,s->engine151_config[0],ARRAY_SIZE(s->engine151_config[0]));
+    g_string_append(out,",\"isp1\":");z8_json_nonzero_words(out,s->engine151_config[1],ARRAY_SIZE(s->engine151_config[1]));
+    g_string_append(out,"},\"output_programs\":[");
+    for (unsigned i=0;i<3;i++) {
+        if (i) { g_string_append_c(out,','); }
+        g_string_append(out,"{\"b\":");z8_json_nonzero_words(out,s->engine1542_config[3+i],ARRAY_SIZE(s->engine1542_config[3+i]));
+        g_string_append(out,",\"f\":");z8_json_nonzero_words(out,s->engine1542_config[15+i],ARRAY_SIZE(s->engine1542_config[15+i]));
+        g_string_append_c(out,'}');
+    }
+    g_string_append(out,"]}");return g_string_free(out, false);
 }
 
 #include "nikon-z8-pixels.h"
@@ -22832,6 +22870,14 @@ static void set_z8_vd_statistics(Object *obj, bool value, Error **errp)
     }
     s->z8_vd_statistics = value;
 }
+static bool get_z8_sensor_source_clock(Object *obj,Error **errp)
+{ return NIKON_Z8_LAB(obj)->z8_sensor_source_clock; }
+static void set_z8_sensor_source_clock(Object *obj,bool value,Error **errp)
+{
+    NikonZ8State *s=NIKON_Z8_LAB(obj);
+    if (s->image_ram.ram || s->image_ram.rom_device) { error_setg(errp,"sensor source clock immutable after realization");return; }
+    s->z8_sensor_source_clock=value;
+}
 static bool get_raw_pipeline_output_done(Object *obj, Error **errp)
 { return NIKON_Z8_LAB(obj)->raw_pipeline_output_done; }
 static void set_raw_pipeline_output_done(Object *obj, bool value, Error **errp)
@@ -22859,6 +22905,8 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc,"mcu-image",get_z8_mcu_image,set_z8_mcu_image);
     object_class_property_add_str(oc,"native-mcu-state",get_z8_mcu_state,NULL);
     object_class_property_add_str(oc,"mcu-pins",get_z8_mcu_pins,set_z8_mcu_pins);
+    object_class_property_add_str(oc,"mcu-contacts",get_z8_mcu_contacts,set_z8_mcu_contacts);
+    object_class_property_add_str(oc,"native-mcu-switch-state",get_z8_mcu_switches,NULL);
     object_class_property_add_str(oc,"native-mcu-wire-state",get_z8_mcu_wire,NULL);
     object_class_property_add_str(oc,"mcu-toplcd-bits",get_z8_mcu_toplcd,NULL);
     object_class_property_add_bool(oc, "z8-jpeg-decode", get_z8_jdec_on, set_z8_jdec_on);
@@ -22866,6 +22914,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "z8-still-capture", get_z8_still, set_z8_still);
     object_class_property_add_bool(oc, "z8-sensor-vd", get_z8_sensor_vd, set_z8_sensor_vd);
     object_class_property_add_bool(oc, "z8-vd-statistics", get_z8_vd_statistics, set_z8_vd_statistics);
+    object_class_property_add_bool(oc,"z8-sensor-source-clock",get_z8_sensor_source_clock,set_z8_sensor_source_clock);
     object_class_property_add_bool(oc, "z8-liveview-frame-done", get_raw_pipeline_output_done, set_raw_pipeline_output_done);
 
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -23263,9 +23312,7 @@ static void nikon_z8_finalize(Object *obj)
     g_free(s->primary_d980_cache);
     g_free(s->video_raw_packet_extra);
     if (s->primary_d980_single_timer) { timer_free(s->primary_d980_single_timer); }
-    if (s->raw_pipeline_timer) {
-        timer_free(s->raw_pipeline_timer);
-    }
+    if (s->raw_pipeline_timer) { timer_free(s->raw_pipeline_timer); }
     for (unsigned i = 0; i < 3; i++) {
         g_free(s->raw_pipeline_cache[i]);
     }
@@ -23333,8 +23380,23 @@ static bool z8_sensor_timing(NikonZ8State *s)
            (s->event_control_1508[3] & 1) && (live & 2);
 }
 
+static void z8_sensor_source_tick(NikonZ8State *s)
+{
+    if (!s->z8_sensor_source_clock || s->event_timing_active || !source_input_clock_running(s)) { return; }
+    /* The existing Z8 sensor VD clock survives capture group 0 disable.
+     * Feed its configured consumers; their own DMA/lease/reset guards still
+     * decide whether anything is produced. Never re-enable the capture group. */
+    s->z8_sensor_source_ticks++;
+    raw_source_boundary_tick(s);primary_d980_tick(s);
+    if (s->raw_pipeline_output_done && s->raw_pipeline_model) {
+        if (s->z8_raw_owed<2) { s->z8_raw_owed++; }
+        raw_pipeline_tick(s);
+    }
+}
+
 static void z8_sensor_frame(NikonZ8State *s)
 {
+    z8_sensor_source_tick(s);
     s->event_pending_1508 |= 1;
     s->event_channel_inputs++;
     event_channel_update_irq(s);

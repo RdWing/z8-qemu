@@ -34,7 +34,7 @@ static bool raw_pipeline_address(NikonZ8State *s, uint64_t encoded,
 static void raw_source_boundary_receive(NikonZ8State *s, bool single_input)
 {
     if (!s->raw_source_boundary_model || !s->raw_pixels ||
-        (!single_input && (!s->event_timing_active || primary_d980_finite_input_owned(s))) ||
+        (!single_input && (!source_input_clock_running(s) || primary_d980_finite_input_owned(s))) ||
         s->primary_reset_stage) {
         return;
     }
@@ -174,7 +174,7 @@ static void raw_admission_observe(NikonZ8State *s, bool primary, bool secondary,
     RAW_GATE(20,s->video_source_end_model && source==0 && (s->engine1518[0].pending&0x20000000));
     RAW_GATE(21,sensor_secondary && s->video_secondary_source_end_model && (s->engine1518[2].pending&0x20000000));
     RAW_GATE(22,s->event1508_global1_model && (s->event_global1_pending&0x10));
-    RAW_GATE(23,s->primary_stopped_source_reset_model && !s->event_timing_active);
+    RAW_GATE(23,s->primary_stopped_source_reset_model && !source_input_clock_running(s));
     RAW_GATE(24,internal && (s->video_yuv_output_events_model || video_main_armed(s)) && s->raw_pipeline_wait_bank &&
         ((s->raw_pipeline_bank_written[selected]&UINT64_C(0xfff0fff0fff0fff0))!=UINT64_C(0xfff0fff0fff0fff0) ||
          (video_main_armed(s) && s->video_main_written[selected]!=0xffff)));
@@ -318,7 +318,7 @@ static void raw_pipeline_tick(void *opaque)
      * Native ZR293/295 stop that trigger at row3. Requiring another input
      * clock before requesting its next descriptor bank stranded the owner.
      * New DMA remains strictly gated by the original source control. */
-    if (s->primary_stopped_source_reset_model && !s->event_timing_active) {
+    if (s->primary_stopped_source_reset_model && !source_input_clock_running(s)) {
         return;
     }
     /* Video C1 owns the bank selector while its four output planes are

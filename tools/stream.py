@@ -63,7 +63,7 @@ def run(g,seconds=60,control=None):
      control.publish(frame,row,ready=phase>=3 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==1)
      if hasattr(control,'captured') and len(control.captured)>len(g.data.get('parity_snapshots',[])):
       g.data.setdefault('parity_snapshots',[]).append(dict(control.captured[-1],raw=raw,
-       models={name:state(name) for name in ['engine150c-state','engine151-control-state','engine1543-control-state','engine1518-state','z8-playback-state']}))
+       models={name:state(name) for name in ['engine150c-state','engine151-control-state','engine1543-control-state','engine1518-state','z8-playback-state','engine1542-state','event1508-channel-state','event1508-group-state','raw-source-boundary-state','task1500-global-pulse-state']}))
      if control.ready:phase=5  # Startup MENU retry must never undo a user's later MENU/half-shutter.
      (g.out/'live-status.json').write_text(json.dumps(dict(control.status(),interactive_inputs=g.data.get('interactive_inputs',[])))+'\n')
     preparation_ready=(bool(g.data.get('experimental_preparation_profile')) and
@@ -89,7 +89,7 @@ def run(g,seconds=60,control=None):
   g.qmp.command('stop')
   g.data['final_pipeline']={n:state(n) for n in ['graphics-state','raw-pipeline-state','engine1548-scanout-state','engine1518-state','engine151-control-state','engine1543-control-state','engine1548-source-state']}
   g.data['parity_model_state']={}
-  for name in ['engine152c-config-state','engine152c-he-still-state','video-raw-transport-state','video-backend-drain-state','primary-d980-state','engine150c-state','z8-playback-state','engine15e2-jpeg-state','raw-pipeline-state']:
+  for name in ['engine1542-state','event1508-channel-state','event1508-group-state','raw-source-boundary-state','task1500-global-pulse-state','engine152c-config-state','engine152c-he-still-state','video-raw-transport-state','video-backend-drain-state','primary-d980-state','engine150c-state','z8-playback-state','engine15e2-jpeg-state','raw-pipeline-state']:
    try:g.data['parity_model_state'][name]=state(name)
    except RuntimeError as error:g.data['parity_model_state'][name]={'unavailable':str(error)}
   g.qmp.command('screendump',filename=str(g.out/'final.ppm'));peer.close()

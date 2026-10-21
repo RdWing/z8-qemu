@@ -1,14 +1,14 @@
 {
-  "date": "2026-10-20",
+  "date": "2026-10-21",
   "target": "Z8 C3.11",
   "host_family": "macOS Apple Silicon",
   "full_fresh_qemu_build": true,
   "host_tests": {
-    "run": 22,
-    "pass": 21,
+    "run": 35,
+    "pass": 34,
     "skip_optional_legacy": 1
   },
-  "actual_board_mmio_checks": 15,
+  "actual_board_mmio_checks": 18,
   "baseline_guest_checks": 932,
   "persistent_card_guest_checks": 882,
   "capture_guest_checks": 1379,
@@ -19,5 +19,23 @@
   "jpeg_previews_decoded": 3,
   "native_he_movie_playback_parity": false,
   "z8_native_mcu_desktop_parity": false,
-  "scope": "Functional source/model backport with bounded native boot/menu/persistent-card/F0 capture acceptance; not complete feature parity."
+  "scope": "Functional source/model backport with bounded native single HE/HE-star capture, saved-photo display, experimental host-peer Movie/Photo recovery and original EX contact controls; not complete feature parity.",
+  "native_he_single_capture": true,
+  "native_movie_liveview_two_cycle_frames": [
+    1089,
+    1129
+  ],
+  "native_playback_display": true,
+  "native_playback_recovery": false,
+  "native_mcu_reset_contact_checks": 73,
+  "native_mcu_qualified_controls": [
+    "menu",
+    "down",
+    "ok",
+    "left",
+    "up",
+    "right",
+    "i",
+    "half"
+  ]
 }

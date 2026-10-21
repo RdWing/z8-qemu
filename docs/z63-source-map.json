@@ -283,7 +283,7 @@
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
     "qemu/nikon-z8-lab.c": {
-      "adapted_sha256": "ef9a2e8511fec7585bc64a2f0ccce723b0a2dd768682ceac13febfec113d6637",
+      "adapted_sha256": "cd5c2e6138b367486010a6a263fcc9ed396a26e6d53c27bd652b9850af147dc1",
       "source_path": "nikon-z63-z9lab.c",
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },
@@ -307,7 +307,7 @@
       "source_sha256": "55124e15ca946edbc0cc3adbaaba8e4926b7ceef7832562e8a3edf58c69dcc0a"
     },
     "qemu/nikon-z8-pixels.h": {
-      "adapted_sha256": "63387a27c3a36ad69e7efd0f91e52046cebca29f9503d6cd80f6bde2dc242a4b",
+      "adapted_sha256": "6b0105cf8431b6c72ce7c5889374afd11b86ae50ce9e3a50fd2b2e0c998a4a73",
       "source_path": "nikon-z9-pixels.h",
       "source_sha256": "aa3d71e363cffbb865ced6d2839f0975986c9e4a8ffbd0ef2401312906229dff"
     },
@@ -331,7 +331,7 @@
       "source_sha256": "b1fa69281d4b207fed85a7908b027f18ece26d978b83f1025dfb98bae2946203"
     },
     "qemu/nikon-z8-video-raw.h": {
-      "adapted_sha256": "a4a4896609b61fbb68668443fb78990cb3893bdfdd6d048e0748dcc70812e058",
+      "adapted_sha256": "22974e62357cfa511f9d51110409bab1d66d88cf4cdf38c9b7f3e35de99e07f3",
       "source_path": "nikon-z9-video-raw.h",
       "source_sha256": "c0f587997470878b167268cb28a980d0986c09b24ebc70ed3bdf97c016d002a9"
     },
@@ -343,7 +343,7 @@
     "qemu/nikon-z8-stm32.h": {
       "source_path": "nikon-z63-stm32.h",
       "source_sha256": "1286bfad92089dad118f12a0eeab15c700d96b55dd7c86af72139592885b2492",
-      "adapted_sha256": "7a1a6873fefa7ec2a286dfab06da8a26c3821f13fce89d5d9deab19e9b33fa11"
+      "adapted_sha256": "0ce5770d0fbe30ec86b14a1cf27432273fedbb5bd1b6958f07110c8d03acadf0"
     },
     "qemu/nikon-z8-toplcd.h": {
       "source_path": "nikon-z63-toplcd.h",

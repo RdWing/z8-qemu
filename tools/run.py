@@ -15,6 +15,7 @@ def main():
     p.add_argument('--seconds', type=int, default=1800)
     p.add_argument('--port', type=int, default=8778)
     p.add_argument('--smoke', action='store_true')
+    p.add_argument('--experimental-sensor-source-clock', action='store_true', help='Clock configured source consumers from the Z8 sensor VD when capture group0 is disabled; requires shared profile')
     p.add_argument('--experimental-independent-pixel-clock', action='store_true', help='Use the baseline periodic pixel clock instead of donor capture-tick pacing; requires shared profile')
     p.add_argument('--experimental-boundary-inputs', action='store_true', help='Include declared auxiliary1 and global0-bit26 diagnostic boundaries; requires shared profile')
     p.add_argument('--experimental-preparation-profile', action='store_true', help='Synthetic bank8 offset999=1; missing factory preparation data remains unqualified')
@@ -22,12 +23,13 @@ def main():
     p.add_argument('--experimental-movie-selector16', action='store_true', help='Synthetic ROM selector16=index1; missing original coefficients remain unqualified')
     p.add_argument('--trace-transitions', action='store_true', help='Record bounded read-only native exception observations')
     p.add_argument('--replay', type=Path, help='Replay a JSON external-control sequence after native menu readiness')
-    p.add_argument('--experimental-shared221', action='store_true', help='Use the experimental translated Z63 shared-device profile; Z8 HE/movie acceptance is unqualified')
+    p.add_argument('--experimental-shared221', action='store_true', help='Use the experimental translated Z63 shared-device profile; bounded HE/movie acceptance is documented separately')
     p.add_argument('--card', type=Path, help='Existing virtual exFAT card to attach persistently; guest writes update this file')
-    p.add_argument('--experimental-playback', action='store_true', help='Enable the imported JPEG decoder/resize model; Z8 saved-photo guest acceptance remains unqualified')
+    p.add_argument('--experimental-playback', action='store_true', help='Enable the imported JPEG decoder/resize model; saved-preview display accepted; recovery/zoom remain open')
     p.add_argument('--check-only', action='store_true')
     a = p.parse_args()
     if not 1 <= a.seconds <= 3600 or not (a.port == 0 or 1024 <= a.port <= 65535): p.error('Invalid duration or port')
+    if a.experimental_sensor_source_clock and not a.experimental_shared221: p.error('--experimental-sensor-source-clock requires --experimental-shared221')
     if a.experimental_independent_pixel_clock and not a.experimental_shared221: p.error('--experimental-independent-pixel-clock requires --experimental-shared221')
     if a.experimental_boundary_inputs and not a.experimental_shared221: p.error('--experimental-boundary-inputs requires --experimental-shared221')
     firmware, manifest = verify(a.firmware)
@@ -59,6 +61,9 @@ def main():
         profile=json.loads(Path(__file__).with_name('experimental-shared221-profile.json').read_text())
         g.command[g.command.index('-M')+1]+=','+','.join(k+'='+v for k,v in profile['properties'].items())
         g.data['experimental_shared221']=profile
+    if a.experimental_sensor_source_clock:
+        g.command[g.command.index('-M')+1]+=',z8-sensor-source-clock=on'
+        g.data['experimental_sensor_source_clock']=True
     if a.experimental_independent_pixel_clock:
         g.command[g.command.index('-M')+1]+=',z8-liveview-frame-done=off'
         g.data['experimental_independent_pixel_clock']=True

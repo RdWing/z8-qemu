@@ -1196,7 +1196,7 @@ static const struct { uint8_t bus, addr; } z8_stm32_i2c_dev_at[6] = {
  * (sub_803D998 / sub_803DA14: ~input & mask) -- active low. MENU, PLAY,
  * OK, the multi-selector, the sub-selector, DISP, i, DELETE, the zoom
  * buttons, Fn1/Fn2, the movie-record button and more are here (the map is
- * in nikon-z8-mcukeys.h). While the camera is on, the expander task
+ * in the donor nikon-z63-mcukeys.h; Z8 mappings are separate). While the camera is on, the expander task
  * ("IoExpCyc", sub_8034D18) reads both every ~12 ms (sub_803505C ->
  * sub_80352C4) and hands the bytes to the key task (sub_80449F4 ->
  * sub_8044960), so no interrupt line is needed for a press to be seen.

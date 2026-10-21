@@ -12,11 +12,12 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-FLAGS = ('experimental_playback', 'experimental_shared221')
+FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
+         'experimental_yuv_channels', 'experimental_movie_selector16', 'experimental_sensor_source_clock')
 
 
 def command(config):
-    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'seconds', *FLAGS}
+    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'seconds', *FLAGS}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Unknown desktop configuration fields')
     native=bool(config.get('mcu'))
@@ -27,7 +28,10 @@ def command(config):
             raise ValueError('mcu must name an existing absolute EX component')
         if config.get('card') or any(config.get(k) for k in FLAGS):
             raise ValueError('Native MCU display mode currently requires card/playback/shared-profile options to be omitted')
+        if type(config.get('native_controls',False)) is not bool:raise ValueError('native_controls must be true or false')
         args += ['--mcu',mcu]
+        if config.get('native_controls'):args += ['--native-controls']
+    if config.get('native_controls') and not native:raise ValueError('native_controls requires an mcu component')
     for key in ('firmware', 'qemu', 'raw', 'output'):
         value = config.get(key)
         if not isinstance(value, str) or not Path(value).is_absolute():
@@ -51,6 +55,9 @@ def command(config):
             raise ValueError(flag+' must be true or false')
         if config.get(flag):
             args += ['--'+flag.replace('_', '-')]
+    for flag in ('experimental_boundary_inputs','experimental_sensor_source_clock'):
+        if config.get(flag) and not config.get('experimental_shared221'):
+            raise ValueError(flag+' requires experimental_shared221')
     if config.get('experimental_playback') and not config.get('card'):
         raise ValueError('Playback requires an existing card image')
     return args

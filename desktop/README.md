@@ -39,12 +39,20 @@ Without that explicit capability, both the frontend and server reject Playback.
 The guest can write the supplied card. Export camera files only after stopping
 its session, using the existing card/export tools.
 
-Add an absolute `mcu` path for the original EX03.00 component to inspect native
-MAIN/EX startup instead. This mode currently omits card, playback and shared
-profile options. It displays original firmware output, identifies original EX
-replies, and keeps camera buttons disabled because their Z8 hardware bindings
-are not yet qualified. Stop and window-close remain available. It does not
-substitute host MCU replies to make controls appear functional.
+Add an absolute `mcu` path for the original EX03.00 component. This mode omits
+card, playback and shared profile options. Add `"native_controls": true` to
+enable the independently qualified Menu, arrows, OK, i and half-shutter
+contacts. Original EX owns the resulting messages; the app changes external
+contacts only. Unsupported buttons and Photo/Movie stay disabled. Without
+that option, native mode is display-only. Stop and window-close own either
+session's lifecycle. See the [contact map and limits](../docs/native-mcu.md).
+
+The experimental host-peer Movie live-view recipe is also available by setting
+all five `experimental_shared221`, `experimental_boundary_inputs`,
+`experimental_yuv_channels`, `experimental_movie_selector16` and
+`experimental_sensor_source_clock` fields to `true`. These explicit models
+have separate two-cycle live-view/recovery acceptance; they do not qualify
+recording. See the [Movie checkpoint](../docs/z63-backport.md#movie-live-view-and-recovery-checkpoint).
 
 ## Checked and remaining
 
@@ -55,7 +63,10 @@ baseline run passed 1,117 harness checks. Private process-group timeout cleanup
 and readiness/session/playback admission have firmware-free tests. The strict
 frontend audit reports zero findings.
 
-This is an initial native desktop integration. Native MCU keys/lens/power,
+Original-EX desktop half-shutter and Menu inputs also reached the native Menu,
+with clean owned-process shutdown and zero checksum failures.
+
+This is an initial native desktop integration. Remaining MCU keys/lens/power,
 top-panel drawing, recording/recovery, USB/plugins, a firmware console/debug
 dock, photo/log export dialogs and Linux/Windows desktop bundles remain open.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as

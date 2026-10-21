@@ -28,8 +28,9 @@ def png_from_ppm(path):
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(scan,3))+chunk(b'IEND',b'')
 
 class Control:
- def __init__(self,port,*,playback=False,native_mcu=False):
+ def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None):
   self.native_mcu=bool(native_mcu)
+  self.allowed_buttons=set(BUTTONS if not native_mcu else native_buttons or [])
   self.playback=bool(playback)
   self.stop=threading.Event();self.queue=queue.Queue(maxsize=8);self.png=None;self.info={'state':'Booting original Z8 MAIN…'};self.token=secrets.token_hex(24)
   self.session=secrets.token_hex(12);self.ready=False;self.last_publish=None;self.submitted=0;self.sent=0;self.frame_version=0;self.shooting_mode="photo"
@@ -44,6 +45,7 @@ class Control:
      html=Path(__file__).with_name('control.html').read_text().replace('TOKEN_HERE',owner.token).replace('SESSION_HERE',owner.session)
      if owner.native_mcu:
       html=html.replace('Original MAIN 3.11 running locally.','Original MAIN 3.11 and EX03.00 running locally.').replace('Sensor imagery, battery/controller replies and external ROM data are simulated.','Sensor imagery, battery contacts and external ROM data are simulated. Original EX firmware supplies controller replies. Native buttons are not mapped yet.')
+      if owner.allowed_buttons:html=html.replace('Native buttons are not mapped yet.','The mapped camera buttons use the original EX switch service.').replace('Selector input; watch the camera display for the result.','Native Photo/Movie contact is not mapped yet.')
      self.send(200,html.encode(),'text/html; charset=utf-8')
     elif route=='/frame.png' and owner.png:self.send(200,owner.png,'image/png')
     elif route=='/state':self.send(200,json.dumps(owner.status()).encode(),'application/json')
@@ -54,12 +56,14 @@ class Control:
     button=self.path.removeprefix('/button/')
     if self.path=='/stop':owner.stop.set();self.send(200,b'{}','application/json')
     elif self.path in ('/mode/photo','/mode/movie'):
+     if owner.native_mcu:self.send(409,b'Native Photo/Movie contact is not mapped yet.','text/plain');return
      if not owner.status()['ready']:self.send(503,b'Camera controls are not ready.','text/plain');return
      try:
       owner.queue.put_nowait(('mode', self.path.rsplit('/',1)[1]));owner.submitted+=1
       self.send(202,json.dumps({'queued':owner.submitted}).encode(),'application/json')
      except queue.Full:self.send(429,b'Wait for previous input','text/plain')
     elif button in BUTTONS:
+     if button not in owner.allowed_buttons:self.send(409,b'This control has no qualified native contact.','text/plain');return
      if button=='play' and not owner.playback:self.send(409,b'Playback requires a virtual card and playback model.','text/plain');return
      if not owner.status()['ready']:self.send(503,b'Camera controls are not ready. Check the status above the display.','text/plain');return
      try:
@@ -78,14 +82,14 @@ class Control:
  def mark_sent(self):self.sent+=1
  def status(self):
   stale=self.last_publish is not None and time.monotonic()-self.last_publish>5
-  ready=self.ready and not self.native_mcu and not stale and not self.stop.is_set()
-  info=dict(self.info,controller='native_ex' if self.native_mcu else 'host_peer',playback_available=self.playback,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
+  ready=self.ready and (not self.native_mcu or bool(self.allowed_buttons)) and not stale and not self.stop.is_set()
+  info=dict(self.info,allowed_buttons=sorted(self.allowed_buttons),mode_available=not self.native_mcu,controller='native_ex' if self.native_mcu else 'host_peer',playback_available=self.playback,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
   if self.stop.is_set():info['state']='Stopping emulator…'
   elif stale:info['state']='Emulator is not advancing. Controls paused.'
   return info
  def publish(self,path,row,ready=False):
   png=png_from_ppm(path)
   if png!=self.png:self.png=png;self.frame_version+=1
-  self.ready=(self.ready or ready) and not self.native_mcu;self.last_publish=time.monotonic()
-  self.info={'state':('Original MAIN/EX running · native buttons are not mapped yet' if self.native_mcu else 'Running original Z8 firmware' if self.ready else 'Starting camera display and menus…'),'virtual_seconds':round(row['virtual_seconds'],1),'display_frames':row['lcd']['frames'],'sensor_frames':row['raw']['frames']}
+  self.ready=(self.ready or ready) and (not self.native_mcu or bool(self.allowed_buttons));self.last_publish=time.monotonic()
+  self.info={'state':(('Running original MAIN/EX firmware' if self.ready else 'Original MAIN/EX running · camera inputs paused') if self.native_mcu and self.allowed_buttons else 'Original MAIN/EX running · native buttons are not mapped yet' if self.native_mcu else 'Running original Z8 firmware' if self.ready else 'Starting camera display and menus…'),'virtual_seconds':round(row['virtual_seconds'],1),'display_frames':row['lcd']['frames'],'sensor_frames':row['raw']['frames']}
  def close(self):self.server.shutdown();self.server.server_close()

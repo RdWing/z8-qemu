@@ -7,7 +7,7 @@ import sys
 import time
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from control import Control
+from control import Control, BUTTONS
 
 class ControlAdmission(unittest.TestCase):
     def test_session_readiness_and_playback_are_separate(self):
@@ -27,9 +27,13 @@ class ControlAdmission(unittest.TestCase):
             owner.playback=True
             self.assertEqual(post('play'),202)
             self.assertEqual(owner.next_input(),('button',68))
-            owner.native_mcu=True
-            self.assertEqual(post('menu'),503)
-            owner.native_mcu=False
+            owner.native_mcu=True;owner.allowed_buttons=set()
+            self.assertEqual(post('menu'),409)
+            owner.allowed_buttons={'menu','ok'}
+            self.assertEqual(post('half'),409)
+            self.assertEqual(post('menu'),202)
+            self.assertEqual(owner.next_input(),('button',67))
+            owner.native_mcu=False;owner.allowed_buttons=set(BUTTONS)
             owner.last_publish-=6
             self.assertEqual(post('play'),503)
         finally:connection.close();owner.close()

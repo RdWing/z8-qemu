@@ -294,7 +294,7 @@ static void video_raw_packet_overwrite(NikonZ8State *s,uint64_t address,unsigned
 
 static bool video_raw_receive(NikonZ8State *s)
 {
-    if (!video_raw_descriptor(s) || !s->event_timing_active || s->primary_reset_stage ||
+    if (!video_raw_descriptor(s) || !source_input_clock_running(s) || s->primary_reset_stage ||
         (s->video_forced_stop_model && (s->engine150c_stop_requested&0x4000)) ||
         !(s->engine150c_active&0x4000) || (s->engine_150c_init[0x18/4]&0x4000) ||
         !s->engine152c_stream_requested || s->engine152c_stream_pending ||

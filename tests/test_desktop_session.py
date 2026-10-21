@@ -25,13 +25,24 @@ class DesktopSession(unittest.TestCase):
             self.assertEqual(args[-2:],['--port','0'])
             for changes in [dict(output=str(source)),dict(seconds=True),dict(seconds=3601),
                             dict(raw='relative'),dict(extra='unowned'),dict(experimental_playback=True),
-                            dict(experimental_shared221='yes')]:
+                            dict(experimental_shared221='yes'),dict(native_controls=True),
+                            dict(experimental_sensor_source_clock=True),dict(experimental_boundary_inputs=True)]:
                 with self.subTest(changes=changes),self.assertRaises(ValueError):desktop.command(dict(config,**changes))
             args=desktop.command(dict(config,card=str(source),experimental_playback=True))
             self.assertIn('--experimental-playback',args)
             args=desktop.command(dict(config,mcu=str(source)))
             self.assertIn('--mcu',args);self.assertTrue(args[2].endswith('run_native.py'))
             with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),card=str(source)))
+            args=desktop.command(dict(config,mcu=str(source),native_controls=True))
+            self.assertIn('--native-controls',args)
+            with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),native_controls='yes'))
+            movie=dict(experimental_shared221=True,experimental_boundary_inputs=True,
+                       experimental_yuv_channels=True,experimental_movie_selector16=True,
+                       experimental_sensor_source_clock=True)
+            args=desktop.command(dict(config,**movie))
+            for flag in movie:self.assertIn('--'+flag.replace('_','-'),args)
+            with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),**movie))
+
 
     @unittest.skipIf(os.name=='nt','POSIX private process-group lifecycle')
     def test_unresponsive_owned_group_is_reaped(self):

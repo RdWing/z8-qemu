@@ -17,23 +17,30 @@ from rom_inputs import attach
 from service_serial8 import WritePeer
 from z8_global1_boundary_input import Peer as BoundaryPeer
 from control import Control, png_from_ppm
+from native_contact_replay import ContactReplay
+from native_inputs import Inputs, CONTACTS
 
 p=arguments(__doc__)
 p.add_argument('--port',type=int,help='Loopback read-only native-MCU display, with Stop control')
 p.add_argument('--check-only',action='store_true')
 p.add_argument('--mcu',type=Path,required=True)
+p.add_argument('--native-controls',action='store_true',help='Qualified EX Menu/navigation/half contacts; requires loopback view')
+p.add_argument('--contact-replay',type=Path,help='Ordered original-MCU external contact actions at virtual times')
 p.add_argument('--mcu-pins',default='',help='Explicit external contacts, e.g. G1=1:G13=1; no inherited Z63 key names')
 p.add_argument('--seconds',type=int,default=180)
 p.add_argument('--experimental-shared221',action='store_true')
 a=p.parse_args()
 if not 1<=a.seconds<=3600:p.error('Duration must be 1..3600 seconds')
 if ',' in a.mcu_pins:p.error('Use colon-separated MCU contacts')
+if a.native_controls and (a.port is None or a.contact_replay):p.error('--native-controls requires --port and excludes contact replay')
 if a.port is not None and not (a.port==0 or 1024<=a.port<=65535):p.error('Invalid loopback port')
 firmware,_=verify(a.firmware);mcu=a.mcu.resolve()
 if ',' in str(mcu) or mcu.stat().st_size!=524288 or hashlib.sha256(mcu.read_bytes()).hexdigest()!='8ce129fa3689d1d619f25ba1c44a3a9f1964c76fe77b95adeb4ea912463c8c63':
  p.error('Expected the original Z8 EX03.00 component')
 if not a.qemu.is_file() or not a.raw.is_file():p.error('QEMU and RAW paths must exist')
 if a.check_only:print('Original Z8 MAIN/EX and runtime paths verified.');raise SystemExit(0)
+contacts=ContactReplay(a.contact_replay) if a.contact_replay else None
+if a.native_controls:a.mcu_pins='G1=1:G13=1:G14=1:G15=1'+(':'+a.mcu_pins if a.mcu_pins else '')
 g=Guest(firmware,a.qemu,a.raw,a.output)
 index=g.command.index('-M')+1
 g.command[index]=g.command[index].replace('nikon-z8-lab,','nikon-z8-full-lab,zr-sd-empty-fixture=on,')+',mcu-image='+str(mcu)+',mcu-pins='+a.mcu_pins
@@ -43,32 +50,47 @@ if a.experimental_shared221:
  g.command[index]+=','+','.join(k+'='+v for k,v in properties.items())
 g.command[g.command.index('-smp')+1]='4,maxcpus=5'
 g.command+=['-device',f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-num=0']
-attach(g);g.data.update(command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
-control=Control(a.port,native_mcu=True) if a.port is not None else None
+attach(g);g.data.update(native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
+control=Control(a.port,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None) if a.port is not None else None
 if control:
  control.write_endpoint(g.out);signal.signal(signal.SIGTERM,lambda *_:control.stop.set())
 try:
  with g:
   g.rsp('z1,40160000,4')
+  inputs=Inputs(g.qmp) if a.native_controls else None
   boundary=BoundaryPeer(g,33,auxiliary_masked=True,auxiliary1_masked=a.experimental_shared221,global0_bit26=a.experimental_shared221)
   spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
-  deadline=time.monotonic()+a.seconds;next_sample=0
+  deadline=time.monotonic()+a.seconds;next_sample=0;capture_at=[]
   g.qmp.command('cont')
   while time.monotonic()<deadline and not (control and control.stop.is_set()):
    if not g.qmp.command('query-status')['running'] or 'Z8_UNKNOWN' in g.log():break
    boundary.tick()
+   if inputs:
+    vt=json.loads(g.qmp.command('qom-get',path='/machine',property='runtime-clock-state'))['virtual_ns']/1e9
+    event=inputs.tick(control,vt)
+    if event:g.data.setdefault('native_interactive_inputs',[]).append(event)
+   if contacts:
+    vt=json.loads(g.qmp.command('qom-get',path='/machine',property='runtime-clock-state'))['virtual_ns']/1e9
+    for event in contacts.dispatch(g.qmp,vt):
+     g.data.setdefault('delivered_contacts',[]).append(event);capture_at.append((vt+.7,len(g.data['delivered_contacts'])))
+    while capture_at and vt>=capture_at[0][0]:
+     _,number=capture_at.pop(0);image=g.out/f'contact-{number:03d}.ppm'
+     g.qmp.command('screendump',filename=str(image));image.with_suffix('.png').write_bytes(png_from_ppm(image))
    channels=json.loads(g.qmp.command('qom-get',path='/machine',property='serial-state'))
    spi8.clock_if_ready(channels[8]);spi9.clock_if_ready(channels[9])
    now=time.monotonic()
    if now>=next_sample:
-    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
+    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
+    row['ui_control_hex']=g.read_bytes(0xa03228fa4,32).hex()
+    row['main_switch_cache_hex']=g.read_bytes(0xa0320169c,44).hex()
     g.data.setdefault('native_samples',[]).append(row)
     if control:
      g.qmp.command('stop');frame=g.out/'current.ppm';g.qmp.command('screendump',filename=str(frame))
-     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9))
+     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9),ready=a.native_controls and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
      g.qmp.command('cont')
     (g.out/'native-live.json').write_text(json.dumps(row)+'\n');next_sample=now+.5
    time.sleep(.002)
+  if inputs:inputs.release()
   g.qmp.command('stop')
   g.qmp.command('memsave',val=0x2000d000,size=7964,filename=str(g.out/'mcu-initialized-data.bin'),**{'cpu-index':4})
   g.data['native_cpus']={str(i):g.qmp.hmp('info registers',i) for i in range(5)}

@@ -24,11 +24,11 @@ Z63 firmware on the Z8 machine.
 | Task `0xff` status clear | Separate `task1500-ff-clear-model`, off by default. Z8's original zero clear is preserved. | Empty-status clear/arm/start controls; neither value creates task data. |
 | Graphics/display | Preserve Z8 four-bank active acknowledgments, indexed overlays, region storage and additional rendering paths; add full-height NV16 direct scanout. | Actual renderer tests and original menu regression; physical panel/color fidelity unqualified. |
 | Persistent virtual cards and exports | `--card` attaches an existing exFAT image for guest writes. Existing exact-file export plus bounded exFAT-window/ISO-BMFF helpers are available. | Guest-written lossless NEF accepted by two decoders. Export only after the emulator stops. |
-| Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. Standard movie path remains incomplete. |
+| Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. An explicit experimental profile now produces Movie frames and recovers to Photo; standard-profile and recording acceptance remain separate. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
-| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 69 synthetic reset checks pass; original shooting display reached. Complete native controls/capture remain open. |
+| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 73 synthetic reset/contact checks pass; original shooting display and Menu/navigation/half contacts reached. Remaining controls/capture remain open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 mode controls, lens/motor, power and card hot-plug still need their own bindings. | No physical or native Z8 qualification. |
-| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX display inspection is separate from the host-peer controls. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; complete debug/export/USB/plugin parity remains open. |
+| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; complete debug/export/USB/plugin parity remains open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
 ## Preserve Z8 timed-single ownership
@@ -138,11 +138,41 @@ retained as a successful recovery model.
 The [macOS workbench](../desktop/README.md) now shares the browser's controller
 queue and readiness/capability guards. A native desktop run opens the retained
 NEF through the original playback path and saves exact display pixels; closing
-the window reaps its child. Native EX display mode retains disabled camera
-buttons until the Z8 contact mappings are qualified.
+the window reaps its child. Native EX mode optionally enables qualified Menu/navigation/half contacts;
+other controls retain capability guards.
 
 A separate `--experimental-independent-pixel-clock` control disables the donor
 capture-tick pacing while retaining the baseline periodic pixel clock. It
 records admission masks `0x800e00` / `0x800e80` after the Movie/Photo replay,
 with zero RAW/video frames. Header, ISP, source-gate and source-clock readiness
 remain absent. This control does not fix movie pixels or establish recovery.
+
+## Movie live view and recovery checkpoint
+
+The explicit shared profile now admits the original 1920×1080 video header
+bank at `0xE000E100`, only with pitch 5,888 and matching paired headers,
+geometry, buffer ownership and pending-cause checks. The global task pulse
+model retains the original one-to-zero enable edges without producing DMA or
+completion interrupts. Empty YUV channels acknowledge arm 1 as ready 2 only.
+The missing external selector16 record remains a declared synthetic input.
+
+`--experimental-sensor-source-clock` requires the shared profile and keeps the
+Z8 sensor VD owner distinct from capture group 0. When group 0 stops while the
+programmed sensor clock is still running, that existing VD callback advances
+source boundaries and owed frame work. It creates no independent oscillator,
+CPU redirection or firmware RAM repair. Donor frame-done ownership remains on.
+Firmware-free tests exercise the actual callback and disabled, stopped-clock,
+bad-control, bad-period and active-capture guards.
+
+Two cold-boot runs produced 1,089 and 1,129 functional movie frames and renewed
+Photo, Menu and half-shutter frames after both returns in each run, with zero rejected
+frames and clean shutdown. Use `--experimental-shared221`,
+`--experimental-boundary-inputs`, `--experimental-yuv-channels`,
+`--experimental-movie-selector16` and `--experimental-sensor-source-clock`
+together with `--replay tools/movie-recovery-replay.json`; omit the still-preparation override and independent-pixel-clock
+negative control. Movie input is functional 4,140×2,344 Bayer with a simplified
+1920×1080 ISP output. A 2160p30 UI label does not establish 4K recording.
+No movie container, audio, physical cadence or original-EX movie workflow is
+qualified. Saved-photo playback still fails to resume Photo pixels. Posting
+A1 finite-input-end bit 16 after actual reads/writes did not fix that lifecycle
+and is excluded from the accepted model.

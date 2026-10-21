@@ -36,7 +36,7 @@ The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
 | Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. Functional HE/HE★ single captures now have native Z8 synthetic-input acceptance; physical codec equivalence and repeated capture remain open. |
 | Firmware-written 8280 × 5520, 14-bit NEFs on virtual NVMe/exFAT | LibRaw and Adobe decoding checked all 45,705,600 samples. Capture requires three explicit experimental options and the Lossless menu setting. |
 | Picture Control metadata and Camera Raw defaults | Metadata inspected for Auto and Standard; lossless decoding checked with Auto. |
-| Movie configuration registers and selector handling | Movie initialization remains incomplete; playable recording and physical AF/lens drive are unqualified. |
+| Movie configuration registers and selector handling | Explicit experimental Movie live view and two-cycle Photo recovery work; playable recording and physical AF/lens drive are unqualified. |
 
 A complete QEMU build, native menu navigation and single NEF capture have
 passed on macOS. LibRaw and Adobe DNG Converter independently decoded every
@@ -49,9 +49,9 @@ The cumulative Z63 C2.00/C2.01 shared-device changes are adapted through
 `5c3b47c`, including functional HE, JPEG provenance/cancellation, playback resize,
 capture ownership and video-domain models. This is a **partial feature backport**:
 Native HE/HE★ single captures and saved-preview playback are accepted in bounded
-virtual runs. Movie/recovery, complete native MCU controls and full desktop parity remain incomplete.
+virtual runs. Experimental Movie live view and Photo recovery now pass two cycles. Playback recovery, remaining native MCU controls and full desktop parity remain incomplete.
 An initial [macOS desktop workbench](desktop/README.md) now supports the shared
-controls, display saving, saved-photo playback and native EX display inspection. An optional original EX attachment now reaches the
+controls, display saving, saved-photo playback and qualified native EX Menu/navigation/half contacts. An optional original EX attachment now reaches the
 shooting display; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
 preserved and freshly accepted by LibRaw and Adobe. See the
 [feature disposition and checks](docs/z63-backport.md) before enabling the
