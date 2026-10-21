@@ -293,6 +293,8 @@ struct NikonZ8State {
     uint32_t power_status;
     uint32_t peripheral_release8;
     bool yuvcmp_released, yuvcmp_config_model, yuvcmp_channels_model;
+    bool yuvcmp_channel_ready_model;
+    uint64_t yuvcmp_channel_ready_reads;
     uint64_t yuvcmp_arms, yuvcmp_stops;
     uint32_t yuvcmp_config[0x22000 / 4];
     uint64_t yuvcmp_config_writes, yuvcmp_local_resets;
@@ -809,6 +811,8 @@ struct NikonZ8State {
     uint64_t engine1544_writes, engine1544_empty_resets, engine1544_empty_w1cs;
     bool engine152c_request_model, engine152c_request_pending;
     bool engine152c_he_still_model, engine152c_he_pending;
+    bool engine152c_he_stop_pending, engine152c_he_stop_done;
+    uint64_t engine152c_he_stop_requests, engine152c_he_stop_events, engine152c_he_stop_acks;
     uint64_t engine152c_he_jobs, engine152c_he_bytes, engine152c_he_acks;
     bool engine152c_stream_model, engine152c_stream_copy_model, engine152c_stream_requested;
     uint16_t engine152c_stream_outputs_valid, engine152c_stream_inputs_valid;
@@ -1991,10 +1995,11 @@ static bool graphics_color_ready(Z8Graphics *g)
     if (g->config48[0x200] == 0) {
         return true;
     }
-    if (g->config48[0x200] != 15 || !g->color_matrix_valid || !g->color_offset_valid) {
+    if ((g->config48[0x200] != 15 && g->config48[0x200] != 8) ||
+        (g->config48[0x200] == 15 && (!g->color_matrix_valid || !g->color_offset_valid))) {
         return false;
     }
-    for (unsigned bank = 0; bank < 6; bank++) {
+    for (unsigned bank = g->config48[0x200] == 8 ? 3 : 0; bank < 6; bank++) {
         for (unsigned i = 0; i < (bank < 3 ? 256 : 32); i++) {
             if (!g->color_written[bank][i]) {
                 return false;
@@ -2010,7 +2015,9 @@ static void graphics_color_pixel(Z8Graphics *g, const uint8_t *in, uint8_t *out)
      * matrix, piecewise output LUT. The knots come from the ROM identity
      * table at 41ed9584. Stage ordering, interpolation/rounding and flag8's
      * association with this grid remain model assumptions, not GPU traces.
-     * Only the observed all-stages mode (15) with zero offsets is supported.
+     * Mode15 uses all stages with zero offsets. Native Z8 playback mode8
+     * is modeled as the output table alone, with byte input expanded by16.
+     * That isolated-stage interpretation is functional, not physical GPU proof.
      * The separate ROM sRGB and pure-power tables preclude adding an implicit
      * sRGB affine correction to every output table. Alpha is preserved. */
     static const unsigned knots[33] = {
@@ -2023,10 +2030,12 @@ static void graphics_color_pixel(Z8Graphics *g, const uint8_t *in, uint8_t *out)
         return;
     }
     for (unsigned c = 0; c < 3; c++) {
-        double v = 0;
-        for (unsigned k = 0; k < 3; k++) {
-            v += sextract32(g->config48[0x201 + c * 3 + k], 0, 12) *
-                 (double)g->color_tables[k][in[k]] / 1024.0;
+        double v = g->config48[0x200] == 8 ? in[c] * 16.0 : 0;
+        if (g->config48[0x200] == 15) {
+            for (unsigned k = 0; k < 3; k++) {
+                v += sextract32(g->config48[0x201 + c * 3 + k], 0, 12) *
+                     (double)g->color_tables[k][in[k]] / 1024.0;
+            }
         }
         v = MIN(4096.0, MAX(0.0, v));
         unsigned segment = 0;
@@ -2075,7 +2084,10 @@ static bool graphics_image48(unsigned reg, uint32_t value)
     case 0x482: case 0x4d2: case 0x485: case 0x4d5: case 0x730:
     case 0x731: case 0x740: case 0x741: case 0x742: case 0x743:
         return value == 0;
-    case 0x200: return value == 0 || value == 15;
+    /* Native Z8 saved-photo path uploads mode8 before its next draw.
+     * Retain this control; execution requires all three complete output
+     * tables. Other isolated stage combinations remain unsupported. */
+    case 0x200: return value == 0 || value == 8 || value == 15;
     default: return false;
     }
 }
@@ -15961,6 +15973,13 @@ static bool yuvcmp_config_access(NikonZ8State *s, hwaddr addr,
     }
     if (!write) {
         *value = s->yuvcmp_config[off / 4];
+        if (s->yuvcmp_channel_ready_model && plane && !(off&0x3ff) && *value==1) {
+            /* Original Z8 40c74590 arms state1; 40c74874/88 waits for
+             * state2 in this control word. This acknowledges an armed,
+             * empty channel, never its separate +20 queue/data status.
+             * No output memory, result register or interrupt is changed. */
+            *value=2;s->yuvcmp_channel_ready_reads++;
+        }
         if (pair) { *value |= (uint64_t)s->yuvcmp_config[off / 4 + 1] << 32; }
         return true;
     }
@@ -16028,6 +16047,17 @@ static void set_yuvcmp_channels_model(Object *obj, bool value, Error **errp)
     s->yuvcmp_channels_model = value;
 }
 
+static bool get_yuvcmp_channel_ready_model(Object *obj, Error **errp)
+{ return NIKON_Z8_LAB(obj)->yuvcmp_channel_ready_model; }
+static void set_yuvcmp_channel_ready_model(Object *obj, bool value, Error **errp)
+{
+    NikonZ8State *s=NIKON_Z8_LAB(obj);
+    if (s->image_ram.ram || s->image_ram.rom_device) {
+        error_setg(errp,"YUV channel readiness immutable after realization");return;
+    }
+    s->yuvcmp_channel_ready_model=value;
+}
+
 static char *get_yuvcmp_config_state(Object *obj, Error **errp)
 {
     NikonZ8State *s = NIKON_Z8_LAB(obj);
@@ -16044,7 +16074,8 @@ static char *get_yuvcmp_config_state(Object *obj, Error **errp)
             comma ? "," : "", 0x15640000 + i * 4, s->yuvcmp_config[i]);
         comma = true;
     }
-    g_string_append(out, "]}");
+    g_string_append_printf(out,"] ,\"channel_ready_enabled\":%s,\"channel_ready_reads\":%" PRIu64 "}",
+        s->yuvcmp_channel_ready_model ? "true" : "false",s->yuvcmp_channel_ready_reads);
     return g_string_free(out, false);
 }
 
@@ -17784,7 +17815,7 @@ static bool engine152c_register(NikonZ8State *s, hwaddr addr,
     }
     switch (*off) {
     case 0: case 4: case 8: case 0x14: case 0x104: case 0x108: case 0x404: *mask = 1; break;
-    case 0xc: *mask = s->video_backend_drain_model ? 1 : 0; break;
+    case 0xc: *mask = (s->video_backend_drain_model || s->engine152c_he_still_model) ? 1 : 0; break;
     case 0x18: case 0x1c: *mask = 0x7ff; break;
     case 0x100: case 0x10c: case 0x110: case 0x114: case 0x118: *mask = 0xff; break;
     case 0x184: *mask = 0xf; break;
@@ -17883,10 +17914,49 @@ static bool engine152c_stream_start(NikonZ8State *s)
     return true;
 }
 
+/* Z8 C3.11 40c316c0 requests STOP after the finite HE ISR has retired
+ * both data causes. Keep this separate from the continuous movie receiver:
+ * the finite FIFO owns no movie descriptor or packet. A completed real HE
+ * transaction, held receiver and fenced source are all required. */
+static bool engine152c_he_stop_control(NikonZ8State *s, hwaddr addr,
+                                     uint64_t value, unsigned size)
+{
+    if (!s->engine152c_he_still_model || addr != 0x152c000c) { return false; }
+    /* Shared profiles can also carry a continuous receiver. Its explicit
+     * start/disable token belongs to the existing movie drain contract. */
+    if (s->video_raw_transport_model &&
+        (s->engine152c_stream_requested || s->video_backend_locally_disabled[0]) &&
+        s->engine152c_he_acks<=s->engine152c_he_stop_requests) { return false; }
+    uint32_t *c=s->engine152c_config[0];
+    if (size!=4 || value!=1 || c[0x404/4]!=1 || c[8/4]!=1 ||
+        s->engine152c_request_pending || s->engine152c_he_pending ||
+        s->engine152c_stream_requested || s->engine152c_stream_pending ||
+        s->engine152c_he_stop_pending ||
+        s->engine152c_he_acks<=s->engine152c_he_stop_requests ||
+        (s->engine150c_active&0x4000)) {
+        unknown_access(s,addr,value,size,true);return true;
+    }
+    s->engine152c_he_stop_pending=true;s->engine152c_he_stop_requests++;
+    c[0xc/4]=1;c[8/4]=0;
+    timer_mod(s->engine152c_stream_timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+33333333);
+    return true;
+}
+static void engine152c_he_stop_tick(NikonZ8State *s)
+{
+    if (!s->engine152c_he_stop_pending || s->engine152c_he_stop_done ||
+        s->engine152c_he_pending || s->engine152c_request_pending ||
+        s->engine152c_stream_pending || s->engine152c_stream_requested ||
+        (s->engine150c_active&0x4000)) { return; }
+    s->engine152c_he_stop_done=true;s->engine152c_he_stop_events++;
+    s->engine152c_config[0][0xc/4]=0;s->engine152c_stream_pending|=8;
+    engine152c_stream_irq_update(s);
+}
+
 static void engine152c_stream_tick(void *opaque)
 {
     NikonZ8State *s=opaque;
     timer_mod(s->engine152c_stream_timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+33333333);
+    engine152c_he_stop_tick(s);
     const uint32_t *c=s->engine152c_config[0];
     /* Explicit opaque byte transport, not Nikon RAW codec. No input, closed
      * source clock/gate, partial descriptor or outstanding ownership => no
@@ -18018,12 +18088,19 @@ static void set_engine152c_he_still_model(Object *obj, bool value, Error **errp)
 static char *get_engine152c_he_still_state(Object *obj, Error **errp)
 {
     NikonZ8State *s=NIKON_Z8_LAB(obj);
-    return g_strdup_printf("{\"enabled\":%s,\"jobs\":%" PRIu64
+    char *base=g_strdup_printf("{\"enabled\":%s,\"jobs\":%" PRIu64
         ",\"bytes\":%" PRIu64 ",\"acks\":%" PRIu64 ",\"pending\":%s,"
         "\"physical_codec_verified\":false,\"scope\":\"functional finite MIPU packed14 FIFO to HE output; original encoder arithmetic unverified\"}",
         s->engine152c_he_still_model ? "true" : "false",
         s->engine152c_he_jobs,s->engine152c_he_bytes,s->engine152c_he_acks,
         s->engine152c_he_pending ? "true" : "false");
+    GString *out=g_string_new_len(base,strlen(base)-1);g_free(base);
+    g_string_append_printf(out,",\"stop_pending\":%s,\"stop_done\":%s,\"stop_requests\":%" PRIu64
+        ",\"stop_events\":%" PRIu64 ",\"stop_acks\":%" PRIu64 "}",
+        s->engine152c_he_stop_pending ? "true" : "false",
+        s->engine152c_he_stop_done ? "true" : "false",s->engine152c_he_stop_requests,
+        s->engine152c_he_stop_events,s->engine152c_he_stop_acks);
+    return g_string_free(out,false);
 }
 
 static bool get_engine152c_request_model(Object *obj, Error **errp)
@@ -18059,6 +18136,7 @@ static char *get_engine152c_request_state(Object *obj, Error **errp)
 static bool engine152c_config_write(NikonZ8State *s, hwaddr addr,
                                    uint64_t value, unsigned size)
 {
+    if (engine152c_he_stop_control(s,addr,value,size)) { return true; }
     if (video_backend_drain_control(s,addr,value,size)) { return true; }
     if (s->video_backend_drain_model && value &&
         (addr==0x152c0000 || addr==0x152c0004 || addr==0x152c0008) &&
@@ -18074,6 +18152,7 @@ static bool engine152c_config_write(NikonZ8State *s, hwaddr addr,
         (!b && o == 0x14 && c[0x404 / 4] != 1) ||
         (!b && o == 4 && value && c[0x404 / 4] != 1) ||
         (!b && o == 0 && value && (c[0x404 / 4] != 1 || c[4 / 4] != 1)) ||
+        (!b && (o==0 || o==4 || o==8) && value && s->engine152c_he_stop_pending) ||
         (!b && o == 0x404 && !value && (c[0] || c[1])) ||
         (b && o == 0x50 && (s->backend_program_epoch_model ?
             (s->backend_program_cursor==64 || s->engine152c_stream_requested ||
@@ -18095,6 +18174,11 @@ static bool engine152c_config_write(NikonZ8State *s, hwaddr addr,
             s->engine152c_stream_requested=false;s->engine152c_stream_cancels++;
         }
         if (!b && o==0x1c) {
+            if (s->engine152c_he_stop_done && (value&s->engine152c_stream_pending&8)) {
+                s->engine152c_he_stop_pending=false;s->engine152c_he_stop_done=false;
+                s->engine152c_he_stop_acks++;
+                if (!s->engine152c_stream_copy_model) { timer_del(s->engine152c_stream_timer); }
+            }
             video_backend_drain_ack(s,0,value);
             if (!engine152c_he_ack(s,value) && (s->engine152c_stream_pending & value & 4)) {
                 unsigned bit=s->engine152c_stream_last_bank*8+s->engine152c_stream_row*2;
@@ -21822,6 +21906,9 @@ static void nikon_z8_init(MachineState *machine)
         !s->video_peripheral_control_model || !s->engine151_video_stream_model || !s->raw_pipeline_model)) {
         error_report("internal video RAW requires complete source/receiver/decoder/ISP and excludes opaque byte copy");exit(1);
     }
+    if (s->yuvcmp_channel_ready_model && (!s->yuvcmp_config_model || !s->yuvcmp_channels_model)) {
+        error_report("YUV readiness requires explicit configuration and channel models");exit(1);
+    }
     if (s->engine152c_he_still_model && (!s->engine152c_stream_model ||
         !s->engine151_raw_output_model || !s->primary_d980_packed14_model)) {
         error_report("engine152c-he-still-model requires stream receiver, RAW side output and packed14 models");
@@ -22084,9 +22171,11 @@ static void nikon_z8_init(MachineState *machine)
         /* Both original Z8/ZR factory bodies register INTID10b. */
         s->engine152c_stream_irq=qdev_get_gpio_in(gic,0x10b-32);
     }
-    if (s->engine152c_stream_copy_model) {
+    if (s->engine152c_stream_copy_model || s->engine152c_he_still_model) {
         s->engine152c_stream_timer=timer_new_ns(QEMU_CLOCK_VIRTUAL,engine152c_stream_tick,s);
-        timer_mod(s->engine152c_stream_timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+33333333);
+        if (s->engine152c_stream_copy_model) {
+            timer_mod(s->engine152c_stream_timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+33333333);
+        }
     }
     dsp_boot_init(s, gic);
     s->wave5_realized = true;
@@ -22897,6 +22986,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "yuvcmp-empty-reset-state", get_yuvcmp_empty_reset_state, NULL);
     object_class_property_add_bool(oc, "yuvcmp-config-model", get_yuvcmp_config_model, set_yuvcmp_config_model);
     object_class_property_add_str(oc, "yuvcmp-config-state", get_yuvcmp_config_state, NULL);
+    object_class_property_add_bool(oc,"yuvcmp-channel-ready-model",get_yuvcmp_channel_ready_model,set_yuvcmp_channel_ready_model);
     object_class_property_add_bool(oc, "yuvcmp-channels-model", get_yuvcmp_channels_model, set_yuvcmp_channels_model);
     object_class_property_add_bool(oc, "z8-timed-single-model", get_z8_timed_single, set_z8_timed_single);
     object_class_property_add_bool(oc, "primary-d980-single-frame-model", get_primary_d980_single_model, set_primary_d980_single_model);

@@ -10,7 +10,10 @@ from boot_z8 import key_body
 P=Path(__file__).resolve().parent
 
 def run(g,seconds=60,control=None):
- peer=Peer(g,limit_frames=1024,config_reply=True,all_mode_replies=True,bindings=json.loads((P/'peer-bindings.json').read_text()))
+ if getattr(g,'trace_transitions',False):
+  from transition_peer import Peer as ActivePeer
+ else:ActivePeer=Peer
+ peer=ActivePeer(g,limit_frames=1024,config_reply=True,all_mode_replies=True,bindings=json.loads((P/'peer-bindings.json').read_text()))
  clock=BoundaryPeer(g,33,auxiliary_masked=True);spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
  def state(name):return json.loads(g.qmp.command('qom-get',path='/machine',property=name))
  def send_running(body):
@@ -60,7 +63,9 @@ def run(g,seconds=60,control=None):
      control.publish(frame,row,ready=phase>=3 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==1)
      if control.ready:phase=5  # Startup MENU retry must never undo a user's later MENU/half-shutter.
      (g.out/'live-status.json').write_text(json.dumps(dict(control.status(),interactive_inputs=g.data.get('interactive_inputs',[])))+'\n')
-    if phase==0 and raw['frames']>=8 and lcd.get('frames',0)>=8:
+    preparation_ready=(bool(g.data.get('experimental_preparation_profile')) and
+        int.from_bytes(g.read_bytes(0xa03bc2b24,4),'little')==3 and g.read_bytes(0xa032e78a0,1)==b'\0')
+    if phase==0 and (raw['frames']>=8 or preparation_ready) and lcd.get('frames',0)>=8:
      peer.enqueue_external(input_body(),2);phase=1;phase_at=vt;print('Native frame acknowledgements and LCD scanout observed; releasing half shutter',flush=True)
     elif phase==1 and vt-phase_at>=2:
      peer.enqueue_external(input_body(menu=True),2);phase=2;phase_at=vt;print('Sending MENU',flush=True)
@@ -80,4 +85,8 @@ def run(g,seconds=60,control=None):
  finally:
   g.qmp.command('stop')
   g.data['final_pipeline']={n:state(n) for n in ['graphics-state','raw-pipeline-state','engine1548-scanout-state','engine1518-state','engine151-control-state','engine1543-control-state','engine1548-source-state']}
+  g.data['parity_model_state']={}
+  for name in ['engine152c-config-state','engine152c-he-still-state','video-raw-transport-state','video-backend-drain-state','primary-d980-state','engine150c-state','z8-playback-state','engine15e2-jpeg-state','raw-pipeline-state']:
+   try:g.data['parity_model_state'][name]=state(name)
+   except RuntimeError as error:g.data['parity_model_state'][name]={'unavailable':str(error)}
   g.qmp.command('screendump',filename=str(g.out/'final.ppm'));peer.close()

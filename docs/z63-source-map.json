@@ -12,10 +12,6 @@
   "shared221_donor": "WonderLantern/zr-qemu@8a00ceda6a7111e5e08220f9cc3889f57fce9d0f",
   "scope": "Exact working-source fingerprints for the adapted import. Shared source provenance is separate from target native acceptance. Board attachment construction and target MCU implementation are not reused.",
   "files": {
-    "qemu/__pycache__/prepare_source.cpython-314.pyc": {
-      "adapted_sha256": "6eefc2bffcbc9a226e5728280b052a0da0c1f221c4fe564e9a84dd053672deca",
-      "disposition": "Retained Z8 implementation or local integration wrapper"
-    },
     "qemu/nikon-expeed-capture-pool.h": {
       "adapted_sha256": "db8a13be22c21e8ee8f169284bfbf4783c4a99df1daf4e1f4d74b8bc8ec4e6cc",
       "source_path": "nikon-expeed-capture-pool.h",
@@ -287,7 +283,7 @@
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
     "qemu/nikon-z8-lab.c": {
-      "adapted_sha256": "9d425aa0f5d6e021de0e1dc168b161ee1fffb4cb2af001a827f95e1cc87d7b03",
+      "adapted_sha256": "83a718955e533d77dd6151895868de7a8340730ee2b65ecbbad2d280b9a314bb",
       "source_path": "nikon-z63-z9lab.c",
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },

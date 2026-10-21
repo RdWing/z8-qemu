@@ -26,7 +26,7 @@ def main():
     props=','.join(['bootstrap-fixtures=on','capture-frame-pool-model=on',
         'event1508-channel-model=on','event1508-timing-model=on',
         'event1508-programmed-clock-model=on','video-raw-he-codec-model=on',
-        'wave5-vpu-model=on','dsp-boot-mailbox-model=on','task1500-control-model=on','video-peripheral-control-model=on','task1500-ff-clear-model=on','image-bank-model=on','dsp-ram-aperture-fixture=on','bus-window-fixture=on'])
+        'yuvcmp-config-model=on','yuvcmp-channels-model=on','yuvcmp-channel-ready-model=on','wave5-vpu-model=on','dsp-boot-mailbox-model=on','task1500-control-model=on','video-peripheral-control-model=on','task1500-ff-clear-model=on','image-bank-model=on','dsp-ram-aperture-fixture=on','bus-window-fixture=on'])
     baseline=json.loads((Path(__file__).resolve().parents[1]/'tools/model-properties.json').read_text())
     values=dict(item.split('=',1) for item in baseline['properties'])
     values.update(item.split('=',1) for item in props.split(','))
@@ -83,6 +83,12 @@ def main():
                    control['commands']==1 and control['latched']==7 and
                    not control['pending'] and read(0x0d154044)==cpu_status and
                    control['pixel_bytes']==0 and control['irq_events']==0)
+            write(0x15649000,1)
+            verify('native YUV channel arm reports ready without work',read(0x15649000)==2 and read(0x15649020)==0)
+            yuv=state('yuvcmp-config-state')
+            verify('YUV readiness creates no DMA or completion',yuv['arms']==1 and yuv['jobs']==0 and yuv['pixel_bytes']==0 and yuv['completion_events']==0)
+            write(0x15649000,0)
+            verify('YUV channel disarm retires readiness',read(0x15649000)==0)
             verify('programmed clock available',state('event1508-programmed-clock-state')['enabled'])
             verify('Wave5 compatible identity',read(0x16011044)==0x5210)
             verify('Wave5 authored profile identity',read(0x16011040)==0x574c3556)

@@ -10,7 +10,7 @@ from boot_z8 import boot
 from rom_inputs import attach
 from capture_stream import run
 from control import png_from_ppm
-ap=arguments(__doc__,capture=True);ap.add_argument('--card-template',type=Path,required=True);ap.add_argument('--seconds',type=int,default=600);ap.add_argument('--settle',type=int,default=120);ap.add_argument('--experimental-preparation-profile',action='store_true',help='Hypothesis only: external bank8 offset999 input=1; not recovered factory data');ap.add_argument('--experimental-capture-selector5',action='store_true',help='Diagnostic ROM selector5 chooses placeholder record1; coefficients remain absent');ap.add_argument('--experimental-timed-single',action='store_true',help='Opt-in periodic DMA ownership experiment; needs timed build');ap.add_argument('--menu-actions',default='',help='Original MCU menu navigation, comma separated menu/ok/arrows');ap.add_argument('--manual-menu',action='store_true',help='Append actions to this run menu-control.json; capture=true releases shutter after queue');args=ap.parse_args();assert 30<=args.seconds<=1200 and 5<=args.settle<=300
+ap=arguments(__doc__,capture=True);ap.add_argument('--experimental-he-still',action='store_true',help='Enable functional HE FIFO output for native HE/HE-star capture; target acceptance experimental');ap.add_argument('--card-template',type=Path,required=True);ap.add_argument('--seconds',type=int,default=600);ap.add_argument('--settle',type=int,default=120);ap.add_argument('--experimental-preparation-profile',action='store_true',help='Hypothesis only: external bank8 offset999 input=1; not recovered factory data');ap.add_argument('--experimental-capture-selector5',action='store_true',help='Diagnostic ROM selector5 chooses placeholder record1; coefficients remain absent');ap.add_argument('--experimental-timed-single',action='store_true',help='Opt-in periodic DMA ownership experiment; needs timed build');ap.add_argument('--menu-actions',default='',help='Original MCU menu navigation, comma separated menu/ok/arrows');ap.add_argument('--manual-menu',action='store_true',help='Append actions to this run menu-control.json; capture=true releases shutter after queue');args=ap.parse_args();assert 30<=args.seconds<=1200 and 5<=args.settle<=300
 firmware,_=verify(args.firmware);out=args.output.resolve()
 g=Guest(firmware,args.qemu,args.raw,out)
 g.capture_settle=args.settle
@@ -30,6 +30,9 @@ g.command[g.command.index('-M')+1]+=','+','.join(name+'=on' for name in json.loa
 if args.experimental_timed_single:
  g.command[g.command.index('-M')+1]+=',z8-timed-single-model=on'
  g.data['experimental_timed_single']={'enabled':True,'physical_timing_verified':False,'completion_requires_real_dma':True}
+if args.experimental_he_still:
+ g.command[g.command.index('-M')+1]+=',engine152c-stream-receiver-model=on,engine152c-he-still-model=on'
+ g.data['experimental_he_still']={'enabled':True,'physical_codec_verified':False}
 attach(g)
 # Supply the external bank-8 byte read during native preparation. This is
 # a synthetic configuration hypothesis, not a firmware instruction patch.
@@ -59,18 +62,32 @@ try:
   finally:
    g.qmp.command('stop')
    g.data['card_model_state']={}
-   for name in ['engine151-state','engine151-capture-pixels-state','engine151-raw-output-state','primary-d980-source-notify-state','pcie-dbi-state','capture-gpio-state','raw-pipeline-state','primary-d980-state','ccomp-gpio-state','engine150c-state','primary-d980-single-frame-state','primary-d980-prepared-start-state','primary-d980-source-notify-state','primary-d980-channel-boundary-state','primary-capture-direct-stop-state']:
+   for name in ['engine152c-config-state','engine152c-he-still-state','engine152c-request-state','engine152c-stream-receiver-state','engine151-state','engine151-capture-pixels-state','engine151-raw-output-state','primary-d980-source-notify-state','pcie-dbi-state','capture-gpio-state','raw-pipeline-state','primary-d980-state','ccomp-gpio-state','engine150c-state','primary-d980-single-frame-state','primary-d980-prepared-start-state','primary-d980-source-notify-state','primary-d980-channel-boundary-state','primary-capture-direct-stop-state']:
     try:g.data['card_model_state'][name]=g.qmp.command('qom-get',path='/machine',property=name)
     except Exception as e:g.data['card_model_state'][name]={'error':str(e)}
    raw_side=g.data['card_model_state'].get('engine151-raw-output-state',{})
    if isinstance(raw_side,str):raw_side=json.loads(raw_side)
-   if raw_side.get('jobs')==1 and not raw_side.get('pending') and raw_side.get('acks')==1:
+   if raw_side.get('jobs')==1 and not raw_side.get('pending') and raw_side.get('acks')==1 and raw_side.get('target')!=0xe0000000:
     addr,size=raw_side['target'],raw_side['bytes']
     assert 0x840000000<=addr<0x900000000-size and 0<size<=128*1024**2
     dump=out/'engine151-raw-side-target.bin'
     reply=g.qmp.hmp(f'pmemsave {addr:#x} {size:#x} "{dump}"')
     assert dump.stat().st_size==size,reply
     g.data['raw_producer_snapshot']={'address':hex(addr),'bytes':size,'file':dump.name}
+   he=g.data['card_model_state'].get('engine152c-he-still-state',{})
+   if isinstance(he,str):he=json.loads(he)
+   if he.get('jobs')==1 and he.get('acks')==1 and not he.get('pending'):
+    receiver=json.loads(g.data['card_model_state']['engine152c-request-state'])
+    sensor=json.loads(g.data['card_model_state']['primary-d980-state'])
+    geometry=sensor['submitted'];pitch=geometry['0x100'];height=receiver['height']
+    snapshots=[('he-receiver-output.bin',receiver['output'],receiver['capacity']),
+               ('he-sensor-packed14.bin',sensor['last_physical'],pitch*height)]
+    for name,addr,size in snapshots:
+     assert 0x800000000<=addr<0x900000000-size and 0<size<=128*1024**2
+     dump=out/name;g.qmp.hmp(f'pmemsave {addr:#x} {size:#x} "{dump}"')
+     assert dump.stat().st_size==size
+    g.data['he_snapshots']={'output':snapshots[0][0],'input':snapshots[1][0],
+                            'width':receiver['width'],'height':height,'pitch':pitch}
    g.qmp.command('screendump',filename=str(out/'final.ppm'))
    (out/'final.png').write_bytes(png_from_ppm(out/'final.ppm'))
 finally:(out/'session-path.txt').write_text(str(out)+'\n')

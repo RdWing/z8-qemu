@@ -105,3 +105,24 @@ python tools/audit_source.py
 Use [the existing capture recipe](capture.md) with explicit private inputs for
 native acceptance. Firmware, cards, screenshots, NEFs, runtime captures and
 compiled outputs remain outside the source inventory.
+
+## Native Z8 parity follow-through
+
+[Native HE stills](native-he-stills.md) now has original C3.11 single-capture
+HE★/HE acceptance, full-strip inverse decoding, three preview decodes and a
+regular-HE producer/receiver comparison. Finite HE STOP follows actual output
+and original acknowledgements. Repeated capture and recovery remain separate.
+
+`tools/run.py --replay sequence.json` replays ordered external controls against
+virtual time after native menu readiness. It records delivery and preserves the
+Photo/Movie selector through later buttons. `--trace-transitions` adds bounded
+read-only exception observations; it changes neither instructions nor registers.
+The controller now accepts the statically traced `play` input for saved-photo
+experiments. Replay completion alone does not assert native workflow success.
+
+The opt-in movie selector16/preparation and YUV readiness experiments remain
+unqualified. They distinguish missing external table data, empty-channel
+readiness and actual frame production. YUV ready state2 acknowledges arm state1
+without DMA, queue results or interrupts. Saved-photo GPU mode8 is a functional
+output-table-only interpretation requiring all three tables; physical stage
+semantics remain unverified.

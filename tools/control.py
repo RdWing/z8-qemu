@@ -5,7 +5,7 @@ import json,queue,secrets,struct,threading,time,zlib
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 
-BUTTONS={'menu':67,'up':36,'down':37,'left':35,'right':34,'ok':74,'half':7,'i':72}
+BUTTONS={'menu':67,'up':36,'down':37,'left':35,'right':34,'ok':74,'half':7,'i':72,'play':68}
 
 def png_from_ppm(path):
  data=Path(path).read_bytes(); pos=0; tokens=[]
