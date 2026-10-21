@@ -167,7 +167,12 @@ produces 135 Movie frames with 135 ISP/source acknowledgments, then advances
 to 870 RAW frames. Serial totals are 1,047 MAIN / 937 EX, zero checksum failures,
 zero pixel rejects and clean window-close cleanup. Camera commands and the
 popup share one selector function; native commands stay disabled during boot
-and respect the same in-flight, capability and stale-session checks.
+and respect the same in-flight, capability and stale-session checks. A second
+clean Camera-menu cycle sends exactly Movie/Photo/Menu/half, producing 50 Movie
+frames with matching ISP/source acknowledgments and 796 total RAW frames. Its
+915 MAIN / 825 EX frames have no checksum or pixel errors and owned Quit stops
+QEMU cleanly. The WK popup-only rerun remains an automation limit; no extra
+confirmation key is needed by the selector.
 
 `native-mcu-io-state` observes MAIN GPIO levels/mask/pending/polarity/enable,
 MCU GPIO input/output modes, EXTI routing/edges and serial ownership without
@@ -221,3 +226,22 @@ is not a source-ID translation error. Expander 0x22 bit 2 and bit 5 instead
 produce report bytes 5 and 14. These numerical bindings assign no additional
 physical button names. Native full capture remains separate from the accepted
 host-peer HE/HE★ workflow.
+
+
+A paired-input RAW-menu replay reaches the original MAIN full-contact callback,
+admission-pass branch, commit and initial sequence dispatch. Capture current/
+pending and screen-busy state are zero, ruling out a busy admission rejection
+for this control. D980 submissions and finite-frame/RAW-output/HE jobs remain
+zero. The run stops cleanly with 2,065 MAIN / 1,938 EX frames and no checksum
+failures, without host MCU replies, PC redirection or firmware RAM repair.
+This narrows the remaining join beyond admission; it does not qualify native
+HE capture or the physical connection between EX and MAIN release inputs.
+
+
+A full-phase-only read-only trace further reaches the UI action with the full
+key and clear inhibit/busy/filter checks. Its sequence-permission getter returns
+zero, selecting initial sequence 1; the accepted host-peer capture returns one
+and selects sequence 3. Active reasons 37 and 125 intersect the current mask.
+The probe stops cleanly at virtual 71.270584 with 1,622 MAIN / 1,533 EX frames,
+no checksum failures and no image-engine jobs. These are firmware gate
+observations; no reason bit or firmware instruction is changed to force a shot.

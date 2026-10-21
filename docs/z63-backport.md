@@ -254,8 +254,8 @@ seconds in a clean test. All 77 MCU reset/contact/read-only checks pass.
 Desktop input checks now run off the UI thread, with exact-file access recovery
 and startup cancellation. Session restart waits for the owned launcher to exit
 before opening the same card in a fresh cold session. Native checks now cover
-Stop during a pending file check, access-picker Cancel,
-early boot Stop, and two cold restarts. After terminal power-down at virtual
+Stop during a pending file check, access-picker Cancel, a manual exact-input
+grant that resumes startup, early boot Stop, and two cold restarts. After terminal power-down at virtual
 28.784, the original session stops cleanly; the next session reopens the same
 NEF and returns to fresh Photo frames (419 RAW frames). Each review completes
 one finite resize job, with no checksum failures. Picker cancellation now

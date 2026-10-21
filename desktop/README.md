@@ -113,8 +113,9 @@ preserve firmware RAM across a reset.
 
 The native window now passes Stop during a pending background input check,
 Cancel in the exact-input picker and Stop during early firmware boot. No output
-or launcher log is created by the cancelled preflight. Picker cancellation
-reports “Startup cancelled” instead of displaying a misleading file-save error.
+or launcher log is created by the cancelled preflight. Session → Allow input
+access also resumes startup after the exact configured MAIN file is selected.
+Picker cancellation reports “Startup cancelled” instead of displaying a misleading file-save error.
 
 Two native Session restarts are verified: after boot cancellation and after
 terminal power-down. The first review reaches power-down at virtual 28.784 with

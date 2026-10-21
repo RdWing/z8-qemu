@@ -76,5 +76,26 @@
   "original_ex_full_release_report": true,
   "original_ex_full_release_contact": "PG13 active low; PG1 half held",
   "original_ex_full_capture": false,
-  "original_ex_direct_input_descriptors_verified": 19
+  "original_ex_direct_input_descriptors_verified": 19,
+  "desktop_manual_exact_input_grant_verified": true,
+  "original_ex_capture_admission_pass": true,
+  "original_ex_capture_image_jobs": 0,
+  "original_ex_capture_input_scope": "PG1/PG13 EX contacts plus separately declared MAIN GPIO; shared physical wiring unqualified",
+  "original_ex_desktop_camera_menu_repeat": {
+    "movie_frames": 50,
+    "isp_acks": 50,
+    "source_acks": 50,
+    "raw_frames": 796,
+    "main_frames": 915,
+    "ex_frames": 825,
+    "checksum_failures": 0,
+    "pixel_rejects": 0,
+    "clean_shutdown": true
+  },
+  "original_ex_capture_permission": 0,
+  "original_ex_capture_permission_blockers": [
+    37,
+    125
+  ],
+  "original_ex_capture_initial_sequence": 1
 }
