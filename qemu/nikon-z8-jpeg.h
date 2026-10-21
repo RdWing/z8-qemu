@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (C) 2026 RdWing */
 /* WonderLantern functional JPEG backend, independent of camera firmware.
- * Input: bounded full-range NV16 RAM and explicit natural-order quantizers.
+ * Input: bounded full-range NV16/NV12 RAM and explicit natural-order quantizers.
  * Output: actual baseline JPEG bytes; this helper emits no device status.
  * Uses the separately installed open-source libjpeg-turbo C API. */
 #ifndef WONDERLANTERN_NV16_JPEG_H
@@ -34,23 +34,24 @@ static void wonderlantern_jpeg_error(j_common_ptr codec)
 }
 
 /* Caller owns the returned malloc buffer; failure returns no partial bytes.
- * Both full input planes and the maximum output size must be explicit. */
-static int wonderlantern_nv16_jpeg_scaled(const uint8_t *y, size_t y_bytes,
+ * Both input spans and the maximum output size must be explicit. */
+static int wonderlantern_semiplanar_jpeg_scaled(const uint8_t *y, size_t y_bytes,
                                   const uint8_t *uv, size_t uv_bytes,
                                   unsigned width, unsigned height, unsigned stride,
                                   const uint8_t quantizers[2][64], size_t capacity,
-                                  unsigned scale_shift,
+                                  unsigned scale_shift, unsigned uv_shift,
                                   unsigned char **output, size_t *output_bytes)
 {
     *output = NULL; *output_bytes = 0;
     if (!y || !uv || !quantizers || !width || !height || (width & 1) ||
         width > 16384 || height > 16384 || stride < width || stride > 32768 ||
         (size_t)stride * height > 64u * 1024u * 1024u ||
-        y_bytes != (size_t)stride * height || uv_bytes != y_bytes ||
+        uv_shift > 1 || (uv_shift && (height & 1)) ||
+        y_bytes != (size_t)stride * height || uv_bytes != (y_bytes >> uv_shift) ||
         !capacity || capacity > 128u * 1024u * 1024u || scale_shift > 2 ||
         !(width >> scale_shift) || !(height >> scale_shift)) { return 0; }
     /* Declared functional nearest input sampling for original codec scale2.
-     * Source remains complete even-width NV16; encoded JPEG width may be odd.
+     * Source remains complete even-width semiplanar RAM; encoded width may be odd.
      * No guest input, intermediate RAM or allocator metadata is changed. */
     unsigned encoded_width = width >> scale_shift;
     for (unsigned table = 0; table < 2; table++) {
@@ -73,7 +74,7 @@ static int wonderlantern_nv16_jpeg_scaled(const uint8_t *y, size_t y_bytes,
     ctx->codec.input_components = 3; ctx->codec.in_color_space = JCS_YCbCr;
     jpeg_set_defaults(&ctx->codec);
     ctx->codec.comp_info[0].h_samp_factor = 2;
-    ctx->codec.comp_info[0].v_samp_factor = 1;
+    ctx->codec.comp_info[0].v_samp_factor = 1u << uv_shift;
     for (unsigned component = 1; component < 3; component++) {
         ctx->codec.comp_info[component].h_samp_factor = 1;
         ctx->codec.comp_info[component].v_samp_factor = 1;
@@ -91,12 +92,14 @@ static int wonderlantern_nv16_jpeg_scaled(const uint8_t *y, size_t y_bytes,
     }
     jpeg_start_compress(&ctx->codec, TRUE);
     while (ctx->codec.next_scanline < ctx->codec.image_height) {
-        size_t base = ((size_t)ctx->codec.next_scanline << scale_shift) * stride;
+        size_t source_row = (size_t)ctx->codec.next_scanline << scale_shift;
+        size_t base = source_row * stride;
+        size_t uvbase = (source_row >> uv_shift) * stride;
         for (unsigned x = 0; x < encoded_width; x++) {
             unsigned source_x = x << scale_shift;
             ctx->row[x * 3] = y[base + source_x];
-            ctx->row[x * 3 + 1] = uv[base + (source_x & ~1u)];
-            ctx->row[x * 3 + 2] = uv[base + (source_x & ~1u) + 1];
+            ctx->row[x * 3 + 1] = uv[uvbase + (source_x & ~1u)];
+            ctx->row[x * 3 + 2] = uv[uvbase + (source_x & ~1u) + 1];
         }
         JSAMPROW row = ctx->row;
         jpeg_write_scanlines(&ctx->codec, &row, 1);
@@ -106,6 +109,27 @@ static int wonderlantern_nv16_jpeg_scaled(const uint8_t *y, size_t y_bytes,
     if (ctx->output_bytes > capacity) { free(ctx->output); free(ctx); return 0; }
     *output = ctx->output; *output_bytes = ctx->output_bytes;
     free(ctx); return 1;
+}
+
+static int wonderlantern_nv16_jpeg_scaled(const uint8_t *y, size_t y_bytes,
+                                  const uint8_t *uv, size_t uv_bytes,
+                                  unsigned width, unsigned height, unsigned stride,
+                                  const uint8_t quantizers[2][64], size_t capacity,
+                                  unsigned scale_shift,
+                                  unsigned char **output, size_t *output_bytes)
+{
+    return wonderlantern_semiplanar_jpeg_scaled(y, y_bytes, uv, uv_bytes,
+        width, height, stride, quantizers, capacity, scale_shift, 0, output, output_bytes);
+}
+
+static int wonderlantern_nv12_jpeg(const uint8_t *y, size_t y_bytes,
+                                  const uint8_t *uv, size_t uv_bytes,
+                                  unsigned width, unsigned height, unsigned stride,
+                                  const uint8_t quantizers[2][64], size_t capacity,
+                                  unsigned char **output, size_t *output_bytes)
+{
+    return wonderlantern_semiplanar_jpeg_scaled(y, y_bytes, uv, uv_bytes,
+        width, height, stride, quantizers, capacity, 0, 1, output, output_bytes);
 }
 
 static int wonderlantern_nv16_jpeg(const uint8_t *y, size_t y_bytes,

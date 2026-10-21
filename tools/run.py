@@ -15,16 +15,45 @@ def main():
     p.add_argument('--seconds', type=int, default=1800)
     p.add_argument('--port', type=int, default=8778)
     p.add_argument('--smoke', action='store_true')
+    p.add_argument('--experimental-shared221', action='store_true', help='Use the experimental translated Z63 shared-device profile; Z8 HE/movie acceptance is unqualified')
+    p.add_argument('--card', type=Path, help='Existing virtual exFAT card to attach persistently; guest writes update this file')
+    p.add_argument('--experimental-playback', action='store_true', help='Enable the imported JPEG decoder/resize model; Z8 saved-photo guest acceptance remains unqualified')
     p.add_argument('--check-only', action='store_true')
     a = p.parse_args()
     if not 1 <= a.seconds <= 3600 or not 1024 <= a.port <= 65535: p.error('Invalid duration or port')
     firmware, manifest = verify(a.firmware)
     if not a.qemu.is_file() or not a.raw.is_file(): p.error('QEMU and synthetic RAW inputs must exist')
+    if a.card:
+        a.card=a.card.resolve()
+        if not a.card.is_file() or ',' in str(a.card): p.error('Card must be a regular file with no comma in its path')
+        with a.card.open('rb') as f:
+            header=f.read(512)
+            if len(header)!=512 or header[510:]!=b'\x55\xaa': p.error('Expected an MBR virtual card')
+            import struct
+            start=struct.unpack_from('<I',header,454)[0]*512
+            f.seek(start);card_boot=f.read(512)
+            if len(card_boot)!=512 or card_boot[3:11]!=b'EXFAT   ': p.error('Expected an exFAT partition')
+    if a.experimental_playback and not a.card: p.error('--experimental-playback requires --card')
     if a.check_only:
         print('Z8 firmware and explicit runtime paths verified.'); return
     g = Guest(firmware, a.qemu, a.raw, a.output)
     g.command[g.command.index('-M')+1] = g.command[g.command.index('-M')+1].replace('nikon-z8-lab,', 'nikon-z8-full-lab,zr-sd-empty-fixture=on,')
     g.command += ['-device', f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-num=0']
+    if a.experimental_shared221:
+        import json
+        profile=json.loads(Path(__file__).with_name('experimental-shared221-profile.json').read_text())
+        g.command[g.command.index('-M')+1]+=','+','.join(k+'='+v for k,v in profile['properties'].items())
+        g.data['experimental_shared221']=profile
+    if a.card:
+        extra='capture-gpio-model=on,pcie-link-diagnostic-mask=4,pcie-dbi-model=on,pcie-ram-dma-input=on,pcie-image-ram-dma-input=on,pcie-intx-model=on'
+        if a.experimental_playback:
+            import json
+            extra+=','+','.join(name+'=on' for name in json.loads((Path(__file__).with_name('capture-model-options.json')).read_text()))
+            extra+=',z8-jpeg-decode=on'
+        g.command[g.command.index('-M')+1]+=','+extra
+        g.command+=['-drive',f'file={a.card},if=none,id=card,format=raw',
+                    '-device','nvme,drive=card,serial=Z8-PERSISTENT,bus=dw-pcie,addr=0']
+        g.data['persistent_card']={'path':str(a.card),'guest_writable':True,'experimental_playback':a.experimental_playback}
     attach(g); g.data['command'] = g.command
     control = None if a.smoke else Control(a.port)
     if control: signal.signal(signal.SIGTERM, lambda *_: control.stop.set())

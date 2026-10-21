@@ -70,13 +70,20 @@ def plan(source):
         body += '\n' + KCONFIG
     changes[p] = (body.rstrip() + '\n').encode()
     p = source/'hw/arm/meson.build'
-    body = ''.join(line for line in p.read_text().splitlines(True) if 'CONFIG_NIKON_Z8_LAB' not in line)
+    body = re.sub(r'# BEGIN Z8 OVERLAY\n.*?# END Z8 OVERLAY\n', '', p.read_text(), flags=re.S)
+    body = ''.join(line for line in body.splitlines(True) if 'CONFIG_NIKON_Z8_LAB' not in line)
     marker = "hw_common_arch += {'arm': arm_common_ss}"
     if body.count(marker) != 1:
         raise ValueError('QEMU 11 ARM source-set marker not found')
     additions = "arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: files('nikon-z8-lab.c'))\n"
     additions += "arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: dependency('libjpeg', required: true))\n"
-    changes[p] = body.replace(marker, additions + marker).encode()
+    additions += "arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: [dependency('x264'), dependency('x265')])\n"
+    he_sources = sorted(p.relative_to(HERE).as_posix() for p in HERE.rglob('*.cpp'))
+    additions += "if config_all_devices.has_key('CONFIG_NIKON_Z8_LAB')\n"
+    additions += "  add_languages('cpp', required: true, native: false)\n"
+    additions += "  z8_he = static_library('z8-he-runtime', files(" + ', '.join(repr(x) for x in he_sources) + "), override_options: ['cpp_std=c++17'])\n"
+    additions += "  arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: declare_dependency(link_with: z8_he))\nendif\n"
+    changes[p] = body.replace(marker, "# BEGIN Z8 OVERLAY\n" + additions + "# END Z8 OVERLAY\n" + marker).encode()
     p = source/'configs/devices/aarch64-softmmu/default.mak'
     body = p.read_text()
     line = 'CONFIG_NIKON_Z8_LAB=y'
@@ -89,13 +96,22 @@ def plan(source):
     ]:
         p = source/name
         changes[p] = replace_verified(p.read_text(), old, new, label).encode()
-    for overlay in sorted(HERE.glob('nikon-z8-*')):
-        if overlay.suffix not in ('.c', '.h'):
+    overlays = sorted(p for p in HERE.rglob('*') if p.is_file() and
+                      (p.suffix in ('.c', '.h', '.cpp', '.inc') or
+                       p.parent.name == 'nikon-he-public'))
+    for overlay in overlays:
+        if overlay.name == 'prepare_source.py':
             continue
-        p = source/'hw/arm'/overlay.name
+        p = source/'hw/arm'/overlay.relative_to(HERE)
         data = overlay.read_bytes()
         if p.exists() and p.read_bytes() != data:
-            raise ValueError('Existing divergent Z8 overlay: ' + str(p))
+            # Permit only our last installed overlay to be upgraded. Never
+            # overwrite an independently edited destination.
+            installed = source/'.z8-qemu-overlay.json'
+            receipt = json.loads(installed.read_text()) if installed.exists() else {}
+            prior = receipt.get(str(p.relative_to(source)))
+            if hashlib.sha256(p.read_bytes()).hexdigest() != prior:
+                raise ValueError('Existing divergent Z8 overlay: ' + str(p))
         changes[p] = data
     return source, changes
 
@@ -111,6 +127,7 @@ def prepare(source, check=False):
         if p.exists() and not prior.exists():
             prior.parent.mkdir(parents=True, exist_ok=True)
             prior.write_bytes(p.read_bytes())
+        p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(data)
     receipt = {str(p.relative_to(source)): hashlib.sha256(data).hexdigest() for p, data in changes.items()}
     (source/'.z8-qemu-overlay.json').write_text(json.dumps(receipt, indent=2)+'\n')

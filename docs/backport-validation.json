@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-20",
+  "target": "Z8 C3.11",
+  "host_family": "macOS Apple Silicon",
+  "full_fresh_qemu_build": true,
+  "host_tests": {
+    "run": 22,
+    "pass": 21,
+    "skip_optional_legacy": 1
+  },
+  "actual_board_mmio_checks": 15,
+  "baseline_guest_checks": 932,
+  "persistent_card_guest_checks": 882,
+  "capture_guest_checks": 1379,
+  "raw_samples_checked": 45705600,
+  "synthetic_input_mismatches": 0,
+  "producer_mismatches": 0,
+  "adobe_raw_sample_mismatches": 0,
+  "jpeg_previews_decoded": 3,
+  "native_he_movie_playback_parity": false,
+  "z8_native_mcu_desktop_parity": false,
+  "scope": "Functional source/model backport with bounded native boot/menu/persistent-card/F0 capture acceptance; not complete feature parity."
+}

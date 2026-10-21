@@ -29,7 +29,7 @@ def main():
                      else [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
             assert all(n.split('.')[0] in allowed for n in names), (p.name, names)
     with tempfile.TemporaryDirectory(prefix='z8-tests-') as temp:
-        for name in ['region', 'serial', 'timed', 'lossless']:
+        for name in ['region', 'serial', 'lossless']:
             exe = Path(temp)/name
             flags = ['-fsanitize=address,undefined'] if name == 'lossless' else []
             subprocess.run([os.environ.get('CC','cc'), '-Wall', '-Wextra', '-Werror', *flags, str(ROOT/f'tests/verify_{name}.c'), '-o', str(exe)], check=True)
@@ -63,6 +63,7 @@ def main():
         assert len(g.data['synthetic_rom_inputs']['rows']) == 11
         assert all((g.out/x['file']).is_file() for x in g.data['synthetic_rom_inputs']['rows'])
     subprocess.run([sys.executable, str(ROOT/'tests/test_display_bank.py')], check=True)
+    subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', str(ROOT/'tests'), '-p', 'test_timed_single.py'], check=True)
     print('PASS source syntax, entry points, dependency closure, ROM fixtures, card copying, region/serial/timed/lossless contracts, compressed-profile rejection and actual display renderer')
 
 if __name__ == '__main__':

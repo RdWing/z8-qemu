@@ -26,3 +26,18 @@ Users provide their own compatible firmware.
 The model is incomplete. Synthetic ROM, MCU, sensor and timing inputs are
 experiments, not recovered factory data or physical specifications.
 No updater, flashing tool or physical-camera access is included.
+
+The shared-device backport is adapted from
+[RdWing/z63-qemu 5c3b47c](https://github.com/RdWing/z63-qemu/commit/5c3b47c6428310e923520d81df74eff86fe1451c),
+including its pinned WonderLantern/zr-qemu shared221 donor
+`8a00ceda6a7111e5e08220f9cc3889f57fce9d0f`. The Z63 integration credits
+WonderLantern/LiBr and its upstream coauthors. This reuse does not establish
+Z8 equivalence to either Z63 firmware version.
+
+`qemu/nikon-he-public/` retains the public LibRaw HE decoder's own
+LGPL-2.1/CDDL notices, source receipts and license texts. Those files are used
+under their LGPL option, separately from the GPL bridge and forward model.
+The source is included so the statically linked runtime can be rebuilt; no
+proprietary codec SDK or R3D integration is included. The bridge and Wave5
+models perform host-side functional encoding; original DSP/codec microcode
+and physical camera behavior are not reproduced.

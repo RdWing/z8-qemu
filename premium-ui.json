@@ -1,0 +1,18 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": [
+    "tools"
+  ],
+  "locale": "en-US",
+  "canonicalMap": "DESIGN.md",
+  "requiredCapabilities": [
+    "Scrollbar",
+    "Toast",
+    "Select/Listbox"
+  ],
+  "ownership": {
+    "Scrollbar": "tools/control.html",
+    "Toast": "tools/control.html",
+    "Select/Listbox": "native"
+  }
+}

@@ -36,7 +36,10 @@ assert len(t[273])==len(t[279]) and all(n>0 and off+n<=len(data) for off,n in zi
 linearization=subprocess.check_output(['exiftool','-b','-NEFLinearizationTable',str(nef)])
 require_lossless14(t,linearization)
 fixture=a.raw;head=fixture.open('rb').read(32);assert head[:8]==b'NZ9RAW1\0'
-sw,sh,bits,cfa,black,white=struct.unpack_from('<6I',head,8);assert (sw,sh,bits,cfa,black,white)==(8256,5504,14,0,0,16383)
+sw,sh,bits,cfa,black,white=struct.unpack_from('<6I',head,8)
+assert 0<sw<=16384 and 0<sh<=16384 and not ((sw|sh)&1)
+assert sw*sh<=64*1024*1024 and bits in (12,14,16) and cfa==0 and black==0 and 0<white<=65535
+assert fixture.stat().st_size==32+sw*sh*2
 assert sha(fixture)==d['raw_sha256']
 source=np.memmap(fixture,dtype='<u2',mode='r',offset=32,shape=(sh,sw))
 x=np.arange(8280,dtype=np.int64);sx=(x//2*(sw//2)//(8280//2))*2+(x&1)
@@ -50,7 +53,7 @@ with rawpy.imread(str(nef)) as raw:
  decoded_sha=hashlib.sha256(decoded.tobytes()).hexdigest()
  for y in range(5520):
   sy=(y//2*(sh//2)//(5520//2))*2+(y&1)
-  expected=source[sy,sx] # white=16383 makes the integer scale identity
+  expected=np.minimum(16383,(source[sy,sx].astype(np.uint64)*16383+white//2)//white)
   mismatch+=int(np.count_nonzero(decoded[y]!=expected))
   if actual is not None:
    groups=actual[y,:8280*14//8].reshape(-1,7).astype(np.uint64)

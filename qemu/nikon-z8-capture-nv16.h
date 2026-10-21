@@ -78,6 +78,7 @@ static bool capture_nv16_prepare(NikonZ8State *s)
             if (p[j] < p[k] + n[k] && p[k] < p[j] + n[j]) { return false; }
         }
     }
+    if (!capture_pool_writable(s,p+2,n+2,6,3)) { return false; }
     memcpy(s->capture_nv16_source, src, sizeof(s->capture_nv16_source));
     for (unsigned j = 0; j < 3; j++) {
         memcpy(s->capture_nv16_output[j], s->engine1542_config[6 + j], sizeof(s->capture_nv16_output[j]));
@@ -108,6 +109,13 @@ static void capture_nv16_try(NikonZ8State *s)
         y != s->engine151_capture_y || uv != s->engine151_capture_uv ||
         w != s->engine151_capture_width || h != s->engine151_capture_height ||
         stride != s->engine151_capture_stride) { return; }
+    uint64_t dp[6],dn[6];
+    for (unsigned j=0;j<3;j++) {
+        const uint32_t *b=s->capture_nv16_output[j],*f=s->capture_nv16_geometry[j];
+        dp[j*2]=capture_nv16_address(b,0x20);dp[j*2+1]=capture_nv16_address(b,0x28);
+        dn[j*2]=dn[j*2+1]=(uint64_t)b[0x38/4]*f[0x30/4];
+    }
+    if (!capture_pool_writable(s,dp,dn,6,3)) { s->capture_nv16_failed=true;return; }
     size_t plane = (size_t)stride * h;
     uint8_t *input = g_malloc(plane * 2), *outputs[3] = {0};
     bool ok = address_space_read(&address_space_memory, y, MEMTXATTRS_UNSPECIFIED, input, plane) == MEMTX_OK &&
@@ -151,6 +159,8 @@ static void capture_nv16_try(NikonZ8State *s)
         s->capture_nv16_uv[j] = capture_nv16_address(b, 0x28);
         s->capture_nv16_w[j] = f[0x2c / 4]; s->capture_nv16_h[j] = f[0x30 / 4];
         s->capture_nv16_stride[j] = b[0x38 / 4];
+        capture_pool_record(s,0,j,s->capture_nv16_jobs,s->capture_nv16_y[j],s->capture_nv16_uv[j],
+            s->capture_nv16_w[j],s->capture_nv16_h[j],s->capture_nv16_stride[j]);
         s->capture_nv16_bytes += (uint64_t)b[0x38 / 4] * f[0x30 / 4] * 2;
     }
     s->capture_nv16_requested = false;
@@ -174,10 +184,10 @@ static void capture_nv16_try(NikonZ8State *s)
         s->capture_nv16_jobs, y, uv, s->capture_nv16_y[0], s->capture_nv16_uv[0], w, h);
 }
 
-static int capture_nv16_jpeg_owner(NikonZ8State *s)
+static int capture_nv16_jpeg_owner(NikonZ8State *s, unsigned bank)
 {
     if (!s->capture_nv16_model || !s->capture_nv16_jobs) { return -1; }
-    const uint32_t *c = s->engine15e2_config[0];
+    const uint32_t *c = s->engine15e2_config[bank];
     for (unsigned j = 0; j < 3; j++) {
         if (s->capture_nv16_jpeg_consumed[j] != s->capture_nv16_jobs &&
             c[0x418 / 4] == s->capture_nv16_w[j] && c[0x41c / 4] == s->capture_nv16_h[j] &&

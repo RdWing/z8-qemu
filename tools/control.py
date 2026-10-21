@@ -30,7 +30,7 @@ def png_from_ppm(path):
 class Control:
  def __init__(self,port):
   self.stop=threading.Event();self.queue=queue.Queue(maxsize=8);self.png=None;self.info={'state':'Booting original Z8 MAIN…'};self.token=secrets.token_hex(24)
-  self.session=secrets.token_hex(12);self.ready=False;self.last_publish=None;self.submitted=0;self.sent=0;self.frame_version=0
+  self.session=secrets.token_hex(12);self.ready=False;self.last_publish=None;self.submitted=0;self.sent=0;self.frame_version=0;self.shooting_mode="photo"
   owner=self
   class Handler(BaseHTTPRequestHandler):
    def log_message(self,*args):pass
@@ -47,23 +47,29 @@ class Control:
     if self.headers.get('X-Control-Token')!=owner.token:self.send(403,b'This emulator session changed. Reload the page.','text/plain');return
     button=self.path.removeprefix('/button/')
     if self.path=='/stop':owner.stop.set();self.send(200,b'{}','application/json')
+    elif self.path in ('/mode/photo','/mode/movie'):
+     if not owner.status()['ready']:self.send(503,b'Camera controls are not ready.','text/plain');return
+     try:
+      owner.queue.put_nowait(('mode', self.path.rsplit('/',1)[1]));owner.submitted+=1
+      self.send(202,json.dumps({'queued':owner.submitted}).encode(),'application/json')
+     except queue.Full:self.send(429,b'Wait for previous input','text/plain')
     elif button in BUTTONS:
      if not owner.status()['ready']:self.send(503,b'Camera controls are not ready. Check the status above the display.','text/plain');return
      try:
-      owner.queue.put_nowait(BUTTONS[button]);owner.submitted+=1
+      owner.queue.put_nowait(("button", BUTTONS[button]));owner.submitted+=1
       self.send(202,json.dumps({'queued':owner.submitted}).encode(),'application/json')
      except queue.Full:self.send(429,b'Wait for previous input','text/plain')
     else:self.send(400,b'Unknown button','text/plain')
   self.server=ThreadingHTTPServer(('127.0.0.1',port),Handler);self.server.daemon_threads=True
   threading.Thread(target=self.server.serve_forever,daemon=True).start()
- def next_button(self):
+ def next_input(self):
   try:return self.queue.get_nowait()
   except queue.Empty:return None
  def mark_sent(self):self.sent+=1
  def status(self):
   stale=self.last_publish is not None and time.monotonic()-self.last_publish>5
   ready=self.ready and not stale and not self.stop.is_set()
-  info=dict(self.info,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version)
+  info=dict(self.info,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
   if self.stop.is_set():info['state']='Stopping emulator…'
   elif stale:info['state']='Emulator is not advancing. Controls paused.'
   return info

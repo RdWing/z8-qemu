@@ -1,0 +1,348 @@
+{
+  "schema": 1,
+  "source_repository": "https://github.com/RdWing/z63-qemu",
+  "source_commit": "5c3b47c6428310e923520d81df74eff86fe1451c",
+  "source_firmware_scope": [
+    "Z6III C2.00",
+    "Z6III C2.01"
+  ],
+  "target_repository": "https://github.com/RdWing/z8-qemu",
+  "target_base_commit": "c24e334",
+  "target_firmware": "Z8 C3.11",
+  "shared221_donor": "WonderLantern/zr-qemu@8a00ceda6a7111e5e08220f9cc3889f57fce9d0f",
+  "scope": "Exact working-source fingerprints for the adapted import. Shared source provenance is separate from target native acceptance. Board attachment construction and target MCU implementation are not reused.",
+  "files": {
+    "qemu/__pycache__/prepare_source.cpython-314.pyc": {
+      "adapted_sha256": "6eefc2bffcbc9a226e5728280b052a0da0c1f221c4fe564e9a84dd053672deca",
+      "disposition": "Retained Z8 implementation or local integration wrapper"
+    },
+    "qemu/nikon-expeed-capture-pool.h": {
+      "adapted_sha256": "59cb73497bef3ea457edb6614c7d1e1d91a04811d063eb86d7bfeac6f924f3dc",
+      "source_path": "nikon-expeed-capture-pool.h",
+      "source_sha256": "7c1c568b812546c465a463611ae496cb1c952cc25bb5fd9a5ea2e6c9712bcc2e"
+    },
+    "qemu/nikon-expeed-correction.h": {
+      "adapted_sha256": "6718b4c8f190960db588e42958c18db125fffd8cc6d68649be8d20d64d33ec77",
+      "source_path": "nikon-expeed-correction.h",
+      "source_sha256": "6718b4c8f190960db588e42958c18db125fffd8cc6d68649be8d20d64d33ec77"
+    },
+    "qemu/nikon-expeed-dsp-boot.h": {
+      "adapted_sha256": "9ca3160dc13178f52bf7f696e2c59fad7c94c35de39882cb12b4dc0937f1d96a",
+      "source_path": "nikon-expeed-dsp-boot.h",
+      "source_sha256": "ea1717833c04d49b1419737a8dac80c19f8e2f5462c65dc474053eb9bc6c386c"
+    },
+    "qemu/nikon-expeed-lossless.h": {
+      "adapted_sha256": "c1f0acf917e384d400ec4fdce7dde7b0bdbdfb66109f829d5403ac9b68260fcc",
+      "source_path": "nikon-expeed-lossless.h",
+      "source_sha256": "6f6ef0da9d01571dcf3470ccf1b160fb1c50c5859b6b70ef78d63b4bc97e9100"
+    },
+    "qemu/nikon-expeed-main-output.h": {
+      "adapted_sha256": "f81b03d6a492ea8b01d35744012185f61786b553a982d51f6dcc631e2b163e5f",
+      "source_path": "nikon-expeed-main-output.h",
+      "source_sha256": "f6ba220ddfb36a619b42889c9adbb9201bc8943fb0ef03b69dfca615a3c6ea34"
+    },
+    "qemu/nikon-expeed-motion.h": {
+      "adapted_sha256": "bc5b87b45a24f1b2c9a3fdc470ba62c454ef95f12542b621ad6c07f5a4b27a12",
+      "source_path": "nikon-expeed-motion.h",
+      "source_sha256": "bc5b87b45a24f1b2c9a3fdc470ba62c454ef95f12542b621ad6c07f5a4b27a12"
+    },
+    "qemu/nikon-expeed-programmed-clock.h": {
+      "adapted_sha256": "5fc144e12f41f55ffb824426a3e3719656640b32ac144003dee106b648c32758",
+      "source_path": "nikon-expeed-programmed-clock.h",
+      "source_sha256": "699317b785ebf1cd4e9a1dc93ba58a12cc49925fa0a9a5469edc26ba17b534d3"
+    },
+    "qemu/nikon-expeed-video-preview.h": {
+      "adapted_sha256": "a4d0fa3ed6d5ab2249f68c16461f45cb04557b3e95d53fbcc68722eebff5b1a7",
+      "source_path": "nikon-expeed-video-preview.h",
+      "source_sha256": "d6a16a193512046490ef84f29a291390a713d63fec2f43a60b86df8715cb95aa"
+    },
+    "qemu/nikon-he-forward.inc": {
+      "adapted_sha256": "d410588865d3abf540f49a28820dc96b1c9ab8c09ef4d50f8d1d4a857914abb8",
+      "source_path": "nikon-he-forward.inc",
+      "source_sha256": "d410588865d3abf540f49a28820dc96b1c9ab8c09ef4d50f8d1d4a857914abb8"
+    },
+    "qemu/nikon-he-public/LICENSE.CDDL": {
+      "adapted_sha256": "0e3098d2d54a12434715f6679ea408d57da5e8d613c385c58ecc6fe5d30cc81f",
+      "source_path": "nikon-he-public/LICENSE.CDDL",
+      "source_sha256": "0e3098d2d54a12434715f6679ea408d57da5e8d613c385c58ecc6fe5d30cc81f"
+    },
+    "qemu/nikon-he-public/LICENSE.LGPL": {
+      "adapted_sha256": "eea173a556abac0370461e57e12aab266894ea6be3874c2be05fd87871f75449",
+      "source_path": "nikon-he-public/LICENSE.LGPL",
+      "source_sha256": "eea173a556abac0370461e57e12aab266894ea6be3874c2be05fd87871f75449"
+    },
+    "qemu/nikon-he-public/nikon_he_bayer.cpp": {
+      "adapted_sha256": "51a1214e2bbbe11e3f78460761c72e177b827c94ca62866293bf57dc40f59adb",
+      "source_path": "nikon-he-public/nikon_he_bayer.cpp",
+      "source_sha256": "51a1214e2bbbe11e3f78460761c72e177b827c94ca62866293bf57dc40f59adb"
+    },
+    "qemu/nikon-he-public/nikon_he_bayer.h": {
+      "adapted_sha256": "8aaab2a8a3cb62e359debd7091f61938e6177607b529b8d64e7c4a18228f07c1",
+      "source_path": "nikon-he-public/nikon_he_bayer.h",
+      "source_sha256": "8aaab2a8a3cb62e359debd7091f61938e6177607b529b8d64e7c4a18228f07c1"
+    },
+    "qemu/nikon-he-public/nikon_he_bit_reader.cpp": {
+      "adapted_sha256": "c288c706543e9612c1e2b1b876ab150bd20c4345e751818502599e2b8027dfff",
+      "source_path": "nikon-he-public/nikon_he_bit_reader.cpp",
+      "source_sha256": "c288c706543e9612c1e2b1b876ab150bd20c4345e751818502599e2b8027dfff"
+    },
+    "qemu/nikon-he-public/nikon_he_bit_reader.h": {
+      "adapted_sha256": "1a111dd72208e6623d6e43654fe0978a39e88f4f7d5248a9e780cf064fbcd0f5",
+      "source_path": "nikon-he-public/nikon_he_bit_reader.h",
+      "source_sha256": "1a111dd72208e6623d6e43654fe0978a39e88f4f7d5248a9e780cf064fbcd0f5"
+    },
+    "qemu/nikon-he-public/nikon_he_coefficient_decode.cpp": {
+      "adapted_sha256": "6f5fe4f32fc3a444b05e5b6f9edd30cd1cd68397205d2cdb58b554acb0c3d2ea",
+      "source_path": "nikon-he-public/nikon_he_coefficient_decode.cpp",
+      "source_sha256": "6f5fe4f32fc3a444b05e5b6f9edd30cd1cd68397205d2cdb58b554acb0c3d2ea"
+    },
+    "qemu/nikon-he-public/nikon_he_coefficient_decode.h": {
+      "adapted_sha256": "861f54ee095fb5b04b7aa2ce6c84810c724c44e8246b6cd171daddd5d52dde72",
+      "source_path": "nikon-he-public/nikon_he_coefficient_decode.h",
+      "source_sha256": "861f54ee095fb5b04b7aa2ce6c84810c724c44e8246b6cd171daddd5d52dde72"
+    },
+    "qemu/nikon-he-public/nikon_he_decode.cpp": {
+      "adapted_sha256": "60b0dc9bdf8eba64c06cf356499abb2185322daf2ed1d474de18de6986722f11",
+      "source_path": "nikon-he-public/nikon_he_decode.cpp",
+      "source_sha256": "60b0dc9bdf8eba64c06cf356499abb2185322daf2ed1d474de18de6986722f11"
+    },
+    "qemu/nikon-he-public/nikon_he_decode.h": {
+      "adapted_sha256": "91fdba90b4705bff42b8d0db50bbbf8d7858c4e286582b463f18361ec86f88b9",
+      "source_path": "nikon-he-public/nikon_he_decode.h",
+      "source_sha256": "91fdba90b4705bff42b8d0db50bbbf8d7858c4e286582b463f18361ec86f88b9"
+    },
+    "qemu/nikon-he-public/nikon_he_dequantize.cpp": {
+      "adapted_sha256": "022e6b736ea31a4239a21cbdb43be23f0f6e5de9437265a94e8e5c76d159fa7a",
+      "source_path": "nikon-he-public/nikon_he_dequantize.cpp",
+      "source_sha256": "022e6b736ea31a4239a21cbdb43be23f0f6e5de9437265a94e8e5c76d159fa7a"
+    },
+    "qemu/nikon-he-public/nikon_he_dequantize.h": {
+      "adapted_sha256": "73e620841ef72dc020e7aca7cd530653aafffd8eb361c5603dafb748ea92bd75",
+      "source_path": "nikon-he-public/nikon_he_dequantize.h",
+      "source_sha256": "73e620841ef72dc020e7aca7cd530653aafffd8eb361c5603dafb748ea92bd75"
+    },
+    "qemu/nikon-he-public/nikon_he_gcli_decode.cpp": {
+      "adapted_sha256": "d434efe7806a32dd0cdf1269b0de9ada416a56a6caff9f4f541f0118fc00da98",
+      "source_path": "nikon-he-public/nikon_he_gcli_decode.cpp",
+      "source_sha256": "d434efe7806a32dd0cdf1269b0de9ada416a56a6caff9f4f541f0118fc00da98"
+    },
+    "qemu/nikon-he-public/nikon_he_gcli_decode.h": {
+      "adapted_sha256": "777b86dedce7e9a2daff8f3af05e1b084926f47ea925623ceecfe1cbaf82818b",
+      "source_path": "nikon-he-public/nikon_he_gcli_decode.h",
+      "source_sha256": "777b86dedce7e9a2daff8f3af05e1b084926f47ea925623ceecfe1cbaf82818b"
+    },
+    "qemu/nikon-he-public/nikon_he_gtli_table.cpp": {
+      "adapted_sha256": "dde3482c250b9bf99e4ff1f0e6076777bc0ce9aff27ae7194926807e84b929dd",
+      "source_path": "nikon-he-public/nikon_he_gtli_table.cpp",
+      "source_sha256": "dde3482c250b9bf99e4ff1f0e6076777bc0ce9aff27ae7194926807e84b929dd"
+    },
+    "qemu/nikon-he-public/nikon_he_gtli_table.h": {
+      "adapted_sha256": "760c715bc3abad4d875c899947889dc1e1e15b2eeeb76b96dbfc91a07ac238db",
+      "source_path": "nikon-he-public/nikon_he_gtli_table.h",
+      "source_sha256": "760c715bc3abad4d875c899947889dc1e1e15b2eeeb76b96dbfc91a07ac238db"
+    },
+    "qemu/nikon-he-public/nikon_he_idwt_horizontal.cpp": {
+      "adapted_sha256": "008f6d896018610eee37d73806692a2e3e2899b66136f1b784e539af46b358b7",
+      "source_path": "nikon-he-public/nikon_he_idwt_horizontal.cpp",
+      "source_sha256": "008f6d896018610eee37d73806692a2e3e2899b66136f1b784e539af46b358b7"
+    },
+    "qemu/nikon-he-public/nikon_he_idwt_horizontal.h": {
+      "adapted_sha256": "09e9620a4de347e605bbb636b21cbc992b84d7ec023750e75288b2c8d06901cb",
+      "source_path": "nikon-he-public/nikon_he_idwt_horizontal.h",
+      "source_sha256": "09e9620a4de347e605bbb636b21cbc992b84d7ec023750e75288b2c8d06901cb"
+    },
+    "qemu/nikon-he-public/nikon_he_idwt_vertical.cpp": {
+      "adapted_sha256": "1b5ec1bdd8ae31c5277792762a981c4ac3227ab2052af262f5b0e9c5a6050844",
+      "source_path": "nikon-he-public/nikon_he_idwt_vertical.cpp",
+      "source_sha256": "1b5ec1bdd8ae31c5277792762a981c4ac3227ab2052af262f5b0e9c5a6050844"
+    },
+    "qemu/nikon-he-public/nikon_he_idwt_vertical.h": {
+      "adapted_sha256": "cf1db7190691f06a4579bd77c5cf0b153865255cf8a1bf0b37c55455f577de04",
+      "source_path": "nikon-he-public/nikon_he_idwt_vertical.h",
+      "source_sha256": "cf1db7190691f06a4579bd77c5cf0b153865255cf8a1bf0b37c55455f577de04"
+    },
+    "qemu/nikon-he-public/nikon_he_iqx_iqp_lut_data.h": {
+      "adapted_sha256": "ab04af0c6683fc7d3489c03919d1de7f2c266c96ac330a80d9370a37700f8d9c",
+      "source_path": "nikon-he-public/nikon_he_iqx_iqp_lut_data.h",
+      "source_sha256": "ab04af0c6683fc7d3489c03919d1de7f2c266c96ac330a80d9370a37700f8d9c"
+    },
+    "qemu/nikon-he-public/nikon_he_picture_header.cpp": {
+      "adapted_sha256": "294bfdf937c81959c8e9f6ec2606924adb028d7d54fef8f90cddbef4b2b4e9ee",
+      "source_path": "nikon-he-public/nikon_he_picture_header.cpp",
+      "source_sha256": "294bfdf937c81959c8e9f6ec2606924adb028d7d54fef8f90cddbef4b2b4e9ee"
+    },
+    "qemu/nikon-he-public/nikon_he_picture_header.h": {
+      "adapted_sha256": "d294f375d02ab9f058fcafd60e5a1186f9ae964e1351ef7ff5d602a95e3def33",
+      "source_path": "nikon-he-public/nikon_he_picture_header.h",
+      "source_sha256": "d294f375d02ab9f058fcafd60e5a1186f9ae964e1351ef7ff5d602a95e3def33"
+    },
+    "qemu/nikon-he-public/nikon_he_precinct_decode.cpp": {
+      "adapted_sha256": "e821138cc274793fb1938c7a59d528bd61a195965c19b36fe10b3f47ed1ad814",
+      "source_path": "nikon-he-public/nikon_he_precinct_decode.cpp",
+      "source_sha256": "e821138cc274793fb1938c7a59d528bd61a195965c19b36fe10b3f47ed1ad814"
+    },
+    "qemu/nikon-he-public/nikon_he_precinct_decode.h": {
+      "adapted_sha256": "6aa7b5d088c585396ab80e5cc8529caca600a2423320d1c4e32c7c11d62c2e35",
+      "source_path": "nikon-he-public/nikon_he_precinct_decode.h",
+      "source_sha256": "6aa7b5d088c585396ab80e5cc8529caca600a2423320d1c4e32c7c11d62c2e35"
+    },
+    "qemu/nikon-he-public/nikon_he_precinct_header.cpp": {
+      "adapted_sha256": "51347306b848601daf20d877670863c9af599637d144e85fa0946e21b9848fc2",
+      "source_path": "nikon-he-public/nikon_he_precinct_header.cpp",
+      "source_sha256": "51347306b848601daf20d877670863c9af599637d144e85fa0946e21b9848fc2"
+    },
+    "qemu/nikon-he-public/nikon_he_precinct_header.h": {
+      "adapted_sha256": "b8b6e8ace50ec4866088e3b3d0d1d1acda576fd843988b169d4fa5fd975a47c2",
+      "source_path": "nikon-he-public/nikon_he_precinct_header.h",
+      "source_sha256": "b8b6e8ace50ec4866088e3b3d0d1d1acda576fd843988b169d4fa5fd975a47c2"
+    },
+    "qemu/nikon-he-public/nikon_he_predecessor.cpp": {
+      "adapted_sha256": "f8ba0570e4aed2f5ec1e5ba508cffdebc637c8f4d0561bc40b5d2a100a29fa4f",
+      "source_path": "nikon-he-public/nikon_he_predecessor.cpp",
+      "source_sha256": "f8ba0570e4aed2f5ec1e5ba508cffdebc637c8f4d0561bc40b5d2a100a29fa4f"
+    },
+    "qemu/nikon-he-public/nikon_he_predecessor.h": {
+      "adapted_sha256": "2c5da18177278b7dbd4567c98105a331eae369c221ab6d415343f42aa5091923",
+      "source_path": "nikon-he-public/nikon_he_predecessor.h",
+      "source_sha256": "2c5da18177278b7dbd4567c98105a331eae369c221ab6d415343f42aa5091923"
+    },
+    "qemu/nikon-he-public/nikon_he_predict_lut.cpp": {
+      "adapted_sha256": "f5e74be8ee35ae1fbcb55f68bc4ea156d16e41c6751973e7b8ae158a99a0be2f",
+      "source_path": "nikon-he-public/nikon_he_predict_lut.cpp",
+      "source_sha256": "f5e74be8ee35ae1fbcb55f68bc4ea156d16e41c6751973e7b8ae158a99a0be2f"
+    },
+    "qemu/nikon-he-public/nikon_he_predict_lut.h": {
+      "adapted_sha256": "4d86226f480f2ff2da4ffb2072d18a8b924556c95ed5b685a6112a6167ac94c2",
+      "source_path": "nikon-he-public/nikon_he_predict_lut.h",
+      "source_sha256": "4d86226f480f2ff2da4ffb2072d18a8b924556c95ed5b685a6112a6167ac94c2"
+    },
+    "qemu/nikon-he-public/nikon_he_subband_config.cpp": {
+      "adapted_sha256": "a261341fbe62e2feefb538b17a81e089646a7c8550d195ff5120cc7475f28f48",
+      "source_path": "nikon-he-public/nikon_he_subband_config.cpp",
+      "source_sha256": "a261341fbe62e2feefb538b17a81e089646a7c8550d195ff5120cc7475f28f48"
+    },
+    "qemu/nikon-he-public/nikon_he_subband_config.h": {
+      "adapted_sha256": "18771de772d1c7883dcf93a5b6f92027dfa62f1b232b7238fa437225a8dbab7e",
+      "source_path": "nikon-he-public/nikon_he_subband_config.h",
+      "source_sha256": "18771de772d1c7883dcf93a5b6f92027dfa62f1b232b7238fa437225a8dbab7e"
+    },
+    "qemu/nikon-he-public/nikon_he_tile.cpp": {
+      "adapted_sha256": "76d7c624e629b1c490c0dc4221a8b9dd10c91e5b4624c93e3672db929ae1de1e",
+      "source_path": "nikon-he-public/nikon_he_tile.cpp",
+      "source_sha256": "76d7c624e629b1c490c0dc4221a8b9dd10c91e5b4624c93e3672db929ae1de1e"
+    },
+    "qemu/nikon-he-public/nikon_he_tile.h": {
+      "adapted_sha256": "27d84a0f547f0d65bd8a438baf88102af67949caa1ffa2581c3a2f20f9e1c4f7",
+      "source_path": "nikon-he-public/nikon_he_tile.h",
+      "source_sha256": "27d84a0f547f0d65bd8a438baf88102af67949caa1ffa2581c3a2f20f9e1c4f7"
+    },
+    "qemu/nikon-he-public/runtime-source-receipt.json": {
+      "adapted_sha256": "5bad837e6984fa31520da8d567b5f12af1afe5c1c8954b2b44ed97f702037c74",
+      "source_path": "nikon-he-public/runtime-source-receipt.json",
+      "source_sha256": "5bad837e6984fa31520da8d567b5f12af1afe5c1c8954b2b44ed97f702037c74"
+    },
+    "qemu/nikon-he-public/source-receipt.json": {
+      "adapted_sha256": "830f64385aba487da749d0f46c9e1ffe6e40d2bac2b0f46f3014d39e5d851828",
+      "source_path": "nikon-he-public/source-receipt.json",
+      "source_sha256": "830f64385aba487da749d0f46c9e1ffe6e40d2bac2b0f46f3014d39e5d851828"
+    },
+    "qemu/nikon-he-runtime.cpp": {
+      "adapted_sha256": "9f1b0aef8213c92697dc839c3c680ab00062a43067b9335eb907d8a0f3a5204e",
+      "source_path": "nikon-he-runtime.cpp",
+      "source_sha256": "9f1b0aef8213c92697dc839c3c680ab00062a43067b9335eb907d8a0f3a5204e"
+    },
+    "qemu/nikon-he-runtime.h": {
+      "adapted_sha256": "5744c314503c35c2d025f43b0cf88e9e9cfa7cf1a24ac333c81529c64ef3d3cf",
+      "source_path": "nikon-he-runtime.h",
+      "source_sha256": "5744c314503c35c2d025f43b0cf88e9e9cfa7cf1a24ac333c81529c64ef3d3cf"
+    },
+    "qemu/nikon-wave5-codec.h": {
+      "adapted_sha256": "93ed93eaa777c8e96bd04541c229e77f3675237767c030c63da57af456fe5de6",
+      "source_path": "nikon-wave5-codec.h",
+      "source_sha256": "93ed93eaa777c8e96bd04541c229e77f3675237767c030c63da57af456fe5de6"
+    },
+    "qemu/nikon-z8-capture-nv16.h": {
+      "adapted_sha256": "fd1722d3c7a1d8bb2dc832a3a73cf0514d36046c881a8886745a0cb4b91b109d",
+      "source_path": "nikon-z9-capture-nv16.h",
+      "source_sha256": "d81077ba34e335abf40327c6754bf62a347ae716f0d43c4f5b158200c6b80e7b"
+    },
+    "qemu/nikon-z8-d980.h": {
+      "adapted_sha256": "9bb1fcc9bb50f80d319d24b00f1b5fb191508b17a35ff36ced3b5dd1267c328b",
+      "source_path": "nikon-z9-d980.h",
+      "source_sha256": "12666f245d7c02ad6436cddb66b5a450c810abfee43d9f90165287c4b7ccf576"
+    },
+    "qemu/nikon-z8-jpeg-reset.h": {
+      "adapted_sha256": "600c4c77bfd67afec7fa2b48fc19ef3a7f3d98bc21e3a79a427df222712b14ef",
+      "source_path": "nikon-z63-jpeg-reset.h",
+      "source_sha256": "3a4fcbdb432017a523aa52b1308b10f47ff335ee0fcbe25eab66e723a37daf6f"
+    },
+    "qemu/nikon-z8-jpeg.h": {
+      "adapted_sha256": "3a650668b2abb1e61c9ae8b898747cddc00ab2eaab6ddcc22ad8fd15f7ef456d",
+      "source_path": "nikon-z9-jpeg.h",
+      "source_sha256": "0823929661f2e61063a739371460cd73d6ba7b84b8389efcb022d458dc347ba9"
+    },
+    "qemu/nikon-z8-jpegdec.h": {
+      "adapted_sha256": "a56cc5bf7f1dc70c368adc4d3bb07750d52377c5d67afb4865a5b929836b357a",
+      "source_path": "nikon-z63-jpegdec.h",
+      "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
+    },
+    "qemu/nikon-z8-lab.c": {
+      "adapted_sha256": "9d425aa0f5d6e021de0e1dc168b161ee1fffb4cb2af001a827f95e1cc87d7b03",
+      "source_path": "nikon-z63-z9lab.c",
+      "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
+    },
+    "qemu/nikon-z8-liveview-buffers.h": {
+      "adapted_sha256": "256c0ca56911e745785427d14ccc842151a0ef803b0cde4e7e62ea812eac5483",
+      "source_path": "nikon-z63-liveview-buffers.h",
+      "source_sha256": "2e6a5efdce62bbbc998e3dea1594945fbe0ab198fd4b497994f9c4eac1acdfeb"
+    },
+    "qemu/nikon-z8-liveview-jpeg.h": {
+      "adapted_sha256": "3dfc145970eb6e331814957b9720654a15903f8a956ff91eddc66e8ff0ea2530",
+      "source_path": "nikon-z63-liveview-jpeg.h",
+      "source_sha256": "8b0667fd16f68b8057e0060a75b0ea9b48547a604b532714a5dea534a464bf7f"
+    },
+    "qemu/nikon-z8-lossless.h": {
+      "adapted_sha256": "6f6ef0da9d01571dcf3470ccf1b160fb1c50c5859b6b70ef78d63b4bc97e9100",
+      "disposition": "Retained Z8 implementation or local integration wrapper"
+    },
+    "qemu/nikon-z8-pcie.h": {
+      "adapted_sha256": "17cd3649a2866f962438588195de42726f042ad244abb2ae763edb2504a1d5e2",
+      "source_path": "nikon-z9-pcie.h",
+      "source_sha256": "55124e15ca946edbc0cc3adbaaba8e4926b7ceef7832562e8a3edf58c69dcc0a"
+    },
+    "qemu/nikon-z8-pixels.h": {
+      "adapted_sha256": "63387a27c3a36ad69e7efd0f91e52046cebca29f9503d6cd80f6bde2dc242a4b",
+      "source_path": "nikon-z9-pixels.h",
+      "source_sha256": "aa3d71e363cffbb865ced6d2839f0975986c9e4a8ffbd0ef2401312906229dff"
+    },
+    "qemu/nikon-z8-playback.h": {
+      "adapted_sha256": "22909b4df2841037f0eb3129c62a92f7da94ab2aa768df82508f1a0ed60bbf0e",
+      "source_path": "nikon-z63-playback.h",
+      "source_sha256": "7bf68f1d8fd212e613e98f0dcb47aea5b00dc0b391c79402b7bdd087a16c7314"
+    },
+    "qemu/nikon-z8-raw-pixels.h": {
+      "adapted_sha256": "9929fc857f17a56db0bfe11e8444ba8e340df9b54325a4fb9bd2f7861ebd21e1",
+      "disposition": "Retained Z8 implementation or local integration wrapper"
+    },
+    "qemu/nikon-z8-source-ram.h": {
+      "adapted_sha256": "44918950156ccd0e732d9e75631b637099526080b9ad9a407a03a6930a47b974",
+      "source_path": "nikon-z9-source-ram.h",
+      "source_sha256": "5bc5b25e915a421646c3be2a60c7deb23f3d5303c4d930189f467af484bdc677"
+    },
+    "qemu/nikon-z8-thumbnail-nv16.h": {
+      "adapted_sha256": "296e4d85dddc5702dbd7f40593feefb072d5ecb0b43a6ee3c6eb284b1b3d76b1",
+      "source_path": "nikon-z9-thumbnail-nv16.h",
+      "source_sha256": "b1fa69281d4b207fed85a7908b027f18ece26d978b83f1025dfb98bae2946203"
+    },
+    "qemu/nikon-z8-video-raw.h": {
+      "adapted_sha256": "54119bd437121f0cf6754d44087914c0c291f3bb5808d1a61c45221a0585f36b",
+      "source_path": "nikon-z9-video-raw.h",
+      "source_sha256": "c0f587997470878b167268cb28a980d0986c09b24ebc70ed3bdf97c016d002a9"
+    },
+    "qemu/nikon-z8-wave5.h": {
+      "adapted_sha256": "ea1f257bd41314c5eb6845077d0193467d680f56e01f2110c2dd243c3c4c00c6",
+      "source_path": "nikon-z9-wave5.h",
+      "source_sha256": "4d24002e6966c7e4d4f863f4307147e33929689790031278b67bfd197a1591f6"
+    }
+  }
+}

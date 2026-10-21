@@ -39,3 +39,8 @@ and post-shot recovery require additional validation.
 `tools/audit_source.py` detects mismatches and unexpected files outside `.git`,
 `.local`, Python cache directories and macOS `.DS_Store` metadata. Refresh the manifest when intentionally
 editing source. Keep runtime inputs and outputs outside tracked files.
+
+The [Z63 backport validation](z63-backport.md#validation-on-20-october-2026)
+separates host contracts, actual-board MMIO and original Z8 guest acceptance.
+The production timed-single test supersedes the older copied C timing model.
+Run the complete host suite with `python -m unittest discover -s tests -p 'test_*.py' -v`.
