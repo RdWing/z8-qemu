@@ -24,3 +24,9 @@ the supplied build directory. QEMU’s configure step may fetch its dependencies
 
 A complete QEMU 11.1.1 build has passed on macOS. Use the boot and capture
 workflows to qualify a new binary or host environment.
+
+
+For the native macOS app, a dedicated runtime build location such as
+`~/Library/Caches/z8-qemu` can avoid the observed repository-path startup wait.
+Pass that absolute location to `--build-dir` and the resulting binary path in
+the desktop configuration. See the [bounded location workaround](../desktop/README.md#macos-startup-location-workaround).

@@ -196,9 +196,31 @@ The exact-input picker now advances immediately after selecting the configured
 file and ignores the superseded background check. Socket-wait cancellation
 reaps the owned QEMU; a native Stop during the pending child launch reports
 cancellation at 2.249 seconds from launch and confirms owned cleanup. failures record elapsed time and actual early-exit status.
-A separate native-app startup attempt remains blocked before QEMU initialization
+A separate repository-path native-app startup attempt remains blocked before QEMU initialization
 in a macOS XPC filesystem open. The same original-EX configuration starts from
 the CLI (control socket in 0.077 seconds). Increasing the deadline to 30 seconds
 and removing an inherited bundle identifier did not repair the native launch;
-those speculative changes are not retained. This host-specific failure is not
-firmware boot or MCU acceptance.
+those speculative changes are not retained. The location workaround below
+starts the same binary. This host-specific failure is not firmware boot or MCU
+acceptance.
+
+
+### macOS startup location workaround
+
+If the app times out waiting for QEMU's control socket while the same inputs
+work from the CLI, try a QEMU build in a runtime directory outside Documents,
+such as `~/Library/Caches/z8-qemu`. `tools/build.py --build-dir` accepts an
+absolute directory. Update the configuration's absolute `qemu` path. Keep
+firmware, cards and captures separate; no permission setting needs to change.
+
+An identical binary (SHA-256
+`8daec4773df0c4fea3e3beac65c01058bb475963d616ab3c96f82b2f5d434a41`)
+launched from a private temporary directory publishes its control socket in
+0.365 seconds and advances original MAIN/EX execution. The repository-path
+launch waits in macOS's XPC initializer. A same-card native cold restart publishes its socket in 0.053 seconds, reaches
+ready state with 126 display / 223 RAW frames at virtual 16.257, and exchanges
+366 MAIN / 346 EX frames with zero bad frames before clean owned shutdown.
+This is a tested location workaround; the
+underlying macOS filesystem-access cause remains unresolved. It does not
+establish a new firmware-feature or camera acceptance result. Temporary paths
+are diagnostic only; use a stable runtime path for a saved configuration.

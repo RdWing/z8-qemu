@@ -351,4 +351,5 @@ byte for byte; this does not extend their codec or physical-camera acceptance.
 The host suite now runs 52 tests (51 pass, one optional comparison skips).
 Four actual-QEMU lock checks exclude existing/new writers, allow reopening after
 release and preserve the card. Native startup diagnostics retain a separate
-unresolved macOS initializer wait; CLI original-EX startup still passes.
+macOS initializer wait at the repository path; relocating the identical binary
+starts original MAIN/EX and cold restart. The underlying host cause is unresolved.

@@ -226,6 +226,24 @@
       "elapsed_from_launch_seconds": 2.248732,
       "owned_qemu_stopped": true,
       "reason": "QEMU startup cancelled"
+    },
+    "native_startup_location_workaround": {
+      "binary_sha256": "8daec4773df0c4fea3e3beac65c01058bb475963d616ab3c96f82b2f5d434a41",
+      "changed_binary_bytes": false,
+      "location": "private host temporary directory",
+      "control_socket_seconds": 0.365332,
+      "original_main_ex_progress": true,
+      "same_card_cold_restart_started": true,
+      "underlying_macos_cause_resolved": false,
+      "restart_control_socket_seconds": 0.052515,
+      "restart_ready": true,
+      "restart_display_frames": 126,
+      "restart_raw_frames": 223,
+      "restart_virtual_seconds": 16.257418565,
+      "restart_main_frames": 366,
+      "restart_ex_frames": 346,
+      "restart_bad_frames": 0,
+      "restart_owned_qemu_stopped": true
     }
   }
 }
