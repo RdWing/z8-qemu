@@ -41,6 +41,11 @@ KCONFIG = '''config NIKON_Z8_LAB
     bool
     depends on AARCH64 && TCG
     select ARM_GIC
+    select ARM_V7M
+    select OR_IRQ
+    select STM32F2XX_TIMER
+    select STM32F2XX_USART
+    select STM32F4XX_EXTI
     select ARM_GICV5
     select GENERIC_LOADER
     select SDHCI
@@ -96,7 +101,18 @@ def plan(source):
     ]:
         p = source/name
         changes[p] = replace_verified(p.read_text(), old, new, label).encode()
+    core = json.loads((HERE/'qemu-core/sources.json').read_text())
+    receipt_path=source/'.z8-qemu-overlay.json'
+    prior=json.loads(receipt_path.read_text()) if receipt_path.exists() else {}
+    for name, record in core.items():
+        p=source/name
+        data=(HERE/'qemu-core'/name).read_bytes()
+        digest=hashlib.sha256(p.read_bytes()).hexdigest()
+        if digest not in (record['upstream_sha256'], prior.get(name), hashlib.sha256(data).hexdigest()):
+            raise ValueError('Existing divergent MCU core device: '+name)
+        changes[p]=data
     overlays = sorted(p for p in HERE.rglob('*') if p.is_file() and
+                      'qemu-core' not in p.relative_to(HERE).parts and
                       (p.suffix in ('.c', '.h', '.cpp', '.inc') or
                        p.parent.name == 'nikon-he-public'))
     for overlay in overlays:
@@ -123,6 +139,8 @@ def prepare(source, check=False):
     backup = source/'.z8-qemu-backup'
     backup.mkdir(exist_ok=True)
     for p, data in changes.items():
+        if p.exists() and p.read_bytes()==data:
+            continue
         prior = backup/p.relative_to(source)
         if p.exists() and not prior.exists():
             prior.parent.mkdir(parents=True, exist_ok=True)

@@ -26,7 +26,7 @@ Z63 firmware on the Z8 machine.
 | Persistent virtual cards and exports | `--card` attaches an existing exFAT image for guest writes. Existing exact-file export plus bounded exFAT-window/ISO-BMFF helpers are available. | Guest-written lossless NEF accepted by two decoders. Export only after the emulator stops. |
 | Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. Standard movie path remains incomplete. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
-| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Not transferred to the Z8 board: it currently uses a host MCU peer. A separately mapped Z8 MCU integration is still required. | These changes prevent complete feature parity being claimed. |
+| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 69 synthetic reset checks pass; original shooting display reached. Complete native controls/capture remain open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | No Z63 pin/ADC/contact map reused. Z8 lacks the Z63 rotary mode dial; its mode-selection workflow needs its own binding. Lens/motor, power, card hot-plug and native top-LCD parity remain open. | No physical or native Z8 qualification. |
 | Go desktop UI, USB, plugins and board-specific diagnostics | The existing Z8 browser surface receives the portable input behavior. Z63 register/firmware-address maps, assets, USB routes and desktop backend are not copied as Z8 bindings. | A native desktop port and target-specific tracing/USB integration remain separate work. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
@@ -126,3 +126,11 @@ readiness and actual frame production. YUV ready state2 acknowledges arm state1
 without DMA, queue results or interrupts. Saved-photo GPU mode8 is a functional
 output-table-only interpretation requiring all three tables; physical stage
 semantics remain unverified.
+
+The [native EX attachment](native-mcu.md) now reaches the original shooting
+display and has firmware-free reset isolation coverage. The optional
+`--experimental-boundary-inputs` diagnostic supplies masked auxiliary-bank-1
+and global-bank-0 bit 26 at 33 ms virtual intervals without catch-up bursts.
+Those additional inputs did not restore movie or saved-photo return frames.
+An unused bank-1 start-acknowledgement hypothesis was removed rather than
+retained as a successful recovery model.

@@ -33,7 +33,7 @@ The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
 | --- | --- |
 | Original menus, shooting HUD, controller input and four AArch64 CPU contexts | Synthetic boot and peripheral inputs; selected paths tested. |
 | Selected native graphics, four framebuffer banks and indexed palette overlays | Functional rendering; physical AF and display color accuracy remain open. |
-| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. Functional HE is now available as an opt-in imported model, with native Z8 HE/HE* acceptance still open. |
+| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. Functional HE/HE★ single captures now have native Z8 synthetic-input acceptance; physical codec equivalence and repeated capture remain open. |
 | Firmware-written 8280 × 5520, 14-bit NEFs on virtual NVMe/exFAT | LibRaw and Adobe decoding checked all 45,705,600 samples. Capture requires three explicit experimental options and the Lossless menu setting. |
 | Picture Control metadata and Camera Raw defaults | Metadata inspected for Auto and Standard; lossless decoding checked with Auto. |
 | Movie configuration registers and selector handling | Movie initialization remains incomplete; playable recording and physical AF/lens drive are unqualified. |
@@ -48,8 +48,10 @@ remain open.
 The cumulative Z63 C2.00/C2.01 shared-device changes are adapted through
 `5c3b47c`, including functional HE, JPEG provenance/cancellation, playback resize,
 capture ownership and video-domain models. This is a **partial feature backport**:
-Z8 native HE/movie/playback parity, Z8 MCU integration and the native desktop
-frontend remain unqualified or unimplemented. Existing lossless capture is
+Native HE/HE★ single captures and saved-preview playback are accepted in bounded
+virtual runs. Movie/recovery, complete native MCU controls and the native desktop
+frontend remain incomplete. An optional original EX attachment now reaches the
+shooting display; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
 preserved and freshly accepted by LibRaw and Adobe. See the
 [feature disposition and checks](docs/z63-backport.md) before enabling the
 experimental profile.

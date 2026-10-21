@@ -41,6 +41,8 @@
 static void cpu_physical_memory_read(hwaddr a, void *p, hwaddr n) { address_space_read(&address_space_memory,a,MEMTXATTRS_UNSPECIFIED,p,n); }
 static void cpu_physical_memory_write(hwaddr a, const void *p, hwaddr n) { address_space_write(&address_space_memory,a,MEMTXATTRS_UNSPECIFIED,p,n); }
 #include "nikon-he-runtime.h"
+#include "nikon-z8-stm32.h"
+#include "nikon-z8-toplcd.h"
 
 #define TYPE_NIKON_Z8_LAB MACHINE_TYPE_NAME("nikon-z8-lab")
 #define Z8_NAND_MAIN 2048u
@@ -259,6 +261,8 @@ typedef struct Ex7CaptureSurface {
 
 struct NikonZ8State {
     MachineState parent;
+    char *mcu_image, *mcu_pins;
+    struct Z8McuBridge *native_mcu;
 
     MemoryRegion image_ram;
     MemoryRegion image_bank_ram[ARRAY_SIZE(image_bank_ranges)];
@@ -8094,6 +8098,8 @@ static bool serial_refill(NikonZ8State *s, unsigned ch)
     return true;
 }
 
+static void z8_mcu_schedule(NikonZ8State *s, unsigned ch);
+
 static void serial_write_peer_schedule(NikonZ8State *s, unsigned ch);
 
 static void serial_pio_update(NikonZ8State *s, unsigned ch)
@@ -8448,6 +8454,7 @@ static void set_serial_clock(Object *obj, const char *value, Error **errp)
  * The1us delay is functional, not a measured physical clock/codec property. */
 static void serial8_write_peer_schedule(NikonZ8State *s, unsigned ch)
 {
+    z8_mcu_schedule(s,ch);
     Z8SerialPIO *p = &s->serial_pio[8];
     if (ch == 8 && s->serial8_write_peer_enabled && !s->serial8_write_peer_fault &&
             p->active && p->tx_queued && p->rx_queued < 64 &&
@@ -8459,6 +8466,7 @@ static void serial8_write_peer_schedule(NikonZ8State *s, unsigned ch)
 
 static void serial_write_peer_schedule(NikonZ8State *s, unsigned ch)
 {
+    z8_mcu_schedule(s,ch);
     serial8_write_peer_schedule(s, ch);
     Z8SerialPIO *p = &s->serial_pio[2];
     if (ch == 2 && s->serial_write_peer_enabled && !s->serial_write_peer_fault &&
@@ -9040,6 +9048,8 @@ static bool nand_register_write(NikonZ8State *s, hwaddr addr, unsigned size,
  * the same two input/IRQ bindings; its original ISR is40e168c0 and
  * capture callback411c6e8c. Other logical pins differ between models.
  */
+#include "nikon-z8-mcu.h"
+
 static void ccomp_gpio_update(NikonZ8State *s)
 {
     if (s->ccomp_gpio_irq) {
@@ -19893,7 +19903,7 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
         return value;
     }
     if (s->bootstrap_fixtures && size == 4 && syscon_retention(s, addr)) {
-        return s->syscon[(addr - 0x0d150000) / 4];
+        return z8_mcu_gpio_read(s,addr,s->syscon[(addr - 0x0d150000) / 4]);
     }
     if (addr >= 0x0f000000 && addr + size <= 0x0f000040) {
         uint64_t value = 0;
@@ -21085,6 +21095,7 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
         }
         capture_gpio_update(s);
         ccomp_gpio_update(s);
+        z8_mcu_gpio_update(s);
         return;
     }
     if (ccomp_gpio_write(s, addr, value, size)) { return; }
@@ -21188,6 +21199,7 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
              * existing MCU peer writes to unrelated bits2/3 of this word. */
             value = (value & ~UINT64_C(0x30)) | (s->capture_gpio_levels << 4);
         }
+        value=z8_mcu_gpio_write(s,addr,value);
         s->syscon[(addr - 0x0d150000) / 4] = value;
         if (addr == 0x0d158000) {
             /* 4118a480 polling; 40c2fc20 interrupt-driven transitions.
@@ -22177,6 +22189,7 @@ static void nikon_z8_init(MachineState *machine)
             timer_mod(s->engine152c_stream_timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+33333333);
         }
     }
+    z8_mcu_init(s,gic);
     dsp_boot_init(s, gic);
     s->wave5_realized = true;
     if (s->wave5_model && s->wave5_irq_number) {
@@ -22843,6 +22856,11 @@ static void set_task1500_ff_clear_model(Object *obj, bool value, Error **errp)
 static void nikon_z8_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_bool(oc, "task1500-ff-clear-model", get_task1500_ff_clear_model, set_task1500_ff_clear_model);
+    object_class_property_add_str(oc,"mcu-image",get_z8_mcu_image,set_z8_mcu_image);
+    object_class_property_add_str(oc,"native-mcu-state",get_z8_mcu_state,NULL);
+    object_class_property_add_str(oc,"mcu-pins",get_z8_mcu_pins,set_z8_mcu_pins);
+    object_class_property_add_str(oc,"native-mcu-wire-state",get_z8_mcu_wire,NULL);
+    object_class_property_add_str(oc,"mcu-toplcd-bits",get_z8_mcu_toplcd,NULL);
     object_class_property_add_bool(oc, "z8-jpeg-decode", get_z8_jdec_on, set_z8_jdec_on);
     object_class_property_add_bool(oc, "z8-liveview-jpeg", get_z8_lv_jpeg, set_z8_lv_jpeg);
     object_class_property_add_bool(oc, "z8-still-capture", get_z8_still, set_z8_still);
@@ -22856,7 +22874,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a53");
     mc->default_ram_id = "z8.work-ram";
     mc->default_ram_size = 512 * MiB;
-    mc->max_cpus = 4;
+    mc->max_cpus = 5;
     mc->default_cpus = 4;
     mc->no_cdrom = true;
     mc->no_floppy = true;

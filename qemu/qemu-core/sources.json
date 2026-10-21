@@ -1,0 +1,14 @@
+{
+  "hw/timer/stm32f2xx_timer.c": {
+    "upstream_sha256": "adcf0dbf28c32da7c78e589337f9eb7ca8b96c671e2ad34b21bf788fd7fc17ed",
+    "donor_sha256": "329bdea8fe32954e99d8552afaa283df765495bc166078ad7ed9a02fae6fd1ec"
+  },
+  "include/hw/timer/stm32f2xx_timer.h": {
+    "upstream_sha256": "2a06a5c0f5b0975d4ca35b9029bb0176bbc489182a0ca33377915392da3a50f4",
+    "donor_sha256": "a54f4df0f2a7659b35d0d4194c0823b29b34278f910b1496edae173b0f9699e3"
+  },
+  "hw/misc/stm32f4xx_exti.c": {
+    "upstream_sha256": "d759f72edec32ba2878e3d47de670ebf64e717955858ab516468ff0be2d05b3c",
+    "donor_sha256": "114e420f8e10a1d9e1821be396529d65035793a6e73ae07ae74433eeee542da2"
+  }
+}

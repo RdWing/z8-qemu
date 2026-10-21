@@ -20,6 +20,9 @@ class SourceOverlay(unittest.TestCase):
                'accel/tcg/tcg-accel-ops.c':prepare.TCG_OLD}
         for name,data in files.items():
             p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(data)
+        for name in json.loads((ROOT/'qemu/qemu-core/sources.json').read_text()):
+            p=root/name;p.parent.mkdir(parents=True,exist_ok=True)
+            p.write_bytes((ROOT/'qemu/qemu-core'/name).read_bytes())
         return files
 
     def test_install_repeat_and_divergent_upgrade(self):

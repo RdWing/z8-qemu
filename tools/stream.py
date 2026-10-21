@@ -14,7 +14,7 @@ def run(g,seconds=60,control=None):
   from transition_peer import Peer as ActivePeer
  else:ActivePeer=Peer
  peer=ActivePeer(g,limit_frames=1024,config_reply=True,all_mode_replies=True,bindings=json.loads((P/'peer-bindings.json').read_text()))
- clock=BoundaryPeer(g,33,auxiliary_masked=True);spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
+ clock=BoundaryPeer(g,33,auxiliary_masked=True,auxiliary1_masked=getattr(g,'extra_boundary_inputs',False),global0_bit26=getattr(g,'extra_boundary_inputs',False));spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
  def state(name):return json.loads(g.qmp.command('qom-get',path='/machine',property=name))
  def send_running(body):
   # GDB breakpoint changes require a stopped guest; preserve any peer stop first.

@@ -10,7 +10,7 @@
   "target_base_commit": "c24e334",
   "target_firmware": "Z8 C3.11",
   "shared221_donor": "WonderLantern/zr-qemu@8a00ceda6a7111e5e08220f9cc3889f57fce9d0f",
-  "scope": "Exact working-source fingerprints for the adapted import. Shared source provenance is separate from target native acceptance. Board attachment construction and target MCU implementation are not reused.",
+  "scope": "Exact donor and adapted source fingerprints; shared source provenance is separate from Z8 native acceptance. The optional MCU uses Z8 serial/GPIO glue and separately qualified native firmware runs.",
   "files": {
     "qemu/nikon-expeed-capture-pool.h": {
       "adapted_sha256": "db8a13be22c21e8ee8f169284bfbf4783c4a99df1daf4e1f4d74b8bc8ec4e6cc",
@@ -283,7 +283,7 @@
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
     "qemu/nikon-z8-lab.c": {
-      "adapted_sha256": "83a718955e533d77dd6151895868de7a8340730ee2b65ecbbad2d280b9a314bb",
+      "adapted_sha256": "ef9a2e8511fec7585bc64a2f0ccce723b0a2dd768682ceac13febfec113d6637",
       "source_path": "nikon-z63-z9lab.c",
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },
@@ -339,6 +339,34 @@
       "adapted_sha256": "9969ab796e106e23f86c77e2613d92f8f61628ed94c3d53f8e56c9963835efd4",
       "source_path": "nikon-z9-wave5.h",
       "source_sha256": "4d24002e6966c7e4d4f863f4307147e33929689790031278b67bfd197a1591f6"
+    },
+    "qemu/nikon-z8-stm32.h": {
+      "source_path": "nikon-z63-stm32.h",
+      "source_sha256": "1286bfad92089dad118f12a0eeab15c700d96b55dd7c86af72139592885b2492",
+      "adapted_sha256": "7a1a6873fefa7ec2a286dfab06da8a26c3821f13fce89d5d9deab19e9b33fa11"
+    },
+    "qemu/nikon-z8-toplcd.h": {
+      "source_path": "nikon-z63-toplcd.h",
+      "source_sha256": "4503561ee5658c530283ae22ae20c845b9ba2a212c8706b108191a85c3fae3cc",
+      "adapted_sha256": "c144244576f385b3924745a3139b563bfd3881d701be2f2637ac3260771e8a55"
+    },
+    "qemu/qemu-core/hw/timer/stm32f2xx_timer.c": {
+      "source_path": "../../hw/timer/stm32f2xx_timer.c",
+      "source_sha256": "329bdea8fe32954e99d8552afaa283df765495bc166078ad7ed9a02fae6fd1ec",
+      "qemu_11_upstream_sha256": "adcf0dbf28c32da7c78e589337f9eb7ca8b96c671e2ad34b21bf788fd7fc17ed",
+      "adapted_sha256": "db7069099615cfe0952247ebd0c06e5c50abcb32dda26f399ad5324acfed918f"
+    },
+    "qemu/qemu-core/include/hw/timer/stm32f2xx_timer.h": {
+      "source_path": "../../include/hw/timer/stm32f2xx_timer.h",
+      "source_sha256": "a54f4df0f2a7659b35d0d4194c0823b29b34278f910b1496edae173b0f9699e3",
+      "qemu_11_upstream_sha256": "2a06a5c0f5b0975d4ca35b9029bb0176bbc489182a0ca33377915392da3a50f4",
+      "adapted_sha256": "d19f2315df642d0ecbe12f3ed9ab1afc74d8bc45eb40f1696a93b7145299fb9e"
+    },
+    "qemu/qemu-core/hw/misc/stm32f4xx_exti.c": {
+      "source_path": "../../hw/misc/stm32f4xx_exti.c",
+      "source_sha256": "114e420f8e10a1d9e1821be396529d65035793a6e73ae07ae74433eeee542da2",
+      "qemu_11_upstream_sha256": "d759f72edec32ba2878e3d47de670ebf64e717955858ab516468ff0be2d05b3c",
+      "adapted_sha256": "6d63234abfd8194bb25e6b5e9c4a19b32bde772de268f84c60e224ca44ffe41e"
     }
   }
 }

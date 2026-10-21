@@ -15,6 +15,7 @@ def main():
     p.add_argument('--seconds', type=int, default=1800)
     p.add_argument('--port', type=int, default=8778)
     p.add_argument('--smoke', action='store_true')
+    p.add_argument('--experimental-boundary-inputs', action='store_true', help='Include declared auxiliary1 and global0-bit26 diagnostic boundaries; requires shared profile')
     p.add_argument('--experimental-preparation-profile', action='store_true', help='Synthetic bank8 offset999=1; missing factory preparation data remains unqualified')
     p.add_argument('--experimental-yuv-channels', action='store_true', help='Enable empty YUV channel readiness acknowledgement; no pixel completion')
     p.add_argument('--experimental-movie-selector16', action='store_true', help='Synthetic ROM selector16=index1; missing original coefficients remain unqualified')
@@ -26,6 +27,7 @@ def main():
     p.add_argument('--check-only', action='store_true')
     a = p.parse_args()
     if not 1 <= a.seconds <= 3600 or not 1024 <= a.port <= 65535: p.error('Invalid duration or port')
+    if a.experimental_boundary_inputs and not a.experimental_shared221: p.error('--experimental-boundary-inputs requires --experimental-shared221')
     firmware, manifest = verify(a.firmware)
     if not a.qemu.is_file() or not a.raw.is_file(): p.error('QEMU and synthetic RAW inputs must exist')
     if a.card:
@@ -47,6 +49,7 @@ def main():
     g = Guest(firmware, a.qemu, a.raw, a.output)
     if replay: g.data['input_replay'] = replay.actions
     g.trace_transitions = a.trace_transitions
+    g.extra_boundary_inputs = a.experimental_boundary_inputs
     g.command[g.command.index('-M')+1] = g.command[g.command.index('-M')+1].replace('nikon-z8-lab,', 'nikon-z8-full-lab,zr-sd-empty-fixture=on,')
     g.command += ['-device', f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-num=0']
     if a.experimental_shared221:
