@@ -241,7 +241,7 @@ HE capture or the physical connection between EX and MAIN release inputs.
 A full-phase-only read-only trace further reaches the UI action with the full
 key and clear inhibit/busy/filter checks. Its sequence-permission getter returns
 zero, selecting initial sequence 1; the accepted host-peer capture returns one
-and selects sequence 3. Active reasons 37 and 125 intersect the current mask.
+and selects sequence 3. Only active reason 37 intersects the current mask; active reason 125 is masked.
 The probe stops cleanly at virtual 71.270584 with 1,622 MAIN / 1,533 EX frames,
 no checksum failures and no image-engine jobs. These are firmware gate
 observations; no reason bit or firmware instruction is changed to force a shot.
