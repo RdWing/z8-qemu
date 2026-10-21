@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later
  * Authored functional Wave5-compatible HEVC/AVC device. The compatible 5210
  * identity is an explicit virtual profile, not measured Nikon silicon.

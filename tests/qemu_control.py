@@ -1,3 +1,4 @@
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Small synchronous QMP client for the synthetic board checks."""
 import json

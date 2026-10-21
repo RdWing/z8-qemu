@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Check production drain readiness, IRQ masking and acknowledgement in C."""
 from pathlib import Path
 import subprocess

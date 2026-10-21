@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later
  * Functional DSP boot interface; no CEVA instructions are executed.
  * Original ZR ARM path:40e2ee50 ->40e0a71c ->40e0aca0 ->40e98130.

@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Synthetic codec controls; no firmware or camera input. Compile once with
  * the imported baseline header and once with the adapted header. */

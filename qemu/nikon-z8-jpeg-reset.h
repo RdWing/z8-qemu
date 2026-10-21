@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Functional cancellation observed at C2.00 40C0D100..40C0D11C:
  * disarm both DMA controls, then reset an unfinished mode32 job.

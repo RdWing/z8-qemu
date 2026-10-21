@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Functional mode32 contract: NV12 from a completed RAW-model generation.
  * C2.00's original descriptor value 2 selects mode32. The source model's

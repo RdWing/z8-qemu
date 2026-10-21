@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /*
  * Nikon Z 6III -- a JPEG stream decoded with libjpeg, for the JPEG cores'
  * decode mode (z8-jpeg-decode in z8-tools/z8lab_attach.c.in).

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Check the supplemental models through the actual Z8 MMIO front end.
 
 Synthetic inputs only; no original firmware, R3D profile or recording claim.

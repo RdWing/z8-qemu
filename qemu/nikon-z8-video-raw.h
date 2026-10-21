@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Functional internal video RAW transport. This authored WLVR/zlib envelope
  * is a simulator-only lossless transport, NOT Nikon compression. Both ends

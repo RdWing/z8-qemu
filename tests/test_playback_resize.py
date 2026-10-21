@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Exercise production playback admission, real pixel writes and IRQ ordering."""
 from pathlib import Path
 import subprocess

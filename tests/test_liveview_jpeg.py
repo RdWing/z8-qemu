@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Run patched JPEG/provenance/reset controls on synthetic input.
 
 Apply the patch series first. No camera firmware or guest is needed. Optional

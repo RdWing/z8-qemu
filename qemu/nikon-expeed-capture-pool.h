@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Bounded physical NV16 producer records. Metadata never substitutes for
  * RAM, completion or a guest ACK. Count passes do not release a frame. */

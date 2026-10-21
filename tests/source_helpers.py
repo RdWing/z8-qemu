@@ -1,3 +1,4 @@
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Extract production C functions for synthetic checks."""
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]

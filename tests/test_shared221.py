@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Production shared221 ownership and programmed-clock controls."""
 from pathlib import Path
 import subprocess

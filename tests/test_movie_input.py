@@ -1,3 +1,4 @@
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Movie control ownership and the Z8 finite/continuous input boundary."""
 import unittest
 from test_shared221 import SOURCE, check

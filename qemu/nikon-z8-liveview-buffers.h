@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Bounded provenance for RAM actually written by the functional RAW model.
  * This records completed device writes, not Nikon allocator ownership or

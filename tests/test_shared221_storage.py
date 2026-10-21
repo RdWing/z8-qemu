@@ -1,3 +1,4 @@
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Synthetic metadata controls for the imported read-only storage helpers."""
 from pathlib import Path
 import struct

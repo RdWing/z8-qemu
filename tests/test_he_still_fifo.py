@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Admission for the production native HE still FIFO, without firmware."""
 from test_shared221 import SOURCE, check
 import unittest

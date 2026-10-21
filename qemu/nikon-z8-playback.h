@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Z6III decoded NV16 RAM -> A1/F4/B4 playback route. Functional nearest
  * sampling uses the native fixed-point phases. Physical filters and timing

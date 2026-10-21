@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Explicit functional D8 -> packed Y/UV RAM -> source1 RGB RAM route.
  * The packed12 layouts and BT.601 transform below are simulator contracts,

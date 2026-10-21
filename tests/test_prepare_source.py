@@ -1,3 +1,4 @@
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Source overlay upgrades preserve independently edited QEMU files."""
 from pathlib import Path
 import importlib.util

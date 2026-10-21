@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Execute the production statistics writer against guarded RAM, without firmware."""
 import os
 from pathlib import Path

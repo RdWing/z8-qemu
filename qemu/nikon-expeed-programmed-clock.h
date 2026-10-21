@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Functional programmed-channel waveform from the explicit source clock.
  * Native drivers register fifteen distinct channel callbacks and commit

@@ -17,7 +17,7 @@
       "disposition": "Retained Z8 implementation or local integration wrapper"
     },
     "qemu/nikon-expeed-capture-pool.h": {
-      "adapted_sha256": "59cb73497bef3ea457edb6614c7d1e1d91a04811d063eb86d7bfeac6f924f3dc",
+      "adapted_sha256": "db8a13be22c21e8ee8f169284bfbf4783c4a99df1daf4e1f4d74b8bc8ec4e6cc",
       "source_path": "nikon-expeed-capture-pool.h",
       "source_sha256": "7c1c568b812546c465a463611ae496cb1c952cc25bb5fd9a5ea2e6c9712bcc2e"
     },
@@ -27,17 +27,17 @@
       "source_sha256": "6718b4c8f190960db588e42958c18db125fffd8cc6d68649be8d20d64d33ec77"
     },
     "qemu/nikon-expeed-dsp-boot.h": {
-      "adapted_sha256": "9ca3160dc13178f52bf7f696e2c59fad7c94c35de39882cb12b4dc0937f1d96a",
+      "adapted_sha256": "adf20dab1e156f431d82ababafa97050df439c727c68f175c878c883bb409dc0",
       "source_path": "nikon-expeed-dsp-boot.h",
       "source_sha256": "ea1717833c04d49b1419737a8dac80c19f8e2f5462c65dc474053eb9bc6c386c"
     },
     "qemu/nikon-expeed-lossless.h": {
-      "adapted_sha256": "c1f0acf917e384d400ec4fdce7dde7b0bdbdfb66109f829d5403ac9b68260fcc",
+      "adapted_sha256": "5c8b3b415794d3046dc20d9a99fa677720347b5c39c6f0fe9ffa4d1ae033b1de",
       "source_path": "nikon-expeed-lossless.h",
       "source_sha256": "6f6ef0da9d01571dcf3470ccf1b160fb1c50c5859b6b70ef78d63b4bc97e9100"
     },
     "qemu/nikon-expeed-main-output.h": {
-      "adapted_sha256": "f81b03d6a492ea8b01d35744012185f61786b553a982d51f6dcc631e2b163e5f",
+      "adapted_sha256": "50db7a0ce5afe010d3f8f4f625ca65c7253eda7aad9a72ea111f5b11fea4c48e",
       "source_path": "nikon-expeed-main-output.h",
       "source_sha256": "f6ba220ddfb36a619b42889c9adbb9201bc8943fb0ef03b69dfca615a3c6ea34"
     },
@@ -47,12 +47,12 @@
       "source_sha256": "bc5b87b45a24f1b2c9a3fdc470ba62c454ef95f12542b621ad6c07f5a4b27a12"
     },
     "qemu/nikon-expeed-programmed-clock.h": {
-      "adapted_sha256": "5fc144e12f41f55ffb824426a3e3719656640b32ac144003dee106b648c32758",
+      "adapted_sha256": "98f371c389f2c6c05a88e5d974c1023d60f0c7236281142d9a6712ab1b3f9d5e",
       "source_path": "nikon-expeed-programmed-clock.h",
       "source_sha256": "699317b785ebf1cd4e9a1dc93ba58a12cc49925fa0a9a5469edc26ba17b534d3"
     },
     "qemu/nikon-expeed-video-preview.h": {
-      "adapted_sha256": "a4d0fa3ed6d5ab2249f68c16461f45cb04557b3e95d53fbcc68722eebff5b1a7",
+      "adapted_sha256": "e5110c078d69c306560d7c6df49d7594e43d5e295d5f77d61af408b5cd3031ab",
       "source_path": "nikon-expeed-video-preview.h",
       "source_sha256": "d6a16a193512046490ef84f29a291390a713d63fec2f43a60b86df8715cb95aa"
     },
@@ -272,7 +272,7 @@
       "source_sha256": "12666f245d7c02ad6436cddb66b5a450c810abfee43d9f90165287c4b7ccf576"
     },
     "qemu/nikon-z8-jpeg-reset.h": {
-      "adapted_sha256": "600c4c77bfd67afec7fa2b48fc19ef3a7f3d98bc21e3a79a427df222712b14ef",
+      "adapted_sha256": "e324caeb0a830dec5c2c0782ac981cda57f0125aa0b42a04ddcfe310c037a2ae",
       "source_path": "nikon-z63-jpeg-reset.h",
       "source_sha256": "3a4fcbdb432017a523aa52b1308b10f47ff335ee0fcbe25eab66e723a37daf6f"
     },
@@ -282,7 +282,7 @@
       "source_sha256": "0823929661f2e61063a739371460cd73d6ba7b84b8389efcb022d458dc347ba9"
     },
     "qemu/nikon-z8-jpegdec.h": {
-      "adapted_sha256": "a56cc5bf7f1dc70c368adc4d3bb07750d52377c5d67afb4865a5b929836b357a",
+      "adapted_sha256": "a2e848863e056272945faac6ecaa0a0b375659042c6b058aefeaf3be28d391b8",
       "source_path": "nikon-z63-jpegdec.h",
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
@@ -292,12 +292,12 @@
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },
     "qemu/nikon-z8-liveview-buffers.h": {
-      "adapted_sha256": "256c0ca56911e745785427d14ccc842151a0ef803b0cde4e7e62ea812eac5483",
+      "adapted_sha256": "db5aaab1fa55134de3d42baa6d8b5cc11953e89177c369300410aa2d416b6c8e",
       "source_path": "nikon-z63-liveview-buffers.h",
       "source_sha256": "2e6a5efdce62bbbc998e3dea1594945fbe0ab198fd4b497994f9c4eac1acdfeb"
     },
     "qemu/nikon-z8-liveview-jpeg.h": {
-      "adapted_sha256": "3dfc145970eb6e331814957b9720654a15903f8a956ff91eddc66e8ff0ea2530",
+      "adapted_sha256": "04d08bd5b9be7fecf85f2c0ca495cbbf5eb2339c726cac933ab4c7fc27e81957",
       "source_path": "nikon-z63-liveview-jpeg.h",
       "source_sha256": "8b0667fd16f68b8057e0060a75b0ea9b48547a604b532714a5dea534a464bf7f"
     },
@@ -316,7 +316,7 @@
       "source_sha256": "aa3d71e363cffbb865ced6d2839f0975986c9e4a8ffbd0ef2401312906229dff"
     },
     "qemu/nikon-z8-playback.h": {
-      "adapted_sha256": "22909b4df2841037f0eb3129c62a92f7da94ab2aa768df82508f1a0ed60bbf0e",
+      "adapted_sha256": "be916aa6b57492746164e76a165cfb2b690834e019cf30d9527c13bf6fe5eaa7",
       "source_path": "nikon-z63-playback.h",
       "source_sha256": "7bf68f1d8fd212e613e98f0dcb47aea5b00dc0b391c79402b7bdd087a16c7314"
     },
@@ -325,7 +325,7 @@
       "disposition": "Retained Z8 implementation or local integration wrapper"
     },
     "qemu/nikon-z8-source-ram.h": {
-      "adapted_sha256": "44918950156ccd0e732d9e75631b637099526080b9ad9a407a03a6930a47b974",
+      "adapted_sha256": "48aa20d61b03972cd77fcb3c6f8cbae0884b8ba94839f6229910a0effc60e885",
       "source_path": "nikon-z9-source-ram.h",
       "source_sha256": "5bc5b25e915a421646c3be2a60c7deb23f3d5303c4d930189f467af484bdc677"
     },
@@ -335,12 +335,12 @@
       "source_sha256": "b1fa69281d4b207fed85a7908b027f18ece26d978b83f1025dfb98bae2946203"
     },
     "qemu/nikon-z8-video-raw.h": {
-      "adapted_sha256": "54119bd437121f0cf6754d44087914c0c291f3bb5808d1a61c45221a0585f36b",
+      "adapted_sha256": "a4a4896609b61fbb68668443fb78990cb3893bdfdd6d048e0748dcc70812e058",
       "source_path": "nikon-z9-video-raw.h",
       "source_sha256": "c0f587997470878b167268cb28a980d0986c09b24ebc70ed3bdf97c016d002a9"
     },
     "qemu/nikon-z8-wave5.h": {
-      "adapted_sha256": "ea1f257bd41314c5eb6845077d0193467d680f56e01f2110c2dd243c3c4c00c6",
+      "adapted_sha256": "9969ab796e106e23f86c77e2613d92f8f61628ed94c3d53f8e56c9963835efd4",
       "source_path": "nikon-z9-wave5.h",
       "source_sha256": "4d24002e6966c7e4d4f863f4307147e33929689790031278b67bfd197a1591f6"
     }

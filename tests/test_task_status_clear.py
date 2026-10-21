@@ -1,3 +1,4 @@
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Native Z8 task status clearing and command ownership, without firmware."""
 import unittest
 from test_shared221 import SOURCE, check

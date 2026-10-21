@@ -1,3 +1,4 @@
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Native movie reset may cancel only its own masked statistics result."""
 import unittest
 from test_shared221 import SOURCE, check

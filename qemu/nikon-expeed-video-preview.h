@@ -1,3 +1,4 @@
+/* Copyright (C) 2026 RdWing: Z8 adaptation. */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Finite A1 byte8/packed10 NV12 RAM -> B3/B4/B5 preview outputs.
  * Functional nearest sampling/10-to-8 conversion, NOT Nikon ISP algorithms.

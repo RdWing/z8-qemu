@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 RdWing: Z8 adaptation.
 """Exercise the actual functional HE C ABI with synthetic packed14 input.
 
 No R3D container, SDK, camera firmware or reference image is used.
