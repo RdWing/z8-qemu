@@ -14,7 +14,7 @@ from inspect_virtual_exfat import catalog
 from virtual_exfat_window import window
 
 
-def extract(volume, name, output, *, max_bytes=256*1024*1024):
+def extract(volume, name, output, *, max_bytes=256*1024*1024, write_receipt=True):
     volume, output = Path(volume), Path(output)
     origin,volume_bytes=window(volume)
     rows = [x for x in catalog(volume)['files'] if x['path'] == name and not x['directory']]
@@ -66,7 +66,9 @@ def extract(volume, name, output, *, max_bytes=256*1024*1024):
     result = dict(volume=str(volume), entry=row, output=str(output), bytes=length,
                   sha256=digest.hexdigest(), camera_image_decoded=False,
                   scope='actual initialized file bytes extracted read-only; no substituted data, codec or camera-file acceptance')
-    output.with_suffix(output.suffix+'.extraction.json').open('x').write(json.dumps(result, indent=2)+'\n')
+    if write_receipt:
+        with output.with_suffix(output.suffix+'.extraction.json').open('x') as receipt:
+            receipt.write(json.dumps(result, indent=2)+'\n')
     return result
 
 

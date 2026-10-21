@@ -67,7 +67,9 @@ def main():
     control = replay or (None if a.smoke else Control(a.port,playback=a.experimental_playback))
     if control and not replay:
         control.write_endpoint(g.out)
-    if control: signal.signal(signal.SIGTERM, lambda *_: control.stop.set())
+    if control:
+        g.startup_cancelled=control.stop.is_set
+        signal.signal(signal.SIGTERM, lambda *_: control.stop.set())
     try:
         with g:
             boot(g); run(g, 70 if a.smoke else a.seconds, control)

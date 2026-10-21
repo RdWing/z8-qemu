@@ -280,4 +280,4 @@ and returns to Photo without the former reset error. Three consecutive HE★
 files and an independent ordinary HE file pass full audits. This establishes
 bounded virtual recovery; physical wire identity and exposure timing remain
 unqualified. Shared browser and native Camera-menu capture controls use the
-same guarded contact queue; native photo export remains open.
+same guarded contact queue. The separate [stopped-card photo export](../desktop/README.md#export-photos-from-a-stopped-card) now has native dialog and exact-copy acceptance.

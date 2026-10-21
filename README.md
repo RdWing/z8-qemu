@@ -49,7 +49,7 @@ The cumulative Z63 C2.00/C2.01 shared-device changes are adapted through
 `5c3b47c`, including functional HE, JPEG provenance/cancellation, playback resize,
 capture ownership and video-domain models. This is a **partial feature backport**:
 Native HE/HE★ single captures and saved-preview playback are accepted in bounded
-virtual runs. Experimental Movie live view and Photo recovery now pass two cycles. Normal two-cycle playback/Photo recovery also passes. Playback idle-wake/zoom, remaining native MCU controls and full desktop parity remain incomplete.
+virtual runs. Experimental Movie live view and Photo recovery now pass two cycles. Normal two-cycle playback/Photo recovery also passes. Native stopped-card photo export now copies initialized DCIM photos through an AppKit dialog with writer exclusion and cancellation. Playback idle-wake/zoom, remaining native MCU controls and full desktop parity remain incomplete.
 An initial [macOS desktop workbench](desktop/README.md) now supports the shared
 controls, display saving, saved-photo playback and qualified native EX Menu/navigation/half, Movie/Photo and card-backed Play contacts. Native Camera commands independently complete Movie/Photo recovery. Terminal
 firmware power-down now disables controls and retains the last display; native desktop

@@ -134,3 +134,19 @@ capture session keeps the selector and native mode commands disabled, with
 “Use a Movie session for Photo/Movie live view.” Capture readiness remains
 independent, so the Camera capture command can be enabled while mode commands
 are disabled. A separate Movie session retains its qualified selector workflow.
+
+
+## Photo export
+
+AppKit owns Session → Export photos…, its new-folder Save dialog, cancellable
+progress sheet and count/Show in Finder completion. Export is available only
+for a stopped session with a supplied card; Open/Restart wait while it runs.
+Quit cancels and waits for cleanup. The helper owns matching-card checks,
+QEMU-compatible reader exclusion, worker lifetime and atomic no-replace
+publication. Failure/cancellation keeps the source card and any existing
+folder intact; no unconfirmed file count is presented as success. Exact-input
+picker selection advances startup immediately, retiring the superseded
+background read by generation. Native destination Cancel and successful
+three-photo export are exercised; worker cancellation and malformed-card paths
+have firmware-free host tests. This uses standard AppKit presentation and the
+existing workbench; there is no new palette or screen hierarchy.

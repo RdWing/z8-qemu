@@ -26,6 +26,6 @@ def attach(guest,card,playback=False,native_mcu=False):
         properties['z8-jpeg-decode']='on'
     if native_mcu:properties['ccomp-gpio-model']='off'
     guest.command[guest.command.index('-M')+1]+=','+','.join(name+'='+value for name,value in properties.items())
-    guest.command+=['-drive',f'file={card},if=none,id=card,format=raw',
+    guest.command+=['-drive',f'file={card},if=none,id=card,format=raw,file.locking=on',
         '-device','nvme,drive=card,serial=Z8-PERSISTENT,bus=dw-pcie,addr=0']
-    guest.data['persistent_card']={'path':str(card),'guest_writable':True,'experimental_playback':playback}
+    guest.data['persistent_card']={'path':str(card),'guest_writable':True,'experimental_playback':playback,'file_locking':'on'}

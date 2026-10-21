@@ -22,7 +22,13 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     var checkingPath: String?
     var accessPanelOpen = false
     var pendingAccessCompletion: (() -> Void)?
+    var manualInputContinuation: (() -> Void)?
+    var inputCheckID = UUID()
     var configurationSnapshot: URL?
+    var exporting = false
+    var exportCancelled = false
+    var exportProcess: Process?
+    var exportProgress: NSAlert?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let menu = NSMenu()
@@ -36,6 +42,8 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Allow input access…", #selector(allowInputAccess), ""),
             ("Save display…", #selector(saveDisplay), "s"),
             ("Save session log…", #selector(saveSessionLog), ""),
+            ("Export photos…", #selector(exportPhotos), ""),
+            ("Cancel photo export", #selector(cancelPhotoExport), ""),
             ("Show session files", #selector(showOutput), ""),
             ("Restart session", #selector(restartSession), "r"),
             ("Stop emulator", #selector(stopSession), ".")
@@ -88,7 +96,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         view.loadHTMLString("<html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Z8 emulator</title><style>\(css)</style><main><h1>\(escaped(title))</h1><p role='status'>\(escaped(detail))</p></main></html>", baseURL: nil)
     }
     @objc func openConfiguration() {
-        guard child == nil && !starting else { return }
+        guard child == nil && !starting && !exporting else { return }
         let panel = NSOpenPanel(); panel.title = "Open Z8 configuration"
         panel.allowedContentTypes = [.json]; panel.allowsMultipleSelection = false
         if panel.runModal() == .OK, let url = panel.url { start(url) }
@@ -115,12 +123,23 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     @objc func allowInputAccess() {
         guard starting, let checkingPath, !accessPanelOpen else { return }
-        if !chooseInput(checkingPath) { stopSession() }
+        let resume = manualInputContinuation
+        if chooseInput(checkingPath) {
+            guard starting, self.checkingPath == checkingPath else { return }
+            // The exact native selection grants access even if an earlier
+            // filesystem read remains pending. Retire that read's completion.
+            inputCheckID = UUID(); manualInputContinuation = nil
+            resume?()
+        } else { stopSession() }
     }
     func authorizeInputs(_ paths: [String], id: UUID, attempted: Set<String> = [], completion: @escaping (Result<Void, Error>) -> Void) {
         guard starting && startupID == id else { return }
-        guard let path = paths.first else { checkingPath = nil; completion(.success(())); return }
+        guard let path = paths.first else { checkingPath = nil; manualInputContinuation = nil; completion(.success(())); return }
         checkingPath = path
+        let check = UUID(); inputCheckID = check
+        manualInputContinuation = { [weak self] in
+            self?.authorizeInputs(Array(paths.dropFirst()), id: id, attempted: attempted.union([path]), completion: completion)
+        }
         message("Checking local inputs", detail: "Checking " + URL(fileURLWithPath: path).lastPathComponent + ". If access pauses, choose Session → Allow input access. Stop emulator cancels startup.")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result {
@@ -137,7 +156,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 let finish = {
-                    guard self.starting && self.startupID == id else { return }
+                    guard self.starting && self.startupID == id && self.inputCheckID == check else { return }
                     switch result {
                     case .success:
                         self.authorizeInputs(Array(paths.dropFirst()), id: id, attempted: attempted, completion: completion)
@@ -164,7 +183,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         if configurationSnapshot == url { configurationSnapshot = nil }
     }
     func start(_ configuration: URL, restoring: Bool = false) {
-        guard child == nil && !starting else { return }
+        guard child == nil && !starting && !exporting else { return }
         lastError = false; modeReady = false; captureReady = false
         do {
             let value = try JSONSerialization.jsonObject(with: Data(contentsOf: configuration))
@@ -316,6 +335,77 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             }
         }
     }
+    @objc func exportPhotos() {
+        guard child == nil, !starting, !exporting, let output,
+              let card = activeConfiguration?["card"] as? String,
+              let python = activeConfiguration?["python"] as? String else { return }
+        let panel = NSSavePanel()
+        panel.title = "Export photos"; panel.prompt = "Export"
+        panel.message = "Copy the photos on this virtual card into a new folder."
+        panel.nameFieldLabel = "Folder name:"; panel.nameFieldStringValue = "Z8 photos"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        // Native dialogs own destination selection; the helper verifies stopped
+        // ownership, holds QEMU-compatible card locks and publishes atomically.
+        let process = Process(), pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: python)
+        let script = Bundle.main.resourceURL!.appendingPathComponent("runtime/tools/desktop_photo_export.py")
+        process.arguments = [script.path, "--card", card, "--session", output.path, "--output", destination.path]
+        process.standardOutput = pipe; process.standardError = pipe
+        exporting = true; exportCancelled = false; exportProcess = process
+        do {
+            try process.run()
+            let progress = NSAlert(); progress.messageText = "Exporting photos"
+            progress.informativeText = "Copying photos into “" + destination.lastPathComponent + "”."
+            progress.addButton(withTitle: "Cancel export").keyEquivalent = "\u{1b}"
+            let spinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 32, height: 32))
+            spinner.style = .spinning; spinner.startAnimation(nil)
+            spinner.setAccessibilityLabel("Exporting photos")
+            progress.accessoryView = spinner; exportProgress = progress
+            progress.beginSheetModal(for: window) { [weak self] response in
+                if response == .alertFirstButtonReturn { self?.cancelPhotoExport() }
+            }
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                let result = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.exportProcess === process else { return }
+                    self.exportProcess = nil; self.exporting = false
+                    if let progress = self.exportProgress { self.window.endSheet(progress.window, returnCode: .abort) }
+                    self.exportProgress = nil
+                    if self.terminating { NSApp.reply(toApplicationShouldTerminate: true); return }
+                    let alert = NSAlert()
+                    if self.exportCancelled {
+                        alert.messageText = "Photo export cancelled"
+                        alert.informativeText = "Check the destination folder before trying again. Existing files were not replaced."
+                    } else if process.terminationStatus == 0, result?["ok"] as? Bool == true,
+                              let count = result?["count"] as? Int {
+                        alert.messageText = count == 1 ? "Exported 1 photo" : "Exported \(count) photos"
+                        alert.informativeText = destination.path
+                        alert.addButton(withTitle: "Done")
+                        alert.addButton(withTitle: "Show in Finder")
+                        alert.beginSheetModal(for: self.window) { response in
+                            if response == .alertSecondButtonReturn { NSWorkspace.shared.open(destination) }
+                        }
+                        return
+                    } else {
+                        alert.messageText = "Could not export photos"
+                        alert.informativeText = result?["message"] as? String ?? "Check the destination and card, then try again."
+                    }
+                    alert.beginSheetModal(for: self.window)
+                }
+            }
+        } catch {
+            exporting = false; exportProcess = nil
+            let alert = NSAlert(); alert.messageText = "Could not export photos"; alert.informativeText = error.localizedDescription
+            alert.beginSheetModal(for: window)
+        }
+    }
+    @objc func cancelPhotoExport() {
+        guard exporting, exportProcess?.isRunning == true else { return }
+        exportCancelled = true; exportProcess?.terminate()
+    }
     @objc func showOutput() { if let output { NSWorkspace.shared.selectFile(output.path, inFileViewerRootedAtPath: output.deletingLastPathComponent().path) } }
     func cancelRestart() {
         if let restartURL { try? FileManager.default.removeItem(at: restartURL) }
@@ -325,13 +415,14 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     @objc func stopSession() {
         cancelRestart()
         if starting {
-            startupID = UUID(); starting = false; checkingPath = nil; pendingAccessCompletion = nil
+            startupID = UUID(); inputCheckID = UUID(); starting = false; checkingPath = nil
+            pendingAccessCompletion = nil; manualInputContinuation = nil
             if !terminating { message("Startup cancelled", detail: "Choose Session → Open configuration to try again.") }
         }
         terminateChild()
     }
     @objc func restartSession() {
-        guard var configuration = activeConfiguration, !terminating, !starting, restartURL == nil,
+        guard var configuration = activeConfiguration, !terminating, !starting, !exporting, restartURL == nil,
               let originalOutput = restartOutputRoot ?? configuration["output"] as? String else { return }
         let suffix = UUID().uuidString.lowercased()
         configuration["output"] = originalOutput + "-restart-" + String(suffix.prefix(8))
@@ -354,8 +445,10 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == #selector(capturePhoto) { return captureReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(selectPhoto) || item.action == #selector(selectMovie) { return modeReady && child?.isRunning == true && baseURL != nil }
-        if item.action == #selector(openConfiguration) { return child == nil && !starting && restartURL == nil }
-        if item.action == #selector(restartSession) { return activeConfiguration != nil && !terminating && !starting && restartURL == nil }
+        if item.action == #selector(exportPhotos) { return activeConfiguration?["card"] is String && output != nil && child == nil && !starting && !exporting }
+        if item.action == #selector(cancelPhotoExport) { return exporting && !exportCancelled }
+        if item.action == #selector(openConfiguration) { return child == nil && !starting && !exporting && restartURL == nil }
+        if item.action == #selector(restartSession) { return activeConfiguration != nil && !terminating && !starting && !exporting && restartURL == nil }
         if item.action == #selector(allowInputAccess) { return starting && checkingPath != nil && !accessPanelOpen }
         if item.action == #selector(saveDisplay) { return child != nil && baseURL != nil }
         if item.action == #selector(saveSessionLog) { return output != nil && child == nil && !starting }
@@ -364,8 +457,8 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { NSApp.terminate(nil); return false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        terminating = true; stopSession(); cleanupSnapshot(configurationSnapshot)
-        guard child != nil else { return .terminateNow }
+        terminating = true; stopSession(); cancelPhotoExport(); cleanupSnapshot(configurationSnapshot)
+        guard child != nil || exporting else { return .terminateNow }
         return .terminateLater
     }
 }

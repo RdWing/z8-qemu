@@ -95,7 +95,7 @@ shared selector queue.
 
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
 top-panel drawing, recording, playback idle wake/zoom, USB/plugins, a firmware console/debug
-dock, photo export dialogs and Linux/Windows desktop bundles remain open.
+dock and Linux/Windows desktop bundles remain open.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
 Z8 controls. The experimental native HE profile below adds shared browser,
 keyboard and native Camera-menu capture using the qualified paired contacts.
@@ -153,7 +153,7 @@ queue reports delivered input, not a saved-file claim. If completion cannot be
 confirmed, contacts are released and the status directs you to the camera display.
 Capture results and per-capture sensor/receiver snapshots remain in session files;
 use the [native HE audits](../docs/native-he-stills.md) after shutdown. Native
-photo export remains separate.
+photo export is available after Stop; see the export operation below.
 
 The native baseline check stopped startup at 2.502 virtual seconds, restarted
 the same card, then completed three captures through the Camera menu, C and the
@@ -163,3 +163,42 @@ through one 1,396,736-byte review job; half-shutter returns to the Photo UI.
 This HE profile retains the last preview on that return, so this check does
 not qualify fresh continuous Photo pixels. The session passes 372 checks,
 1,935 MAIN / 1,855 EX frames, zero checksum failures and clean owned shutdown.
+
+
+## Export photos from a stopped card
+
+After Stop completes, choose Session → Export photos… and name a **new folder**.
+The app copies initialized NEF/JPG/JPEG files under DCIM, retaining their folder
+layout. It does not change the virtual card or replace an existing destination.
+A progress sheet offers Cancel export; completion reports the photo count and
+Show in Finder. Starting another session waits until export finishes. Quitting
+cancels export and waits for its worker to stop.
+
+Export requires the stopped session's matching card receipt and a QEMU-compatible
+read lease. Persistent-card launches explicitly enable file locking. Another
+active writer prevents export; the held lease also prevents a new QEMU writer.
+The helper publishes the completed folder atomically, without extraction
+sidecars. Limits are 512 photos, 256 MiB per photo and 2 GiB total, with a
+five-minute deadline. Incomplete files, unsafe/colliding paths and changed cards
+fail without publishing a partial folder. These guards cover cooperating QEMU
+writers, not arbitrary programs that ignore file locks.
+
+The actual native Save dialog exported three retained guest HE★ NEFs, each
+29,324,288 bytes, byte-identical to their independently audited originals. Cancel
+in the destination dialog created no folder. This also passed after a failed
+startup whose owned QEMU was confirmed stopped: export is a recovery path, not
+a requirement to boot the firmware again. Host tests cover mid-copy cancellation,
+existing destinations, malformed/empty cards and worker cleanup. Four additional
+firmware-free checks use the actual QEMU binary to verify writer exclusion and
+reopening after lease release.
+
+The exact-input picker now advances immediately after selecting the configured
+file and ignores the superseded background check. Socket-wait cancellation
+reaps the owned QEMU; a native Stop during the pending child launch reports
+cancellation at 2.249 seconds from launch and confirms owned cleanup. failures record elapsed time and actual early-exit status.
+A separate native-app startup attempt remains blocked before QEMU initialization
+in a macOS XPC filesystem open. The same original-EX configuration starts from
+the CLI (control socket in 0.077 seconds). Increasing the deadline to 30 seconds
+and removing an inherited bundle identifier did not repair the native launch;
+those speculative changes are not retained. This host-specific failure is not
+firmware boot or MCU acceptance.

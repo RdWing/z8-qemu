@@ -205,5 +205,27 @@
     "he_file_full_audits_pass": true,
     "clean_shutdown": true,
     "interactive_mode_controls": "disabled in native HE capture sessions; use separate Movie session profile"
+  },
+  "native_photo_export": {
+    "native_dialog": true,
+    "files": 3,
+    "bytes_per_file": 29324288,
+    "byte_identical_to_audited_guest_files": true,
+    "sidecars_exported": false,
+    "destination_cancel_leaves_no_folder": true,
+    "actual_qemu_lock_checks": 4,
+    "host_suite_tests": 52,
+    "host_suite_pass": 51,
+    "host_suite_skip": 1,
+    "mid_copy_cancel_and_worker_cleanup": "host subprocess test",
+    "native_qemu_initializer_wait": "unresolved; macOS XPC filesystem open before QEMU initialization",
+    "cli_original_ex_startup_seconds": 0.0769,
+    "cli_original_ex_clean_shutdown": true,
+    "physical_camera_test": false,
+    "native_startup_cancel": {
+      "elapsed_from_launch_seconds": 2.248732,
+      "owned_qemu_stopped": true,
+      "reason": "QEMU startup cancelled"
+    }
   }
 }

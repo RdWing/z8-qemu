@@ -30,8 +30,9 @@ class GuestInputs(unittest.TestCase):
                 properties=dict(item.split('=',1) for item in guest.command[2].split(',')[1:])
                 self.assertEqual(properties['ccomp-gpio-model'],'off' if native else 'on')
                 self.assertEqual(properties['z8-jpeg-decode'],'on')
-                self.assertEqual(guest.command[guest.command.index('-drive')+1],f'file={path},if=none,id=card,format=raw')
+                self.assertEqual(guest.command[guest.command.index('-drive')+1],f'file={path},if=none,id=card,format=raw,file.locking=on')
                 self.assertTrue(guest.data['persistent_card']['guest_writable'])
+                self.assertEqual(guest.data['persistent_card']['file_locking'],'on')
                 self.assertEqual(path.read_bytes(),media) # Attachment changes no media bytes.
 
     def test_movie_inputs_are_explicit_and_keep_code_unchanged(self):

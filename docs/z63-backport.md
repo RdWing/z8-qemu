@@ -23,12 +23,12 @@ Z63 firmware on the Z8 machine.
 | Capture drains and movie exit | Ported source/processing ownership, deferred drains, masked-statistics reset and finite/continuous input separation. | Synthetic tests; explicit Movie/Photo recovery qualified below. Three consecutive original-EX HE★ captures pass; repeated host-peer lossless capture remains open. |
 | Task `0xff` status clear | Separate `task1500-ff-clear-model`, off by default. Z8's original zero clear is preserved. | Empty-status clear/arm/start controls; neither value creates task data. |
 | Graphics/display | Preserve Z8 four-bank active acknowledgments, indexed overlays, region storage and additional rendering paths; add full-height NV16 direct scanout. | Actual renderer tests and original menu regression; physical panel/color fidelity unqualified. |
-| Persistent virtual cards and exports | `--card` attaches an existing exFAT image for guest writes. Existing exact-file export plus bounded exFAT-window/ISO-BMFF helpers are available. | Guest-written lossless NEF accepted by two decoders. Export only after the emulator stops. |
+| Persistent virtual cards and exports | `--card` attaches an existing exFAT image for guest writes. Native stopped-card batch export and exact-file export plus bounded exFAT-window/ISO-BMFF helpers are available. | Guest-written lossless NEF accepted by two decoders. Export only after the emulator stops. |
 | Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. An explicit experimental profile now produces Movie frames and recovers to Photo; standard-profile and recording acceptance remain separate. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
 | STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Original-EX HE files now have separate source/decoder acceptance; three consecutive HE★ captures recover normally with explicit sync wiring; remaining controls stay open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | No physical or native Z8 qualification. |
-| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; session-log export is native and checked; photo export, debug/USB/plugin parity remain open. |
+| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; session-log and photo export dialogs are native and checked; debug/USB/plugin parity remain open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
 ## Preserve Z8 timed-single ownership
@@ -301,7 +301,7 @@ reset action or error display. Ordinary HE is separately audited. Host tests
 cover delayed admission, finite start generations, original-output-only wire
 completion and bounded per-capture snapshots. Shared browser and native Camera
 controls expose the guarded paired-contact action; physical exposure/wiring,
-encoded Movie recording, idle wake, photo export and wider desktop parity
+encoded Movie recording, idle wake and wider desktop parity
 remain open.
 
 
@@ -319,7 +319,7 @@ and clean owned shutdown. The readiness guard uses the observed shooting mode
 6 and rejects menu/review modes 1/2, preparation, pending output and the
 sixteen-snapshot bound. Source tests cover those admission cases.
 
-Current checks: 46 host tests (45 pass, one optional legacy comparison skipped),
+At this HE checkpoint: 46 host tests (45 pass, one optional legacy comparison skipped),
 18 board MMIO checks, 77 MCU checks, production renderer/source closure,
 217-file inventory and strict frontend audit. The signed macOS app builds.
 These checks do not close the remaining parity gates listed above.
@@ -335,3 +335,20 @@ those checks do not qualify combined Movie pixels. HE capture sessions now
 disable browser/native Photo/Movie commands; the separately qualified Movie
 session profile retains them. Host HTTP and actual JavaScript tests verify
 that Capture remains enabled independently of disabled mode selection.
+
+
+## Native photo-export checkpoint
+
+The macOS Session menu exports initialized DCIM NEF/JPG/JPEG files from a
+stopped matching virtual-card session into a new folder. It uses explicit
+QEMU file locks, an independent reader worker, bounded extraction and atomic
+no-replace publication. Cancellation reaps the worker and removes its private
+staging directory. No firmware or card is bundled. See the [desktop operation
+and acceptance limits](../desktop/README.md#export-photos-from-a-stopped-card).
+
+Three actual native-dialog exports match the previously audited guest NEFs
+byte for byte; this does not extend their codec or physical-camera acceptance.
+The host suite now runs 52 tests (51 pass, one optional comparison skips).
+Four actual-QEMU lock checks exclude existing/new writers, allow reopening after
+release and preserve the card. Native startup diagnostics retain a separate
+unresolved macOS initializer wait; CLI original-EX startup still passes.
