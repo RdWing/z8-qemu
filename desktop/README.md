@@ -130,3 +130,22 @@ The native session-log Save dialog is verified against a stopped original-EX
 launcher log: all 103 bytes match the retained source. The command is disabled
 while QEMU runs, re-enables after owned shutdown, and Cancel leaves the log in
 place. This exports diagnostic text only; it does not export a card or NEF.
+
+
+## Experimental original-EX HE capture
+
+Set `experimental_native_he: true` together with `mcu`, `native_controls: true`,
+a virtual `card` and all five experimental Movie options. The session supplies
+the explicit synthetic HE preparation/selector models and recovered sync wires;
+original EX produces the command and GPIO replies. It first navigates the stock
+date editor and RAW settings. Stop remains available during this preparation.
+
+After readiness, use **Capture photo**, **Camera → Capture photo**, or C in the
+workbench. One admitted capture holds/release the paired EX/MAIN contacts and
+waits for actual HE output/STOP acknowledgement. Other camera inputs and
+additional capture requests wait; Stop can always end the owned session. The
+queue reports delivered input, not a saved-file claim. If completion cannot be
+confirmed, contacts are released and the status directs you to the camera display.
+Capture results and per-capture sensor/receiver snapshots remain in session files;
+use the [native HE audits](../docs/native-he-stills.md) after shutdown. Native
+photo export remains separate.

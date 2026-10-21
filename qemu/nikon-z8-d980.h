@@ -201,6 +201,50 @@ static void primary_d980_single_complete(NikonZ8State *s)
     if (s->primary_d980_single_timer) { timer_del(s->primary_d980_single_timer); }
 }
 
+/* Original MAIN/EX starts finite SIF input independently of preview channel0.
+ * Bind the observed source-group rising edge to this armed descriptor's enable
+ * generation. The external Bayer writer and pacing remain functional models. */
+static bool primary_d980_native_single_owner(NikonZ8State *s)
+{
+    return s->native_mcu && s->z8_still && s->z8_timed_single_model &&
+           s->primary_d980_single_model && s->primary_d980_single_armed &&
+           s->primary_d980_input_epoch &&
+           s->primary_d980_single_request_epoch == s->primary_d980_input_epoch &&
+           !s->primary_reset_stage && s->engine150c_active == 0x401e &&
+           !video_raw_descriptor(s);
+}
+
+static bool primary_d980_native_source_config(NikonZ8State *s)
+{
+    /* First still and a still after reset/recovery, respectively. Neither
+     * has the preview RAW-input bit9; the original finite START is separate. */
+    return s->event_control_1508[3] == 0x4000 ||
+           s->event_control_1508[3] == 0x7009;
+}
+
+static bool primary_d980_single_source_ready(NikonZ8State *s)
+{
+    return (s->event_control_1508[3] & 0x201) == 0x201 ||
+           (primary_d980_native_single_owner(s) &&
+            s->primary_d980_source_start_epoch == s->primary_d980_input_epoch &&
+            (s->event_control_1508[0] & 1) &&
+            primary_d980_native_source_config(s) && !s->event_mode_1508[0]);
+}
+
+static void primary_d980_source_control(NikonZ8State *s, unsigned group,
+                                        uint32_t previous, uint32_t value)
+{
+    if (group || !primary_d980_native_single_owner(s)) { return; }
+    if (!(previous & 1) && (value & 1) &&
+        primary_d980_native_source_config(s) && !s->event_mode_1508[0]) {
+        s->primary_d980_source_start_epoch = s->primary_d980_input_epoch;
+        primary_d980_input_trace(s, "source-start", previous, value);
+    } else if ((previous & 1) && !(value & 1) &&
+               s->primary_d980_source_start_epoch == s->primary_d980_input_epoch) {
+        primary_d980_single_cancel(s);
+    }
+}
+
 /* Z8 timing hypothesis: periodic input may own an armed single request.
  * Complete only after primary_d980_receive writes the full frame; an armed
  * request or a source-ready bitmap alone is not a completion event. */
@@ -257,6 +301,7 @@ static void primary_d980_single_cancel(NikonZ8State *s)
     s->primary_d980_prepared = false;
     s->primary_d980_single_cancelled += s->primary_d980_single_armed;
     s->primary_d980_single_armed = false;
+    s->primary_d980_source_start_epoch = 0;
     if (s->primary_d980_single_timer) { timer_del(s->primary_d980_single_timer); }
 }
 
@@ -274,7 +319,7 @@ static void primary_d980_single_tick(void *opaque)
      * not a DMA attempt: retain this request until START or original stop/
      * reset. Keep the 64-attempt bound for an admitted source that refuses
      * data. Neither waiting nor admission writes pixels or completes IRQs. */
-    if ((s->event_control_1508[3] & 0x201) != 0x201) {
+    if (!primary_d980_single_source_ready(s)) {
         s->primary_d980_single_source_waits++;
         timer_mod(s->primary_d980_single_timer,
                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 33333333);
@@ -284,7 +329,9 @@ static void primary_d980_single_tick(void *opaque)
         primary_d980_single_cancel(s);
         return;
     }
-    if (s->z8_timed_single_model && s->event_timing_active) {
+    if (s->z8_timed_single_model && s->event_timing_active &&
+        !(primary_d980_native_single_owner(s) &&
+          s->primary_d980_source_start_epoch == s->primary_d980_input_epoch)) {
         /* Preserve ownership while the actual periodic source supplies data.
          * Stop/reset and the bounded attempt limit above still cancel. */
         timer_mod(s->primary_d980_single_timer,
@@ -296,8 +343,7 @@ static void primary_d980_single_tick(void *opaque)
      * input pacing are hypotheses, not physical exposure/readout timing.
      * A later mode0 may release preparation; only actual stop/reset cancels
      * this separate input. Never fabricate a front/status result. */
-    if ((s->event_control_1508[3] & 0x201) == 0x201 &&
-        primary_d980_receive(s, true)) {
+    if (primary_d980_single_source_ready(s) && primary_d980_receive(s, true)) {
         primary_d980_single_complete(s);
         return;
     }

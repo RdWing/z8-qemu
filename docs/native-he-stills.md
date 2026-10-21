@@ -50,31 +50,93 @@ python3 tools/audit_he_pixels.py --run /path/to/capture-run \
 The container audit needs ExifTool, preview decoding needs Pillow, and the pixel
 comparison needs NumPy. The codec is an authored functional forward model and a
 pinned public inverse. Nikon encoder microcode, physical ISP/color equivalence,
-repeat captures, post-capture recovery, movie recording and physical-camera
-quality remain unqualified. Stock LibRaw builds may lack the HE decode path;
+movie recording and physical-camera quality remain unqualified. Host-peer
+repeat capture remains separate from the original-EX acceptance below. Stock LibRaw builds may lack the HE decode path;
 opening previews alone is not RAW decoding.
 
 
 ## Original EX source-start timing
 
-The original MAIN/EX diagnostic now reaches one HE★ file with the same explicit
-synthetic input and preparation models. FRONT preparation precedes source
-admission: in the baseline timing trace, the old 64-poll timer cancelled at
-51.868495 virtual seconds, before MAIN enabled bitmap `0x201` at 52.650659.
-The finite writer now retains the request while waiting for that unchanged
-admission condition. Its 64-attempt limit starts after admission; original
-stop/reset/inactive cancellation remains effective. `source_waits` counts
-pre-admission timer polls separately. No readiness bits are forced.
+Original MAIN/EX now supplies finite input from the guest's SIF source START,
+independently of the preview channel bitmap. The model binds the group-0 rising
+edge after FRONT preparation to the armed D980 descriptor's enable generation.
+It requires the explicit native MCU/still/timed-single models, active units
+`0x401e`, no reset/video owner and an observed source configuration. Stale
+starts and source STOP cannot complete another request. The host-peer periodic
+path retains its bitmap `0x201` gate.
 
-An accelerated diagnostic (`icount shift=3`) passes 280 transport/runtime
-checks and produces one 80,017,920-byte packed14 sensor frame, one HE★ job
-and original data/STOP acknowledgements. The guest writes a 29,324,288-byte
-NEF with a 28,565,504-byte RAW strip. Full inverse decoding, all three JPEG
-previews, receiver equality and all 45,705,600 producer samples pass, with
-maximum functional-codec error 26 and mean error 3.029557. There are 1,462
-MAIN / 1,428 EX frames, zero checksum failures and clean owned shutdown.
+The earlier model spent its 64 attempts before source admission: one baseline
+trace cancelled at 51.868495 virtual seconds, before MAIN enabled `0x201` at
+52.650659. Waiting polls are now counted separately from admitted DMA attempts.
+That correction alone saves a file but retains the reset-error screen. The
+native SIF trigger instead supplies the complete 80,017,920-byte frame one
+33,333,333-ns pacing interval after START, with zero waiting polls and unchanged
+control `0x4000`. This is functional virtual input, not measured sensor timing.
+The SfltDriver source guard remains intact.
 
-This diagnostic ends on the original shutter-release reset error screen.
-Baseline-timing file acceptance, the preceding exposure handshake and normal
-post-shot/repeated-capture recovery remain separate gates. It does not establish
-physical sensor timing or camera image quality.
+The original-EX HE★ file has the same 29,324,288-byte container and
+28,565,504-byte strip as the host-peer case above. Ordinary HE independently
+writes 17,897,984 / 17,139,200 bytes through stock EX menu inputs. Full inverse
+decoding, all three previews, exact receiver equality and all 45,705,600 packed14
+producer samples pass. Early input alone retained a shutter-release reset error. The explicit native
+HE profile now also connects MAIN capture-request GPIO to EX input and actual
+EX response output back to MAIN. Original EX supplies the response; the model
+adds no timed acknowledgement, packet reply or firmware-state patch. Baseline
+and accelerated runs return to Photo without the error. Three consecutive
+HE★ captures in one boot each pass full producer, receiver, inverse and preview
+audits. Ordinary HE independently passes the same checks. This qualifies bounded
+virtual capture/recovery, not physical wiring or exposure timing.
+
+## Reproduce original-EX capture
+
+Start with a fresh host-created exFAT card and the default fresh Photo state.
+The replay commits the stock date editor, selects RAW, then applies separately
+declared EX and MAIN release contacts. All four HE preparation options and the
+complete experimental Movie profile are explicit prerequisites. The two ROM
+selector bytes are synthetic inputs, not recovered factory calibration.
+
+```sh
+python3 tools/run_native.py --firmware /private/MAIN.bi --mcu /private/EX.bi \
+  --qemu /path/to/qemu-system-aarch64 --raw /private/synthetic.raw \
+  --card /private/fresh-card.raw --output /private/new-native-he \
+  --mcu-pins G1=1:G13=1:G14=1:G15=1 --port 0 \
+  --seconds 1800 --virtual-seconds 66 \
+  --contact-replay tools/native-he-capture-contacts.json \
+  --experimental-he-still --experimental-preparation-profile \
+  --experimental-capture-selector5 --experimental-timed-single \
+  --experimental-shared221 --experimental-boundary-inputs \
+  --experimental-sensor-source-clock --experimental-yuv-channels \
+  --experimental-movie-selector16
+```
+
+This uses the production default `icount shift=0`; wall time and virtual time
+are separate bounds. The HE★ replay delivers 100 external contact actions.
+Ordinary HE uses `tools/native-he-regular-contacts.json` with
+`--virtual-seconds 75`. The native HE profile also enables the existing guarded
+alternate SfltDriver bank, retaining fresh-frame, descriptor, pending-owner and
+original W1C checks. The explicit profile also enables `mcu-capture-sync-wires`; outside this profile
+the wiring stays off. `tools/native-he-recovery-contacts.json` with
+`--virtual-seconds 102` supplies three release cycles and now saves three
+consecutive HE★ files without an intervening reset action.
+
+For interactive native controls, use `--native-controls` instead of
+`--contact-replay`. The same stock date/RAW preparation runs before enabling
+**Capture photo** (C), with paired contact delivery, duplicate-request exclusion
+and actual output/STOP acknowledgement. Stop remains available during startup
+and capture. The macOS session config exposes this through
+`experimental_native_he: true`; see the [desktop recipe](../desktop/README.md#experimental-original-ex-he-capture).
+
+After the emulator stops, extract actual initialized card bytes and run the
+container/RAW audits above:
+
+```sh
+python3 tools/extract_virtual_exfat.py --volume /private/fresh-card.raw \
+  --file DCIM/100NCZ_8/DSC_0001.NEF --output /private/new-native-he/DSC_0001.NEF
+```
+
+The launcher records each acknowledged HE output and sensor buffer under
+`he_capture_snapshots`, with a sixteen-capture bound. The first snapshot retains
+the older `he_snapshots` alias. For another saved file, pass
+`--capture-index 2` to `audit_he_pixels.py` to select that actual producer and
+receiver rather than reusing the first snapshot. A harness pass or saved
+preview alone does not establish RAW decoding or normal capture recovery.

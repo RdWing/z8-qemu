@@ -20,6 +20,7 @@ from control import Control, png_from_ppm
 from native_contact_replay import ContactReplay
 from native_inputs import Inputs, CONTACTS
 import movie_inputs
+import native_he
 import virtual_card
 from native_power import powered_down
 
@@ -35,8 +36,12 @@ p.add_argument('--experimental-shared221',action='store_true')
 p.add_argument('--card',type=Path,help='Existing virtual exFAT card; guest writes persist')
 p.add_argument('--experimental-playback',action='store_true',help='Functional decoder/finite transfer; original EX workflow has separate acceptance')
 movie_inputs.arguments(p)
+native_he.arguments(p)
+p.add_argument('--virtual-seconds',type=float,help='Optional finite virtual-time limit; wall duration remains an independent bound')
 a=p.parse_args()
-try:movie_inputs.validate(a)
+try:
+ movie_inputs.validate(a)
+ native_capture=native_he.validate(a)
 except ValueError as error:p.error(str(error))
 if a.card:
  try:a.card=virtual_card.validate(a.card)
@@ -45,6 +50,7 @@ if a.experimental_playback and not a.card:p.error('--experimental-playback requi
 if a.experimental_playback and not (a.experimental_shared221 and a.experimental_boundary_inputs and a.experimental_sensor_source_clock):
  p.error('Native EX playback requires shared profile, boundary inputs and sensor source clock')
 if not 1<=a.seconds<=3600:p.error('Duration must be 1..3600 seconds')
+if a.virtual_seconds is not None and not 1<=a.virtual_seconds<=3600:p.error('Virtual duration must be finite within 1..3600 seconds')
 if ',' in a.mcu_pins:p.error('Use colon-separated MCU contacts')
 if a.native_controls and (a.port is None or a.contact_replay):p.error('--native-controls requires --port and excludes contact replay')
 if a.port is not None and not (a.port==0 or 1024<=a.port<=65535):p.error('Invalid loopback port')
@@ -54,6 +60,8 @@ if ',' in str(mcu) or mcu.stat().st_size!=524288 or hashlib.sha256(mcu.read_byte
 if not a.qemu.is_file() or not a.raw.is_file():p.error('QEMU and RAW paths must exist')
 if a.check_only:print('Original Z8 MAIN/EX and runtime paths verified.');raise SystemExit(0)
 contacts=ContactReplay(a.contact_replay) if a.contact_replay else None
+if native_capture and a.native_controls:
+ contacts=ContactReplay(Path(__file__).with_name('native-he-setup-contacts.json'))
 if a.native_controls:a.mcu_pins='G1=1:G13=1:G14=1:G15=1'+(':'+a.mcu_pins if a.mcu_pins else '')
 g=Guest(firmware,a.qemu,a.raw,a.output)
 index=g.command.index('-M')+1
@@ -67,15 +75,16 @@ g.command[g.command.index('-smp')+1]='4,maxcpus=5'
 g.command+=['-device',f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-num=0']
 attach(g);movie_inputs.attach(g,a)
 if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_mcu=True)
+native_he.attach(g,a)
 mode_controls=a.native_controls and movie_inputs.native_modes_enabled(a)
 g.data.update(native_mode_controls=mode_controls,native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
-control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls) if a.port is not None else None
+control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls) if a.port is not None else None
 if control:
  control.write_endpoint(g.out);signal.signal(signal.SIGTERM,lambda *_:control.stop.set())
 try:
  with g:
   g.rsp('z1,40160000,4')
-  inputs=Inputs(g.qmp,allow_modes=mode_controls) if a.native_controls else None
+  inputs=Inputs(g.qmp,allow_modes=mode_controls,allow_capture=native_capture) if a.native_controls else None
   boundary=BoundaryPeer(g,33,auxiliary_masked=True,auxiliary1_masked=a.experimental_boundary_inputs,global0_bit26=a.experimental_boundary_inputs)
   spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
   deadline=time.monotonic()+a.seconds;next_sample=0;capture_at=[]
@@ -85,7 +94,7 @@ try:
    if not g.qmp.command('query-status')['running']:
     g.data['unexpected_native_stop']=True;break
    boundary.tick()
-   if inputs:
+   if inputs and (not contacts or contacts.next==len(contacts.actions)):
     vt=json.loads(g.qmp.command('qom-get',path='/machine',property='runtime-clock-state'))['virtual_ns']/1e9
     event=inputs.tick(control,vt)
     if event:g.data.setdefault('native_interactive_inputs',[]).append(event)
@@ -103,14 +112,22 @@ try:
     row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-io-state','capture-gpio-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
     row['ui_control_hex']=g.read_bytes(0xa03228fa4,32).hex()
     row['main_switch_cache_hex']=g.read_bytes(0xa0320169c,44).hex()
+    native_he.sample(g)
+    row['preparing_capture']=bool(native_capture and a.native_controls and contacts and contacts.next<len(contacts.actions))
+    if native_capture:
+     he=g.data['native_he_models']['engine152c-he-still-state']
+     row['capture_completed_jobs']=min(he['jobs'],he['acks'],he['stop_acks'])
+     row['capture_ready']=not row['preparing_capture'] and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==1 and g.read_bytes(0xa03bd042c,1)==b'\x01' and he['jobs']<16 and not he['pending'] and not he['stop_pending']
     row['powered_down']=powered_down(row['runtime-clock-state'],int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little'))
+    if row['powered_down'] and inputs:inputs.release()
     g.data['native_powered_down']=g.data.get('native_powered_down',False) or row['powered_down']
     g.data.setdefault('native_samples',[]).append(row)
     if control:
      g.qmp.command('stop');frame=g.out/'current.ppm';g.qmp.command('screendump',filename=str(frame))
-     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9,powered_down=row['powered_down']),ready=a.native_controls and row['raw-pipeline-state']['frames']>=8 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
+     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9,powered_down=row['powered_down'],preparing_capture=row['preparing_capture'],capture_ready=row.get('capture_ready',False),capture_completed_jobs=row.get('capture_completed_jobs',0)),ready=a.native_controls and (row['raw-pipeline-state']['frames']>=8 or (native_capture and int.from_bytes(g.read_bytes(0xa03bc2b24,4),'little')==3)) and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
      g.qmp.command('cont')
     (g.out/'native-live.json').write_text(json.dumps(row)+'\n');next_sample=now+.5
+    if a.virtual_seconds is not None and row['runtime-clock-state']['virtual_ns']/1e9>=a.virtual_seconds:break
    time.sleep(.002)
   if inputs:inputs.release()
   g.qmp.command('stop')

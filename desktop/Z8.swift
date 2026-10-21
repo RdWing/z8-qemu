@@ -13,6 +13,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     var terminating = false
     var lastError = false
     var modeReady = false
+    var captureReady = false
     var activeConfiguration: [String: Any]?
     var restartOutputRoot: String?
     var restartURL: URL?
@@ -47,7 +48,8 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         let cameraMenu = NSMenu(title: "Camera"); cameraItem.submenu = cameraMenu
         for (title, selector, key) in [
             ("Switch to Photo", #selector(selectPhoto), "1"),
-            ("Switch to Movie", #selector(selectMovie), "2")
+            ("Switch to Movie", #selector(selectMovie), "2"),
+            ("Capture photo", #selector(capturePhoto), "")
         ] {
             let item = cameraMenu.addItem(withTitle: title, action: selector, keyEquivalent: key)
             item.target = self
@@ -163,7 +165,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     func start(_ configuration: URL, restoring: Bool = false) {
         guard child == nil && !starting else { return }
-        lastError = false; modeReady = false
+        lastError = false; modeReady = false; captureReady = false
         do {
             let value = try JSONSerialization.jsonObject(with: Data(contentsOf: configuration))
             guard let config = value as? [String: Any], let python = config["python"] as? String,
@@ -217,7 +219,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                 guard let self else { return }
                 self.cleanupSnapshot(snapshot)
                 guard self.child === process else { return }
-                self.child = nil; self.modeReady = false
+                self.child = nil; self.modeReady = false; self.captureReady = false
                 if self.terminating { self.cancelRestart(); NSApp.reply(toApplicationShouldTerminate: true) }
                 else if let restart = self.restartURL {
                     self.restartURL = nil
@@ -264,11 +266,16 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
               message.frameInfo.securityOrigin.port == baseURL.port,
               let value = message.body as? [String: Any], let ready = value["modeReady"] as? Bool else { return }
         modeReady = ready
+        captureReady = value["captureReady"] as? Bool ?? false
     }
     func selectMode(_ mode: String) {
         guard modeReady, child?.isRunning == true, baseURL != nil,
               mode == "photo" || mode == "movie" else { return }
         view.evaluateJavaScript("window.z8Workbench?.selectMode('\(mode)')")
+    }
+    @objc func capturePhoto() {
+        guard captureReady, child?.isRunning == true, baseURL != nil else { return }
+        view.evaluateJavaScript("window.z8Workbench?.capturePhoto()")
     }
     @objc func selectPhoto() { selectMode("photo") }
     @objc func selectMovie() { selectMode("movie") }
@@ -333,7 +340,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             try JSONSerialization.data(withJSONObject: configuration).write(to: temporary, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
             if child != nil {
-                restartURL = temporary; modeReady = false; terminateChild()
+                restartURL = temporary; modeReady = false; captureReady = false; terminateChild()
             } else {
                 start(temporary, restoring: true)
                 try? FileManager.default.removeItem(at: temporary)
@@ -345,6 +352,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         }
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(capturePhoto) { return captureReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(selectPhoto) || item.action == #selector(selectMovie) { return modeReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(openConfiguration) { return child == nil && !starting && restartURL == nil }
         if item.action == #selector(restartSession) { return activeConfiguration != nil && !terminating && !starting && restartURL == nil }

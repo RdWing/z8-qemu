@@ -20,13 +20,13 @@ Z63 firmware on the Z8 machine.
 | Shared221 capture, HE forward/inverse, RAW transport, capture pool, programmed clock, DSP boot, motion, main output and Wave5 | Included as source with explicit opt-in properties and dependencies. Original DSP microcode, physical ISP equations and R3D integration are excluded. | Synthetic host tests and actual board MMIO; native single HE/HE★ captures separately accepted. Movie recording remains open. |
 | NV12 live-view JPEG and cancellation | Ported mode `0x32`, completed-generation tracking, overwrite invalidation, once-only consumption and pending-result guards. Existing NV16 remains covered. | Host codec/provenance tests; Z8 PTP/RTSP delivery remains unqualified. |
 | JPEG decode and saved-preview resize | Ported both JPEG cores, per-core epochs, NV16 geometry/span/padding/overlap checks and output-before-IRQ ownership. | Production resize/rendering tests and one native saved-photo display accepted. Normal two-cycle Photo/Menu return is accepted; zoom and idle-wake remain open. |
-| Capture drains and movie exit | Ported source/processing ownership, deferred drains, masked-statistics reset and finite/continuous input separation. | Synthetic tests; explicit Movie/Photo recovery qualified below. Repeated Z8 capture remains open. |
+| Capture drains and movie exit | Ported source/processing ownership, deferred drains, masked-statistics reset and finite/continuous input separation. | Synthetic tests; explicit Movie/Photo recovery qualified below. Three consecutive original-EX HE★ captures pass; repeated host-peer lossless capture remains open. |
 | Task `0xff` status clear | Separate `task1500-ff-clear-model`, off by default. Z8's original zero clear is preserved. | Empty-status clear/arm/start controls; neither value creates task data. |
 | Graphics/display | Preserve Z8 four-bank active acknowledgments, indexed overlays, region storage and additional rendering paths; add full-height NV16 direct scanout. | Actual renderer tests and original menu regression; physical panel/color fidelity unqualified. |
 | Persistent virtual cards and exports | `--card` attaches an existing exFAT image for guest writes. Existing exact-file export plus bounded exFAT-window/ISO-BMFF helpers are available. | Guest-written lossless NEF accepted by two decoders. Export only after the emulator stops. |
 | Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. An explicit experimental profile now produces Movie frames and recovers to Photo; standard-profile and recording acceptance remain separate. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
-| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Remaining controls/capture remain open. |
+| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Original-EX HE files now have separate source/decoder acceptance; three consecutive HE★ captures recover normally with explicit sync wiring; remaining controls stay open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | No physical or native Z8 qualification. |
 | Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; session-log export is native and checked; photo export, debug/USB/plugin parity remain open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
@@ -47,8 +47,10 @@ now waits for the unchanged bitmap `0x201` before spending its 64 admitted
 DMA attempts. A production-function regression holds it through 96 waiting
 polls, then checks one completed frame and the existing refusal/stop/reset
 controls. The original-EX [HE diagnostic](native-he-stills.md#original-ex-source-start-timing)
-produces and audits a guest-written HE★ NEF; its final reset-error screen
-keeps normal recovery and repeated capture unqualified.
+produces and audits guest-written HE★ and HE files. Explicit original-EX sync
+wiring closes the subsequent GPIO timeout and accepts three consecutive
+HE★ captures without a reset-error screen. The periodic host-peer path retains
+its original admission gate.
 
 The F0 encoder remains enabled by default for the Z8 RAW transport. It
 encodes the acknowledged guest-produced packed14 buffer with the original
@@ -281,14 +283,22 @@ checked. Card/NEF export and the remaining debug/USB/plugin routes are separate.
 ## Original-EX date gate and Photo stop routing
 
 A stock date-editor commit clears the original MAIN date permission reason;
-the next release selects sequence 3 and submits D980 configuration. A
-source-only date-setup contact replay preserves that workflow. No host reply or
-firmware-state patch sets permission. The finite source still times out without
-a frame, and the downstream SfltDriver start remains rejected for absent input.
+the next release selects sequence 3 and submits D980 configuration. The Photo
+stop classifier retains the existing direct route under shared Movie models.
+Neither correction creates pixels or bypasses SfltDriver admission.
 
-The enabled shared Movie models previously intercepted that Photo `0x401e`
-stop and raised an unmodeled-access error. Retaining the finite request's source
-generation now selects the existing direct Photo stop path. The native rerun
-confirms that correction before reaching the downstream source-validity guard;
-it does not pass capture acceptance. All 42 host tests run (41 pass, one optional
-legacy comparison skipped), 18 board MMIO checks and 77 MCU checks pass.
+The [finite original-EX input](native-he-stills.md#original-ex-source-start-timing)
+now follows the original SIF source START rather than waiting for the later
+preview bitmap. Its generation, descriptor, reset and video-owner checks guard
+one actual frame before notification. A source-only public replay saves and
+audits HE★ or ordinary HE with original MAIN/EX and declared synthetic inputs.
+Both processing banks retain fresh-source and original W1C ownership. The
+explicit native HE profile also routes capture sync through actual EX GPIO
+input/output. Baseline and accelerated single captures return to Photo, and a
+three-release replay writes three independently audited HE★ files without a
+reset action or error display. Ordinary HE is separately audited. Host tests
+cover delayed admission, finite start generations, original-output-only wire
+completion and bounded per-capture snapshots. Shared browser and native Camera
+controls expose the guarded paired-contact action; physical exposure/wiring,
+encoded Movie recording, idle wake, photo export and wider desktop parity
+remain open.

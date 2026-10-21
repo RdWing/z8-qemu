@@ -14,7 +14,10 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--run',type=Path,required=True)
 p.add_argument('--audit',type=Path,required=True)
 p.add_argument('--raw',type=Path,required=True)
-a=p.parse_args();run=json.loads((a.run/'result.json').read_text());report=json.loads((a.audit/'report.json').read_text())
+p.add_argument('--capture-index',type=int,default=1,help='One-based native capture snapshot, within 1..16')
+a=p.parse_args()
+if not 1<=a.capture_index<=16:p.error('Capture index must be within 1..16')
+run=json.loads((a.run/'result.json').read_text());report=json.loads((a.audit/'report.json').read_text())
 assert run['owned_qemu_stopped'] and not run['error'] and all(x['passed'] for x in run['checks'])
 assert report['full_raw_decode']
 assert hashlib.sha256(a.raw.read_bytes()).hexdigest()==run['raw_sha256']
@@ -27,7 +30,9 @@ raw=np.memmap(a.raw,dtype='<u2',mode='r',offset=32,shape=(sh,sw))
 dec=np.memmap(a.audit/'bayer.u16',dtype='<u2',mode='r',shape=(h,w))
 x=np.arange(w,dtype=np.int64);sx=(x//2*(sw//2)//(w//2))*2+(x&1)
 maximum=0;total=0;source_mismatches=0;producer_max=0;producer_total=0;producer=None
-snapshots=run.get('he_snapshots')
+snapshots=next((row for row in run.get('he_capture_snapshots',[]) if row['capture_index']==a.capture_index),None)
+if snapshots is None and a.capture_index==1:snapshots=run.get('he_snapshots')
+assert a.capture_index==1 or snapshots is not None,'Requested capture snapshot missing'
 if snapshots:
  assert (snapshots['width'],snapshots['height'])==(w,h)
  pitch=snapshots['pitch'];assert (a.run/snapshots['input']).stat().st_size==pitch*h
@@ -46,7 +51,7 @@ for y in range(h):
   pixels=((word>>shift)&16383).astype(np.int32)
   source_mismatches+=int(np.count_nonzero(pixels!=expected))
   d=np.abs(decoded-pixels);producer_max=max(producer_max,int(d.max()));producer_total+=int(d.sum())
-result=dict(samples=w*h,width=w,height=h,decoded_scale=1,maximum_error_14bit=maximum,
+result=dict(capture_index=a.capture_index,samples=w*h,width=w,height=h,decoded_scale=1,maximum_error_14bit=maximum,
  mean_absolute_error_14bit=total/(w*h),producer_compared=producer is not None,
  producer_input_mismatches=source_mismatches if producer is not None else None,
  receiver_strip_equal=True if snapshots else None,

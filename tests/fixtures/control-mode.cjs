@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
+const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
 const buttons=['menu','half','play'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
 let respond=async()=>({ok:true,status:202});
 const context=vm.createContext({console,AbortSignal,setTimeout:()=>{},Date,
@@ -40,4 +40,23 @@ const run=code=>vm.runInContext(code,context);
  assert.equal(await run("window.z8Workbench.selectMode('movie')"),false);
  assert.equal(calls.length,2);
  assert.match(nodes.connection.textContent,/restarted/);
+ run('captureAvailable=true;captureCanRun=true;captureWaiting=0;available(true)');
+ assert.equal(nodes.capture.disabled,false);
+ let finishCapture;
+ respond=()=>new Promise(resolve=>{finishCapture=resolve});
+ const capture=run('window.z8Workbench.capturePhoto()');
+ assert.equal(nodes.capture.disabled,true);
+ assert.equal(await run('window.z8Workbench.capturePhoto()'),false);
+ assert.equal(calls.at(-1).path,'/capture');
+ finishCapture({ok:true,status:202,json:async()=>({capture_id:7})});
+ assert.equal(await capture,true);assert.equal(nodes.capture.disabled,true);
+ respond=async()=>({ok:true,json:async()=>({session:'SESSION_HERE',capture_available:true,
+  capture_ready:true,capture_finished:7,ready:true,allowed_buttons:['menu','half','play'],
+  mode_available:true,playback_available:false})});
+ await run('poll()');assert.equal(nodes.capture.disabled,false);
+ assert.equal(notifications.at(-1).captureReady,true);
+ respond=async()=>({ok:false,status:403,text:async()=> 'Session changed'});
+ assert.equal(await run('window.z8Workbench.capturePhoto()'),false);
+ assert.equal(nodes.capture.disabled,true);assert.equal(notifications.at(-1).captureReady,false);
+
 })().catch(error=>{console.error(error);process.exitCode=1});

@@ -6,7 +6,8 @@ from pathlib import Path
 import re
 
 PATTERNS={'mcu-pins':r'[A-K](?:[0-9]|1[0-5])=[01]',
-          'mcu-contacts':r'(?:22|23)\.(?:[0-9]|1[0-9]|2[0-3])=[01]'}
+          'mcu-contacts':r'(?:22|23)\.(?:[0-9]|1[0-9]|2[0-3])=[01]',
+          'capture-gpio-input':r'[0-3]'}
 
 class ContactReplay:
     def __init__(self,path):
@@ -21,8 +22,8 @@ class ContactReplay:
             if type(at) not in (int,float) or not math.isfinite(at) or not previous<=at<=3600:
                 raise ValueError('Contact times must be finite, ordered and within 0..3600')
             if prop not in PATTERNS or not isinstance(value,str) or not 1<=len(value)<=1024 or not all(
-                re.fullmatch(PATTERNS[prop],item) for item in value.split(':')):
-                raise ValueError('Expected explicit GPIO or expander contacts only')
+                re.fullmatch(PATTERNS[prop],item) for item in ([value] if prop=='capture-gpio-input' else value.split(':'))):
+                raise ValueError('Expected explicit MCU/MAIN GPIO or expander contacts only')
             previous=at
     def dispatch(self,qmp,virtual_seconds):
         sent=[]

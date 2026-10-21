@@ -17,7 +17,7 @@ FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_bounda
 
 
 def command(config):
-    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'seconds', *FLAGS}
+    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'seconds', *FLAGS}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Unknown desktop configuration fields')
     native=bool(config.get('mcu'))
@@ -32,6 +32,16 @@ def command(config):
         args += ['--mcu',mcu]
         if config.get('native_controls'):args += ['--native-controls']
     if config.get('native_controls') and not native:raise ValueError('native_controls requires an mcu component')
+    if type(config.get('experimental_native_he',False)) is not bool:
+        raise ValueError('experimental_native_he must be true or false')
+    if config.get('experimental_native_he'):
+        movie=('experimental_shared221','experimental_boundary_inputs','experimental_yuv_channels',
+               'experimental_movie_selector16','experimental_sensor_source_clock')
+        if not (native and config.get('native_controls') and config.get('card') and all(config.get(k) for k in movie)):
+            raise ValueError('Native HE requires original EX contacts, a card and the complete experimental Movie profile')
+        args += ['--experimental-he-still','--experimental-preparation-profile',
+                 '--experimental-capture-selector5','--experimental-timed-single']
+
     for key in ('firmware', 'qemu', 'raw', 'output'):
         value = config.get(key)
         if not isinstance(value, str) or not Path(value).is_absolute():

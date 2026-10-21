@@ -108,3 +108,23 @@ log file. Keep it disabled during startup and execution, copy off the UI thread,
 retain the original file, and reject the original path as a destination. Do not
 turn this action into an input/card/capture bundle. Cancelling the input-access
 picker is startup cancellation, with no launcher or later stale-completion start.
+
+
+## Experimental native capture
+
+The optional `experimental_native_he` desktop configuration requires original EX
+contacts, a virtual card and the complete experimental profile. Startup replays
+the stock date/RAW setup before enabling camera input. It retains Stop and the
+existing startup/restart cancellation rules throughout preparation.
+
+`Control` owns capture admission, serialization and a monotonic completion ID.
+`native_inputs.Inputs` owns the paired EX/MAIN contact lease, final release,
+completed-output check and bounded uncertain-outcome recovery. No other camera
+input can interleave with an admitted capture. A queued capture is not presented
+as a saved photo. A timeout releases contacts and reports that the outcome is
+unconfirmed; it never retries automatically. Power-down and shutdown release the
+lease. The same `z8Workbench.capturePhoto` API serves the browser button, C
+shortcut and AppKit Camera → Capture photo. The WK message only enables the
+native command for the current same-origin, main-frame session; server admission
+remains authoritative. Unsupported profiles retain disabled capture controls.
+No palette, typography, shape, layout token, selector popup or dialog owner changes.

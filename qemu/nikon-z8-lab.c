@@ -263,6 +263,7 @@ struct NikonZ8State {
     MachineState parent;
     char *mcu_image, *mcu_pins, *mcu_contacts;
     struct Z8McuBridge *native_mcu;
+    bool mcu_capture_sync_wires;
 
     MemoryRegion image_ram;
     MemoryRegion image_bank_ram[ARRAY_SIZE(image_bank_ranges)];
@@ -745,7 +746,7 @@ struct NikonZ8State {
     uint64_t primary_d980_single_request_epoch;
     uint64_t primary_d980_single_cancelled, primary_d980_single_requests;
     unsigned primary_d980_single_attempts;
-    uint64_t primary_d980_single_source_waits;
+    uint64_t primary_d980_single_source_waits, primary_d980_source_start_epoch;
     bool primary_d980_source_notify_model;
     uint64_t primary_d980_source_notifications;
     bool primary_d980_prepared_start_model, primary_d980_prepared;
@@ -11154,11 +11155,11 @@ static char *get_primary_d980_single_state(Object *obj, Error **errp)
     NikonZ8State *s = NIKON_Z8_LAB(obj);
     return g_strdup_printf("{\"enabled\":%s,\"armed\":%s,\"epoch\":%" PRIu64
         ",\"completed_epoch\":%" PRIu64 ",\"frames\":%" PRIu64 ",\"requests\":%" PRIu64
-        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"source_waits\":%" PRIu64 ",\"scope\":\"functional one-frame external input after original front2-to3 and bitmap200; physical protocol unproved\"}",
+        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"source_waits\":%" PRIu64 ",\"source_start_epoch\":%" PRIu64 ",\"scope\":\"functional one-frame external input after FRONT preparation and bitmap201 or original-EX SIF START; physical protocol unproved\"}",
         s->primary_d980_single_model ? "true" : "false", s->primary_d980_single_armed ? "true" : "false",
         s->primary_d980_input_epoch, s->primary_d980_single_epoch, s->primary_d980_single_frames,
         s->primary_d980_single_requests, s->primary_d980_single_cancelled, s->primary_d980_single_attempts,
-        s->primary_d980_single_source_waits);
+        s->primary_d980_single_source_waits, s->primary_d980_source_start_epoch);
 }
 
 static bool get_primary_d980_source_notify_model(Object *obj, Error **errp)
@@ -20872,6 +20873,7 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
             bool stopped_source = s->event1508_stop_model && group == 0 &&
                 (addr & 4) && (value & s->event_control_1508[0] & 1) &&
                 s->event_timing_active;
+            uint32_t previous = s->event_control_1508[group];
             if (addr & 4) {
                 s->event_control_1508[group] &= ~value;
             } else {
@@ -20883,6 +20885,7 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
                     qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
                     current_cpu ? ARM_CPU(current_cpu)->env.pc : 0,
                     current_cpu ? ARM_CPU(current_cpu)->env.xregs[30] : 0);
+            primary_d980_source_control(s, group, previous, s->event_control_1508[group]);
             event_timing_update(s);
             event_secondary_timing_update(s);
             if (s->event_front_boundary_pending &&
@@ -22926,6 +22929,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_bool(oc, "task1500-ff-clear-model", get_task1500_ff_clear_model, set_task1500_ff_clear_model);
     object_class_property_add_str(oc,"mcu-image",get_z8_mcu_image,set_z8_mcu_image);
+    object_class_property_add_bool(oc,"mcu-capture-sync-wires",get_z8_mcu_capture_sync_wires,set_z8_mcu_capture_sync_wires);
     object_class_property_add_str(oc,"native-mcu-state",get_z8_mcu_state,NULL);
     object_class_property_add_str(oc,"native-mcu-io-state",get_z8_mcu_io,NULL);
     object_class_property_add_str(oc,"mcu-pins",get_z8_mcu_pins,set_z8_mcu_pins);

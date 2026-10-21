@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 RdWing
+"""Explicit synthetic HE preparation for original MAIN/EX contact replays."""
+import json
+from movie_inputs import native_modes_enabled
+
+OPTIONS=('experimental_he_still','experimental_preparation_profile',
+         'experimental_capture_selector5','experimental_timed_single')
+STATES=('engine152c-he-still-state','engine152c-request-state','primary-d980-state',
+        'primary-d980-single-frame-state','primary-d980-source-notify-state')
+
+
+def arguments(parser):
+    for name in OPTIONS:
+        parser.add_argument('--'+name.replace('_','-'),action='store_true',
+                            help='Explicit native HE synthetic profile; all four options and a card/contact replay are required')
+
+
+def validate(args):
+    chosen=[getattr(args,name,False) for name in OPTIONS]
+    if any(chosen) and not (all(chosen) and args.card and (args.contact_replay or getattr(args,'native_controls',False)) and native_modes_enabled(args)):
+        raise ValueError('Native HE requires all four HE/preparation/selector/timed-single options, complete experimental Movie profile, card and original-EX contacts')
+    return all(chosen)
+
+
+def attach(guest,args):
+    if not validate(args):return
+    index=guest.command.index('-M')+1
+    guest.command[index]+=',z8-timed-single-model=on,engine152c-stream-receiver-model=on,engine152c-he-still-model=on,engine153-alternate-bank-model=on,mcu-capture-sync-wires=on'
+    for name,address in [('experimental-bank8-999.bin',0x45a403e7),('experimental-selector5.bin',0x47f5af45)]:
+        path=guest.out/name;path.write_bytes(b'\x01')
+        guest.command+=['-device',f'loader,file={path},addr={address:#x},force-raw=on']
+    guest.data['experimental_native_he']={
+        'host_mcu_messages':False,'guest_code_modified':False,
+        'preparation_profile':{'address':'0x45a403e7','value':1},
+        'capture_selector5':{'address':'0x47f5af45','value':1},
+        'factory_calibration':False,'physical_codec_verified':False,'capture_sync_wires':True,
+        'input_scope':'Declared original EX and separate MAIN GPIO contacts; physical shared wiring unqualified'}
+
+
+def sample(guest):
+    if not guest.data.get('experimental_native_he'):return
+    states={name:json.loads(guest.qmp.command('qom-get',path='/machine',property=name)) for name in STATES}
+    guest.data['native_he_models']=states
+    he=states['engine152c-he-still-state']
+    index=he['jobs']
+    if not index or he['acks']!=index or he['pending']:return
+    captures=guest.data.setdefault('he_capture_snapshots',[])
+    if any(row['capture_index']==index for row in captures):return
+    if index!=len(captures)+1 or index>16:
+        raise ValueError('Native HE snapshots require consecutive captures within the 16-frame bound')
+    suffix='' if index==1 else f'-{index:03d}'
+    receiver=states['engine152c-request-state'];sensor=states['primary-d980-state']
+    pitch=sensor['submitted']['0x100'];height=receiver['height']
+    snapshots=[(f'he-receiver-output{suffix}.bin',receiver['output'],receiver['capacity']),
+               (f'he-sensor-packed14{suffix}.bin',sensor['last_physical'],pitch*height)]
+    for _,address,size in snapshots:
+        if not (0<size<=128*1024**2 and 0x800000000<=address<0x900000000-size):
+            raise ValueError('HE snapshot must lie entirely within the modeled image RAM')
+    running=guest.qmp.command('query-status')['running']
+    if running:guest.qmp.command('stop')
+    try:
+        for name,address,size in snapshots:
+            guest.qmp.command('pmemsave',val=address,size=size,filename=str(guest.out/name))
+    finally:
+        if running:guest.qmp.command('cont')
+    record={'capture_index':index,'output':snapshots[0][0],'input':snapshots[1][0],
+            'width':receiver['width'],'height':height,'pitch':pitch}
+    captures.append(record)
+    if index==1:guest.data['he_snapshots']=record

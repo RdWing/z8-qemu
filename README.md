@@ -42,8 +42,8 @@ A complete QEMU build, native menu navigation and single NEF capture have
 passed on macOS. LibRaw and Adobe DNG Converter independently decoded every
 RAW sample with zero mismatches; all three JPEG previews also decoded. Source
 and model-contract checks cover the display renderer and selected peripheral
-behavior. Repeated shooting and post-shot recovery
-remain open.
+behavior. Original-EX HE★ now also passes three consecutive captures and
+returns to Photo; host-peer repeated lossless capture remains unqualified.
 
 The cumulative Z63 C2.00/C2.01 shared-device changes are adapted through
 `5c3b47c`, including functional HE, JPEG provenance/cancellation, playback resize,
@@ -54,7 +54,11 @@ An initial [macOS desktop workbench](desktop/README.md) now supports the shared
 controls, display saving, saved-photo playback and qualified native EX Menu/navigation/half, Movie/Photo and card-backed Play contacts. Native Camera commands independently complete Movie/Photo recovery. Terminal
 firmware power-down now disables controls and retains the last display; native desktop
 cold restart reopens the same card and returns to Photo. An optional original EX attachment reaches the
-shooting display; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
+shooting display and writes audited functional HE/HE★ files through a declared
+[original-EX contact replay](docs/native-he-stills.md#reproduce-original-ex-capture).
+Its explicit HE profile now returns to Photo without the reset error and
+passes three consecutive HE★ captures. Shared browser/native capture controls
+use the same guarded contact queue; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
 preserved and freshly accepted by LibRaw and Adobe. See the
 [feature disposition and checks](docs/z63-backport.md) before enabling the
 experimental profile.

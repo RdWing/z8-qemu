@@ -77,3 +77,25 @@ class ControlAdmission(unittest.TestCase):
                 connection.request('POST','/stop',headers={'X-Control-Token':owner.token})
                 reply=connection.getresponse();reply.read();self.assertEqual(reply.status,200)
         finally:connection.close();owner.close()
+
+    def test_capture_is_serialized_with_inputs_and_requires_guest_readiness(self):
+        owner=Control(0,native_mcu=True,native_buttons={'half','menu'},native_modes=True,native_capture=True)
+        connection=http.client.HTTPConnection('127.0.0.1',owner.server.server_address[1],timeout=3)
+        def post(path,token=None):
+            connection.request('POST',path,headers={'X-Control-Token':token or owner.token})
+            reply=connection.getresponse();body=reply.read();return reply.status,body
+        try:
+            self.assertEqual(post('/capture','stale')[0],403)
+            self.assertEqual(post('/capture')[0],503)
+            owner.ready=True;owner.last_publish=time.monotonic();owner.capture_ready=True
+            owner.shooting_mode='movie';self.assertEqual(post('/capture')[0],503);owner.shooting_mode='photo'
+            owner.queue.put(('button',67));self.assertEqual(post('/capture')[0],503);owner.next_input()
+            status,body=post('/capture');self.assertEqual(status,202);self.assertEqual(json.loads(body)['capture_id'],1)
+            self.assertEqual(post('/capture')[0],409)
+            connection.request('GET','/');page=connection.getresponse();page.read();self.assertEqual(page.status,200)
+            self.assertEqual(post('/button/menu')[0],409);self.assertEqual(post('/mode/movie')[0],409)
+            self.assertEqual(owner.next_input(),('capture',None));self.assertFalse(owner.status()['ready'])
+            owner.finish_capture();self.assertEqual(owner.status()['capture_finished'],1)
+            self.assertEqual(post('/capture')[0],202);self.assertEqual(owner.capture_serial,2)
+            self.assertEqual(post('/stop')[0],200);self.assertFalse(owner.status()['capture_ready'])
+        finally:connection.close();owner.close()

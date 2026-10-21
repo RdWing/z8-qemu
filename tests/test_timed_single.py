@@ -8,7 +8,7 @@ class TimedSingle(unittest.TestCase):
     def test_periodic_dma_owns_single_request(self):
         source=(Path(__file__).resolve().parents[1]/'qemu/nikon-z8-d980.h').read_text()
         production='\n'.join(function(source,n) for n in
-            ['primary_d980_single_arm','primary_d980_single_complete','primary_d980_tick','primary_d980_single_tick'])
+            ['primary_d980_native_single_owner','primary_d980_native_source_config','primary_d980_single_source_ready','primary_d980_source_control','primary_d980_single_arm','primary_d980_single_complete','primary_d980_tick','primary_d980_single_tick'])
         check('''
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (C) 2026 RdWing */
@@ -18,7 +18,7 @@ class TimedSingle(unittest.TestCase):
 #include <inttypes.h>
 #include <assert.h>
 #define QEMU_CLOCK_VIRTUAL 0
-typedef struct { uint64_t event_control_1508[4];uint64_t primary_d980_pending;
+typedef struct { void *native_mcu;uint64_t event_control_1508[4],event_mode_1508[17];uint64_t primary_d980_pending;
 uint64_t engine150c_active;
 uint64_t event_channel_inputs;
 uint64_t event_pending_1508;
@@ -29,7 +29,7 @@ uint64_t primary_d980_channel_boundary_model;
 uint64_t primary_d980_channel_coalesced;
 uint64_t primary_d980_frames;
 uint64_t primary_d980_input_epoch;
-uint64_t primary_d980_single_armed;
+uint64_t primary_d980_single_armed,primary_d980_single_model,primary_d980_source_start_epoch;
 uint64_t primary_d980_single_request_epoch,primary_d980_single_requests;
 uint64_t primary_d980_single_attempts,primary_d980_single_source_waits;
 uint64_t primary_d980_single_epoch;
@@ -43,7 +43,7 @@ uint64_t z8_timed_single_model;
 bool z8_still,primary_d980_live_single_model,primary_reset_queued_start_model;
 uint64_t engine150c_bit6_pending,engine_150c_primary[16],z8_still_ends;
 } NikonZ8State;
-static int allow_dma, dma_calls, notify_calls, channel_calls, cancels;
+static int allow_dma, dma_calls, notify_calls, channel_calls, cancels,video;
 static bool primary_d980_receive(NikonZ8State *s, bool single) {(void)single;dma_calls++;if(!allow_dma||s->primary_d980_pending)return false;s->primary_d980_pending=1;s->primary_d980_frames++;s->primary_d980_bytes+=80017920;return true;}
 static void raw_source_boundary_receive(NikonZ8State *s,bool v) {(void)v;s->raw_source_boundaries++;notify_calls++;}
 static void event_channel_update_irq(NikonZ8State *s) {(void)s;channel_calls++;}
@@ -51,7 +51,7 @@ static void primary_d980_single_cancel(NikonZ8State *s){s->primary_d980_single_a
 static uint64_t qemu_clock_get_ns(int v){(void)v;return 0;}
 static void timer_mod(uint64_t timer,uint64_t ns){(void)timer;(void)ns;}
 static void timer_del(uint64_t t){(void)t;}
-static bool video_raw_descriptor(NikonZ8State*s){(void)s;return false;}
+static bool video_raw_descriptor(NikonZ8State*s){(void)s;return video;}
 static bool primary_d980_finite_input_owned(NikonZ8State*s){return s->primary_d980_single_armed;}
 static void engine150c_stop_irq_update(NikonZ8State*s){(void)s;}
 static void engine150c_bit6_pulse(NikonZ8State*s){(void)s;}
@@ -68,5 +68,31 @@ s.primary_d980_single_armed=1;s.primary_reset_stage=1;primary_d980_single_tick(&
 s.primary_reset_stage=0;s.primary_d980_single_armed=1;s.z8_timed_single_model=0;primary_d980_single_tick(&s);assert(cancels==2&&!s.primary_d980_single_armed);
 s=(NikonZ8State){0};s.primary_d980_single_armed=1;s.engine150c_active=0x4000;s.event_control_1508[3]=0x201;allow_dma=0;int before=dma_calls;for(int i=0;i<65;i++)primary_d980_single_tick(&s);assert(cancels==3&&!s.primary_d980_single_armed&&s.primary_d980_single_attempts==65&&dma_calls==before+64&&s.primary_d980_single_frames==0);
 s=(NikonZ8State){0};s.primary_d980_single_armed=1;primary_d980_single_tick(&s);assert(cancels==4&&!s.primary_d980_single_armed);
+/* Native input requires the original source START edge of this request. */
+s=(NikonZ8State){.native_mcu=&s,.z8_still=true,.z8_timed_single_model=1,
+ .primary_d980_single_model=1,.primary_d980_single_armed=1,
+ .primary_d980_input_epoch=9,.primary_d980_single_request_epoch=9,
+ .engine150c_active=0x401e};
+s.event_control_1508[3]=0x4000;s.event_control_1508[0]=1;
+assert(!primary_d980_single_source_ready(&s));
+primary_d980_source_control(&s,1,0,1);assert(!primary_d980_single_source_ready(&s));
+primary_d980_source_control(&s,0,1,1);assert(!primary_d980_single_source_ready(&s));
+s.primary_d980_single_request_epoch=8;primary_d980_source_control(&s,0,0,1);
+assert(!primary_d980_single_source_ready(&s));s.primary_d980_single_request_epoch=9;
+s.event_mode_1508[0]=2;primary_d980_source_control(&s,0,0,1);
+assert(!primary_d980_single_source_ready(&s));s.event_mode_1508[0]=0;
+primary_d980_source_control(&s,0,0,1);assert(primary_d980_single_source_ready(&s));
+video=1;assert(!primary_d980_single_source_ready(&s));video=0;
+s.primary_reset_stage=1;assert(!primary_d980_single_source_ready(&s));s.primary_reset_stage=0;
+s.native_mcu=0;assert(!primary_d980_single_source_ready(&s));s.native_mcu=&s;
+s.primary_d980_input_epoch++;assert(!primary_d980_single_source_ready(&s));s.primary_d980_input_epoch--;
+s.event_control_1508[3]=0x7008;assert(!primary_d980_single_source_ready(&s));
+s.event_control_1508[3]=0x7009;s.event_timing_active=1;
+assert(primary_d980_single_source_ready(&s));
+allow_dma=1;before=dma_calls;primary_d980_single_tick(&s);
+assert(dma_calls==before+1&&s.primary_d980_single_frames==1&&s.primary_d980_single_epoch==9);
+primary_d980_single_tick(&s);assert(dma_calls==before+1);
+s.primary_d980_single_armed=1;before=cancels;primary_d980_source_control(&s,0,1,0);
+assert(cancels==before+1&&!s.primary_d980_single_armed);
 return 0;}
 ''')

@@ -16,7 +16,7 @@ struct Z8McuBridge {
     Z8TopLcd panel;
     Z8McuLink link[2];
     QEMUTimer *timer;
-    qemu_irq irq[2];
+    qemu_irq irq[3];
     bool pumping;
     uint8_t switch_report[124], switch_wire[256];
     uint64_t switch_frames;
@@ -27,14 +27,15 @@ static void z8_mcu_gpio_update(NikonZ8State *s)
     if (!s->native_mcu) { return; }
     uint32_t pending=s->gpio_irq_config[0][2]&~s->gpio_irq_config[0][0];
     for (unsigned i=0;i<2;i++) { qemu_set_irq(s->native_mcu->irq[i],!!(pending&(4u<<i))); }
+    qemu_set_irq(s->native_mcu->irq[2],s->mcu_capture_sync_wires && !!(pending&0x80));
 }
 static uint32_t z8_mcu_gpio_read(NikonZ8State *s, hwaddr addr, uint32_t value)
 {
     Z8McuBridge *m=s->native_mcu;
     if (!m) { return value; }
     /* RX-ready PB14, TX-ready PE3, receive-validator ACK PD12. */
-    const unsigned pins[3][4]={{1,14,3,2},{4,3,3,3},{3,12,4,3}};
-    for (unsigned i=0;i<3;i++) {
+    const unsigned pins[4][4]={{1,14,3,2},{4,3,3,3},{3,12,4,3},{3,7,3,7}};
+    for (unsigned i=0;i<(s->mcu_capture_sync_wires ? 4 : 3);i++) {
         const unsigned *p=pins[i];
         if (addr==0x0d151000+4*p[2] && ((m->chip.gpio[p[0]].moder>>(2*p[1]))&3)==1) {
             value=(value&~(1u<<p[3]))|(((m->chip.gpio[p[0]].odr>>p[1])&1)<<p[3]);
@@ -47,6 +48,16 @@ static uint32_t z8_mcu_gpio_write(NikonZ8State *s, hwaddr addr, uint32_t value)
     if (!s->native_mcu || (addr!=0x0d15100c && addr!=0x0d151010)) { return value; }
     uint32_t old=s->syscon[(addr-0x0d150000)/4], mask=value>>16;
     uint32_t next=(old&~mask)|(value&mask);
+    if (addr==0x0d15100c && (mask&0x1000) && ((old^next)&0x1000)) {
+        fprintf(stderr,"Z8_NATIVE_REQUEST ns=%"PRId64" level=%u pc=%"PRIx64"; MAIN port3 bit12\n",
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),!!(next&0x1000),
+            current_cpu ? ARM_CPU(current_cpu)->env.pc : 0);
+    }
+    /* Explicit candidate wire only: MAIN drives an EX peripheral input.
+     * EX firmware/EXTI owns any PD7 reply; no timer or synthetic ACK here. */
+    if (s->mcu_capture_sync_wires && addr==0x0d15100c && (mask&0x1000)) {
+        z8_stm32_gpio_drive(&s->native_mcu->chip.gpio[5],4,!!(next&0x1000));
+    }
     if (addr==0x0d151010 && (mask&0x80)) {
         z8_stm32_gpio_drive(&s->native_mcu->chip.gpio[6],6,!!(next&0x80));
     }
@@ -58,7 +69,12 @@ static void z8_mcu_pin_out(void *opaque,unsigned port,unsigned pin,bool level)
     if (port==0 && pin==4) { z8_toplcd_scs(&m->panel,level); }
     if (port==4 && pin==8) { z8_toplcd_disp(&m->panel,level); }
     if (port==3 && pin==11) { z8_toplcd_start(&m->panel,level); }
-    unsigned bit=port==1 && pin==14 ? 2 : port==4 && pin==3 ? 3 : 32;
+    if (port==3 && pin==7) {
+        fprintf(stderr,"Z8_NATIVE_PD7 ns=%"PRId64" level=%u; original EX output\n",
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),level);
+    }
+    unsigned bit=port==1 && pin==14 ? 2 : port==4 && pin==3 ? 3 :
+                 s->mcu_capture_sync_wires && port==3 && pin==7 ? 7 : 32;
     if (bit<32) {
         uint32_t old=s->syscon[0x100c/4], flag=1u<<bit;
         s->syscon[0x100c/4]=(old&~flag)|(level ? flag : 0);
@@ -89,6 +105,11 @@ static bool z8_mcu_exchange(Z8McuLink *l,uint16_t input,uint16_t *output)
             if (!f[0]) { continue; }
             for (unsigned i=0;i<256;i++) { sum+=f[i]; }
             l->frames[dir]++;l->bad_frames[dir]+=(sum&255)!=255;
+            if (f[0]==9) {
+                fprintf(stderr,"Z8_NATIVE_COMMAND ns=%"PRId64" SPI%u %s length=%u type=%u selector=%x argument=%x checksum=%s\n",
+                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),l->spi+1,dir ? "MCU->MAIN" : "MAIN->MCU",
+                    lduw_le_p(f+2),ldl_le_p(f+8),ldl_le_p(f+12),ldl_le_p(f+16),(sum&255)==255 ? "ok" : "BAD");
+            }
             if (l->channel==1 && dir==1 && (sum&255)==255 && f[0]==2 &&
                 lduw_le_p(f+2)==124 && f[8]==1) {
                 memcpy(l->bridge->switch_report,f+8,124);memcpy(l->bridge->switch_wire,f,256);l->bridge->switch_frames++;
@@ -142,12 +163,16 @@ static void z8_mcu_kick(void *opaque) { z8_mcu_schedule(((Z8McuBridge *)opaque)-
 static bool z8_mcu_apply_contacts(Z8McuBridge *m,const char *value,Error **errp);
 static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
 {
-    if (!s->mcu_image || !*s->mcu_image) { return; }
+    if (!s->mcu_image || !*s->mcu_image) {
+        if (s->mcu_capture_sync_wires) { error_report("mcu-capture-sync-wires requires original EX attachment");exit(1); }
+        return;
+    }
     if (MACHINE(s)->smp.max_cpus<5 || !s->serial_fixture || s->ccomp_gpio_model) {
         error_report("native MCU requires -smp 4,maxcpus=5, serial-fixture and no synthetic CCOMP GPIO peer");exit(1);
     }
     Z8McuBridge *m=g_new0(Z8McuBridge,1);m->owner=s;s->native_mcu=m;
     for (unsigned i=0;i<2;i++) { m->irq[i]=qdev_get_gpio_in(gic,25+i); }
+    m->irq[2]=qdev_get_gpio_in(gic,30);
     m->timer=timer_new_ns(QEMU_CLOCK_VIRTUAL,z8_mcu_tick,m);
     z8_stm32_init(&m->chip,OBJECT(s),s->mcu_image,NULL,&error_fatal);
     z8_stm32_rtc_option(&m->chip,"2026-01-02T03:04:05",&error_fatal);
@@ -160,6 +185,7 @@ static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
     }
     m->chip.spi[1].sink=z8_toplcd_byte;m->chip.spi[1].sink_opaque=&m->panel;
     z8_stm32_gpio_drive(&m->chip.gpio[3],13,true); /* explicit virtual battery idle */
+    if (s->mcu_capture_sync_wires) { z8_stm32_gpio_drive(&m->chip.gpio[5],4,!!(s->syscon[0x100c/4]&0x1000)); }
     z8_stm32_pins(&m->chip,s->mcu_pins,&error_fatal);
     z8_mcu_apply_contacts(m,s->mcu_contacts,&error_fatal);
 }
@@ -288,4 +314,16 @@ static char *get_z8_mcu_switches(Object *obj,Error **errp)
         g_string_append_printf(out,"%s{\"address\":%u,\"inputs\":%u}",count++ ? "," : "",d->addr,d->inputs);
     }
     g_string_append(out,"]}");return g_string_free(out,false);
+}
+
+
+static bool get_z8_mcu_capture_sync_wires(Object *obj, Error **errp)
+{
+    return NIKON_Z8_LAB(obj)->mcu_capture_sync_wires;
+}
+static void set_z8_mcu_capture_sync_wires(Object *obj, bool value, Error **errp)
+{
+    NikonZ8State *s=NIKON_Z8_LAB(obj);
+    if (s->native_mcu || s->image_ram.ram || s->image_ram.rom_device) { error_setg(errp,"mcu-capture-sync-wires is immutable after realization");return; }
+    s->mcu_capture_sync_wires=value;
 }

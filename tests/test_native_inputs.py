@@ -45,3 +45,32 @@ class NativeInputs(unittest.TestCase):
         before=len(qmp.values)
         with self.assertRaises(ValueError):rejected.tick(control,4)
         self.assertEqual(len(qmp.values),before)
+
+    def test_capture_lease_completion_timeout_and_cancellation(self):
+        class QMP:
+            def __init__(self):self.values=[]
+            def command(self,name,**kw):self.values.append((kw['property'],kw['value']))
+        class Control:
+            def __init__(self):self.actions=[('capture',None),('button',67)];self.sent=0;self.capture_completed_jobs=0;self.results=[]
+            def next_input(self):return self.actions.pop(0) if self.actions else None
+            def mark_sent(self):self.sent+=1
+            def finish_capture(self,error=None):self.results.append(error)
+        qmp=QMP();control=Control();inputs=Inputs(qmp,allow_capture=True)
+        for at,pins,main in [(1,'G1=0','1'),(3,'G13=0','3'),(7,'G13=1','1'),(9,'G1=1','0')]:
+            row=inputs.tick(control,at)
+            self.assertEqual(row['mcu_pins'],pins)
+            self.assertEqual(qmp.values[-2:],[('mcu-pins',pins),('capture-gpio-input',main)])
+        self.assertEqual(control.sent,1);self.assertEqual(len(control.actions),1)
+        self.assertIsNone(inputs.tick(control,10));self.assertEqual(control.results,[])
+        control.capture_completed_jobs=1
+        self.assertEqual(inputs.tick(control,11)['kind'],'capture-complete');self.assertEqual(control.results,[None])
+        self.assertEqual(inputs.tick(control,12)['contact'],'23.6')
+        inputs.release();control.actions=[('capture',None)]
+        inputs.tick(control,14);inputs.release()
+        self.assertEqual(qmp.values[-2:],[('mcu-pins','G1=1:G13=1'),('capture-gpio-input','0')])
+        self.assertEqual(control.results[-1],'Capture inputs cancelled.')
+        control.actions=[('capture',None)]
+        inputs.tick(control,15)
+        for at in (17,21,23):inputs.tick(control,at)
+        self.assertEqual(inputs.tick(control,35)['kind'],'capture-timeout')
+        self.assertIn('not confirmed',control.results[-1]);self.assertIsNone(inputs.capture)

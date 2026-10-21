@@ -260,23 +260,22 @@ recipe and idle `G1=1:G13=1:G14=1:G15=1`. It starts from the fresh Photo-menu
 state and fixed virtual 2026-01-02 calendar; it returns to Photo after the date
 commit. This tests stock UI/EX behavior without injecting a controller reply.
 
-This is a startup setup contract, not HE capture acceptance. The checked
-finite request produces no frame and expires after 65 attempts while source
-control remains `0x4000`, without the model's `0x201` finite-input admission.
-The subsequent Photo `0x401e` stop was incorrectly routed to the shared Movie
-forced-stop handler. A current-generation finite Photo request now retains its
-existing direct-stop route even when Movie models are enabled. Active video
-descriptors, stale request generations and other unit sets retain their own
-checks. This routes cancellation/control only; no DMA or frame completion is
-created by the classifier. Full original-EX HE capture remains unqualified.
+Date setup establishes permission; image production has its own source contract.
+The earlier finite request expired before source admission, then the enabled
+Movie handler intercepted the following Photo `0x401e` stop. Current-generation
+routing fixes that stop without creating DMA. The subsequent missing-source
+SfltDriver rejection was preserved while tracing the actual input trigger.
 
-
-The original-EX rerun confirms the routing correction: `0x401e` reaches the
-direct-stop path, clears active units and retains its unit-end causes. It does
-not create a frame or HE output. The next SfltDriver bank-1 start correctly
-rejects the absent D980 source, so this is a bounded failed capture, not a
-passing guest harness. The run has 1,217 MAIN / 1,205 EX frames, zero checksum
-failures, one cancelled finite request after 65 attempts and clean owned-process
-cleanup. The frame-validity guard remains intact; the source-input trigger is
-the next capture gap. Firmware-free routing tests reject stale generations,
-active video descriptors and unrelated unit sets.
+The [original-EX HE workflow](native-he-stills.md#original-ex-source-start-timing)
+now binds original SIF START to the armed finite input and writes actual sensor
+bytes before completion. HE★ and ordinary HE guest files pass complete RAW,
+producer/receiver and preview audits. A public stock-date/RAW/release replay
+uses original EX contacts plus explicitly declared MAIN GPIO contacts, with no
+host MCU reply, firmware-state patch or source-validity bypass. The native HE profile explicitly connects MAIN request bit 12 to EX PF4 and
+actual EX PD7 output to MAIN response bit 7 through the original interrupt
+mask/polarity/W1C contract. Original firmware reaches its completion callback
+and returns to Photo without the former reset error. Three consecutive HE★
+files and an independent ordinary HE file pass full audits. This establishes
+bounded virtual recovery; physical wire identity and exposure timing remain
+unqualified. Shared browser and native Camera-menu capture controls use the
+same guarded contact queue; native photo export remains open.

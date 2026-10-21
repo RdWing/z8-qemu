@@ -48,6 +48,14 @@ class DesktopSession(unittest.TestCase):
             self.assertIn('--experimental-movie-selector16',args)
             args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,**movie))
             self.assertIn('--experimental-playback',args)
+            with self.assertRaises(ValueError):desktop.command(dict(config,experimental_native_he=True))
+            for changes in [dict(native_controls=False),dict(card=None),dict(experimental_yuv_channels=False)]:
+                candidate=dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie)
+                candidate.update(changes)
+                with self.subTest(changes=changes),self.assertRaises(ValueError):desktop.command(candidate)
+            args=desktop.command(dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie))
+            for flag in ('he-still','preparation-profile','capture-selector5','timed-single'):
+                self.assertIn('--experimental-'+flag,args)
 
 
     @unittest.skipIf(os.name=='nt','POSIX private process-group lifecycle')
