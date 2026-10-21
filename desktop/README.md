@@ -140,6 +140,11 @@ the explicit synthetic HE preparation/selector models and recovered sync wires;
 original EX produces the command and GPIO replies. It first navigates the stock
 date editor and RAW settings. Stop remains available during this preparation.
 
+HE capture sessions keep the Photo/Movie selector and native mode commands
+disabled. For the separately qualified Movie live-view workflow, start a
+session with `experimental_native_he: false`. The five shared/Movie options
+are dependencies of the HE model, not combined-preview qualification.
+
 After readiness, use **Capture photo**, **Camera → Capture photo**, or C in the
 workbench. One admitted capture holds/release the paired EX/MAIN contacts and
 waits for actual HE output/STOP acknowledgement. Other camera inputs and

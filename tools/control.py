@@ -29,7 +29,7 @@ def png_from_ppm(path):
 
 class Control:
  def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None,native_modes=False,native_capture=False):
-  self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes);self.powered_down=False;self.cancelled=0
+  self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes and not native_capture);self.powered_down=False;self.cancelled=0
   self.allowed_buttons=set(BUTTONS if not native_mcu else native_buttons or [])
   self.playback=bool(playback)
   self.native_capture=bool(native_mcu and native_capture);self.capture_ready=False;self.capture_busy=False
@@ -48,7 +48,9 @@ class Control:
      html=Path(__file__).with_name('control.html').read_text().replace('TOKEN_HERE',owner.token).replace('SESSION_HERE',owner.session)
      if owner.native_mcu:
       html=html.replace('Original MAIN 3.11 running locally.','Original MAIN 3.11 and EX03.00 running locally.').replace('Sensor imagery and external ROM data are simulated.','Sensor imagery and external ROM data are simulated. Original EX firmware supplies controller replies.')
-     if not owner.status()['mode_available']:html=html.replace('Selector input; watch the camera display for the result.','Photo/Movie requires the experimental native Movie profile.')
+     if not owner.status()['mode_available']:
+      mode_help='Use a Movie session for Photo/Movie live view.' if owner.native_capture else 'Photo/Movie requires the experimental native Movie profile.'
+      html=html.replace('Selector input; watch the camera display for the result.',mode_help)
      self.send(200,html.encode(),'text/html; charset=utf-8')
     elif route=='/frame.png' and owner.png:self.send(200,owner.png,'image/png')
     elif route=='/state':self.send(200,json.dumps(owner.status()).encode(),'application/json')

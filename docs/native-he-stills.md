@@ -109,6 +109,10 @@ python3 tools/run_native.py --firmware /private/MAIN.bi --mcu /private/EX.bi \
   --experimental-movie-selector16
 ```
 
+The complete Movie options supply required device models; HE preparation does
+not qualify combined Movie live view. Interactive HE sessions disable mode
+selection and direct users to a separate Movie session.
+
 This uses the production default `icount shift=0`; wall time and virtual time
 are separate bounds. The HE★ replay delivers 100 external contact actions.
 Ordinary HE uses `tools/native-he-regular-contacts.json` with

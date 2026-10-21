@@ -17,11 +17,13 @@ class NativeHE(unittest.TestCase):
                       experimental_sensor_source_clock=True,experimental_yuv_channels=True,
                       experimental_movie_selector16=True)
         self.assertTrue(native_he.validate(SimpleNamespace(**values)))
+        self.assertFalse(native_he.control_modes_enabled(SimpleNamespace(**values)))
         for name in values:
             with self.subTest(name=name),self.assertRaises(ValueError):
                 native_he.validate(SimpleNamespace(**dict(values,**{name:False})))
         disabled=dict(values,**{name:False for name in native_he.OPTIONS})
         self.assertFalse(native_he.validate(SimpleNamespace(**disabled)))
+        self.assertTrue(native_he.control_modes_enabled(SimpleNamespace(**disabled)))
         with tempfile.TemporaryDirectory() as temp:
             guest=SimpleNamespace(command=['qemu','-M','nikon-z8-full-lab'],data={},out=Path(temp))
             native_he.attach(guest,SimpleNamespace(**values))

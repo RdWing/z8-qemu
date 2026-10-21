@@ -13,7 +13,7 @@ STATES=('engine152c-he-still-state','engine152c-request-state','primary-d980-sta
 def arguments(parser):
     for name in OPTIONS:
         parser.add_argument('--'+name.replace('_','-'),action='store_true',
-                            help='Explicit native HE synthetic profile; all four options and a card/contact replay are required')
+                            help='Explicit native HE synthetic profile; all four options, a card and original-EX contacts are required')
 
 
 def validate(args):
@@ -37,6 +37,12 @@ def attach(guest,args):
         'factory_calibration':False,'physical_codec_verified':False,'capture_sync_wires':True,
         'input_scope':'Declared original EX and separate MAIN GPIO contacts; physical shared wiring unqualified'}
 
+
+
+
+def control_modes_enabled(args):
+    """HE preparation and Movie preview have separate workflow qualification."""
+    return native_modes_enabled(args) and not any(getattr(args,name,False) for name in OPTIONS)
 
 
 def capture_ready(guest,row):

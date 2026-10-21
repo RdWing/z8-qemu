@@ -128,3 +128,9 @@ shortcut and AppKit Camera → Capture photo. The WK message only enables the
 native command for the current same-origin, main-frame session; server admission
 remains authoritative. Unsupported profiles retain disabled capture controls.
 No palette, typography, shape, layout token, selector popup or dialog owner changes.
+
+HE preparation and Movie live view have separate capability contracts. An HE
+capture session keeps the selector and native mode commands disabled, with
+“Use a Movie session for Photo/Movie live view.” Capture readiness remains
+independent, so the Camera capture command can be enabled while mode commands
+are disabled. A separate Movie session retains its qualified selector workflow.

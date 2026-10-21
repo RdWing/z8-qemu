@@ -188,5 +188,22 @@
     "owned_qemu_stopped": true,
     "final_virtual_seconds": 83.664792036,
     "per_file_full_raw_audits_pass": true
+  },
+  "original_ex_he_combined_movie_preview": {
+    "qualified": false,
+    "timing": "diagnostic icount shift=3",
+    "checks": 388,
+    "main_frames": 2327,
+    "ex_frames": 2192,
+    "checksum_failures": 0,
+    "he_jobs": 1,
+    "continuous_raw_frames": 0,
+    "movie_frames": 0,
+    "new_file_review_jobs": 1,
+    "new_file_review_bytes": 1396736,
+    "photo_ui_return": true,
+    "he_file_full_audits_pass": true,
+    "clean_shutdown": true,
+    "interactive_mode_controls": "disabled in native HE capture sessions; use separate Movie session profile"
   }
 }

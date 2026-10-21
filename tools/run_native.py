@@ -76,7 +76,7 @@ g.command+=['-device',f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-
 attach(g);movie_inputs.attach(g,a)
 if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_mcu=True)
 native_he.attach(g,a)
-mode_controls=a.native_controls and movie_inputs.native_modes_enabled(a)
+mode_controls=a.native_controls and native_he.control_modes_enabled(a)
 g.data.update(native_mode_controls=mode_controls,native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
 control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls) if a.port is not None else None
 if control:

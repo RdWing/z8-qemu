@@ -323,3 +323,15 @@ Current checks: 46 host tests (45 pass, one optional legacy comparison skipped),
 18 board MMIO checks, 77 MCU checks, production renderer/source closure,
 217-file inventory and strict frontend audit. The signed macOS app builds.
 These checks do not close the remaining parity gates listed above.
+
+
+A combined accelerated control retains the explicit HE preparation while
+switching to Movie, Photo and playback after one capture. The Movie screen
+appears, but continuous RAW and Movie-frame counts remain zero. Playback still
+completes one 1,396,736-byte job and half returns to Photo UI; the HE file passes
+its own full audits. The run passes 388 transport/runtime checks with
+2,327 MAIN / 2,192 EX frames, zero checksum failures and clean shutdown, but
+those checks do not qualify combined Movie pixels. HE capture sessions now
+disable browser/native Photo/Movie commands; the separately qualified Movie
+session profile retains them. Host HTTP and actual JavaScript tests verify
+that Capture remains enabled independently of disabled mode selection.

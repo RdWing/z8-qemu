@@ -52,9 +52,10 @@ const run=code=>vm.runInContext(code,context);
  assert.equal(await capture,true);assert.equal(nodes.capture.disabled,true);
  respond=async()=>({ok:true,json:async()=>({session:'SESSION_HERE',capture_available:true,
   capture_ready:true,capture_finished:7,ready:true,allowed_buttons:['menu','half','play'],
-  mode_available:true,playback_available:false})});
+  mode_available:false,playback_available:false})});
  await run('poll()');assert.equal(nodes.capture.disabled,false);
  assert.equal(notifications.at(-1).captureReady,true);
+ assert.equal(notifications.at(-1).modeReady,false);assert.equal(nodes['shooting-mode'].disabled,true);
  respond=async()=>({ok:false,status:403,text:async()=> 'Session changed'});
  assert.equal(await run('window.z8Workbench.capturePhoto()'),false);
  assert.equal(nodes.capture.disabled,true);assert.equal(notifications.at(-1).captureReady,false);
