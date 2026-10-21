@@ -52,8 +52,8 @@ Native HE/HE★ single captures and saved-preview playback are accepted in bound
 virtual runs. Experimental Movie live view and Photo recovery now pass two cycles. Normal two-cycle playback/Photo recovery also passes. Playback idle-wake/zoom, remaining native MCU controls and full desktop parity remain incomplete.
 An initial [macOS desktop workbench](desktop/README.md) now supports the shared
 controls, display saving, saved-photo playback and qualified native EX Menu/navigation/half, Movie/Photo and card-backed Play contacts. Native Camera commands independently complete Movie/Photo recovery. Terminal
-firmware power-down now disables controls and retains the last display; desktop
-cold-restart validation remains pending. An optional original EX attachment reaches the
+firmware power-down now disables controls and retains the last display; native desktop
+cold restart reopens the same card and returns to Photo. An optional original EX attachment reaches the
 shooting display; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
 preserved and freshly accepted by LibRaw and Adobe. See the
 [feature disposition and checks](docs/z63-backport.md) before enabling the

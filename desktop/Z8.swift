@@ -34,6 +34,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Open configuration…", #selector(openConfiguration), "o"),
             ("Allow input access…", #selector(allowInputAccess), ""),
             ("Save display…", #selector(saveDisplay), "s"),
+            ("Save session log…", #selector(saveSessionLog), ""),
             ("Show session files", #selector(showOutput), ""),
             ("Restart session", #selector(restartSession), "r"),
             ("Stop emulator", #selector(stopSession), ".")
@@ -139,8 +140,16 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                     case .success:
                         self.authorizeInputs(Array(paths.dropFirst()), id: id, attempted: attempted, completion: completion)
                     case .failure(let error):
-                        if self.permissionFailure(error) && !attempted.contains(path) && self.chooseInput(path) {
-                            self.authorizeInputs(paths, id: id, attempted: attempted.union([path]), completion: completion)
+                        if self.permissionFailure(error) && !attempted.contains(path) {
+                            if self.chooseInput(path) {
+                                self.authorizeInputs(paths, id: id, attempted: attempted.union([path]), completion: completion)
+                            } else {
+                                completion(.failure(NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError)))
+                            }
+                        } else if self.permissionFailure(error) {
+                            let name = URL(fileURLWithPath: path).lastPathComponent
+                            completion(.failure(NSError(domain: "Z8", code: 6, userInfo: [NSLocalizedDescriptionKey:
+                                "Cannot read configured input “" + name + "”. Check its file permissions."])))
                         } else { completion(.failure(error)) }
                     }
                 }
@@ -172,7 +181,12 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                     try self.launch(config, python: python, out: out, restoring: restoring)
                 } catch {
                     self.cleanupSnapshot(self.configurationSnapshot)
-                    self.message("Could not start Z8", detail: error.localizedDescription + " Choose Session → Open configuration to try again.")
+                    let failure = error as NSError
+                    if failure.domain == NSCocoaErrorDomain && failure.code == NSUserCancelledError {
+                        self.message("Startup cancelled", detail: "Choose Session → Open configuration to try again.")
+                    } else {
+                        self.message("Could not start Z8", detail: error.localizedDescription + " Choose Session → Open configuration to try again.")
+                    }
                 }
             }
         } catch {
@@ -276,6 +290,25 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             }
         }.resume()
     }
+    @objc func saveSessionLog() {
+        guard let output, child == nil, !starting else { return }
+        let source = output.deletingLastPathComponent().appendingPathComponent(output.lastPathComponent + ".desktop.log")
+        let panel = NSSavePanel(); panel.nameFieldStringValue = "Z8-session.log"
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                guard destination.resolvingSymlinksInPath() != source.resolvingSymlinksInPath() else {
+                    throw NSError(domain: "Z8", code: 7, userInfo: [NSLocalizedDescriptionKey: "Choose a different destination for the exported log."])
+                }
+                try Data(contentsOf: source).write(to: destination, options: .atomic)
+            } catch {
+                DispatchQueue.main.async {
+                    let alert = NSAlert(); alert.messageText = "Could not save session log"; alert.informativeText = error.localizedDescription
+                    alert.beginSheetModal(for: self.window)
+                }
+            }
+        }
+    }
     @objc func showOutput() { if let output { NSWorkspace.shared.selectFile(output.path, inFileViewerRootedAtPath: output.deletingLastPathComponent().path) } }
     func cancelRestart() {
         if let restartURL { try? FileManager.default.removeItem(at: restartURL) }
@@ -317,6 +350,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         if item.action == #selector(restartSession) { return activeConfiguration != nil && !terminating && !starting && restartURL == nil }
         if item.action == #selector(allowInputAccess) { return starting && checkingPath != nil && !accessPanelOpen }
         if item.action == #selector(saveDisplay) { return child != nil && baseURL != nil }
+        if item.action == #selector(saveSessionLog) { return output != nil && child == nil && !starting }
         if item.action == #selector(stopSession) { return child != nil || starting }
         return output != nil
     }

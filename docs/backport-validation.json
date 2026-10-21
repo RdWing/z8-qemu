@@ -27,7 +27,7 @@
   ],
   "native_playback_display": true,
   "native_playback_recovery": true,
-  "native_mcu_reset_contact_checks": 76,
+  "native_mcu_reset_contact_checks": 77,
   "native_mcu_qualified_controls": [
     "menu",
     "down",
@@ -58,10 +58,19 @@
   "original_ex_desktop_movie_surface": "Native Camera menu; popup automation remains separate",
   "original_ex_desktop_movie_frames": 135,
   "native_power_down_detector_host_tests": true,
-  "desktop_cold_restart_workflow_verified": false,
+  "desktop_cold_restart_workflow_verified": true,
   "native_power_resume": false,
   "native_power_down_detector_original_firmware": true,
   "native_power_down_detected_virtual_seconds": 33.2,
-  "desktop_startup_cancellation_workflow_verified": false,
-  "desktop_recovery_validation_blocker": "Manual macOS unlock required for remaining native-window checks"
+  "desktop_startup_cancellation_workflow_verified": true,
+  "desktop_cold_restart_count": 2,
+  "desktop_restart_reopened_card_playback": true,
+  "desktop_restart_photo_raw_frames": 419,
+  "desktop_startup_cancellation_scope": [
+    "pending_input_check",
+    "exact_input_picker",
+    "early_firmware_boot"
+  ],
+  "desktop_session_log_export_verified": true,
+  "desktop_session_log_export_bytes": 103
 }

@@ -60,9 +60,9 @@ python tests/check_mcu_reset.py --qemu /path/to/qemu-system-aarch64 \
 ```
 
 Clang with AArch64/Thumb targets is required. The script extracts relocation-free
-ELF `.text` itself. All 76 checks pass across zero/one/two MCU resets: A53
+ELF `.text` itself. All 77 checks pass across zero/one/two MCU resets: A53
 heartbeat isolation, SRAM/flash/RTC backup retention, ordinary peripheral/core
-reset and AIRCR negative controls, plus contact isolation, release, atomic invalid-batch rejection, read-only GPIO/EXTI/serial state and absence of fabricated messages. This is model validation, not camera capture
+reset and AIRCR negative controls, plus contact isolation, release, atomic invalid-batch rejection, read-only GPIO/EXTI/serial state for every port A through K and absence of fabricated messages. This is model validation, not camera capture
 qualification.
 
 ## Original EX controls
@@ -172,7 +172,7 @@ and respect the same in-flight, capability and stale-session checks.
 `native-mcu-io-state` observes MAIN GPIO levels/mask/pending/polarity/enable,
 MCU GPIO input/output modes, EXTI routing/edges and serial ownership without
 reading status-clearing device registers. Reset/contact checks now include
-repeatable paused observation and explicit GPIO levels (76 checks). A bounded
+repeatable paused observation and explicit GPIO levels across ports A through K (77 checks). A bounded
 idle reproduction confirms PG1 reaches its input at 36.077 virtual seconds,
 while serial totals remain 750 MAIN / 694 EX after idle. That establishes
 delivery to the pin, not a recovered wake path or physical wiring.
@@ -197,5 +197,6 @@ virtual seconds. The loopback status becomes `powered_down: true` and
 It stops cleanly with 750 MAIN / 694 EX frames and zero checksum failures.
 Host tests additionally cover queued-input cancellation and sticky terminal
 state. The desktop adds a cold Session restart using a fresh output directory
-and the same inputs/card; native-window restart and startup-cancellation checks
-remain pending. This does not close physical wake or fastboot parity.
+and the same inputs/card. Native-window startup cancellation and two cold
+restarts now pass, including card review after the original firmware's terminal
+power-down. This does not close physical wake or fastboot parity.

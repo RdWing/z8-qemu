@@ -3,6 +3,9 @@
 A native AppKit/WKWebView window reuses the Z8 browser workbench and its input
 queue. It launches one isolated emulator session, saves exact guest-display
 PNG pixels through a native Save dialog and shows the session files in Finder.
+Session → Save session log exports the stopped launcher log to a chosen local
+file; the original log remains in place. The command is disabled while a session
+is starting or running. It exports the log only, without collecting other inputs.
 Closing the window or quitting requests graceful shutdown, then bounds cleanup
 of its own process group. It never targets another emulator process.
 
@@ -92,7 +95,7 @@ shared selector queue.
 
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
 top-panel drawing, recording, playback idle wake/zoom, USB/plugins, a firmware console/debug
-dock, photo/log export dialogs and Linux/Windows desktop bundles remain open.
+dock, photo export dialogs and Linux/Windows desktop bundles remain open.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
 Z8 controls. Native HE/HE★ capture remains available through the separately
 qualified capture launcher.
@@ -108,6 +111,21 @@ inputs/card and a fresh output directory. The old owned process exits before
 the new session starts. This does not implement physical controller wake or
 preserve firmware RAM across a reset.
 
-The detector and request cancellation have host tests. Full native-window
-restart and startup-cancellation qualification remains pending; this is draft
-recovery work. Native Camera-menu Movie/Photo recovery is separately verified.
+The native window now passes Stop during a pending background input check,
+Cancel in the exact-input picker and Stop during early firmware boot. No output
+or launcher log is created by the cancelled preflight. Picker cancellation
+reports “Startup cancelled” instead of displaying a misleading file-save error.
+
+Two native Session restarts are verified: after boot cancellation and after
+terminal power-down. The first review reaches power-down at virtual 28.784 with
+the image retained and controls disabled. Its QEMU stops before the second
+session opens a fresh endpoint. The same NEF then displays again, a half-shutter
+returns to Photo and RAW frames advance to 419. Each review completes one
+1,396,736-byte resize job; both owned sessions stop cleanly with zero checksum
+failures. This qualifies cold restart, not firmware wake or fastboot.
+
+
+The native session-log Save dialog is verified against a stopped original-EX
+launcher log: all 103 bytes match the retained source. The command is disabled
+while QEMU runs, re-enables after owned shutdown, and Cancel leaves the log in
+place. This exports diagnostic text only; it does not export a card or NEF.

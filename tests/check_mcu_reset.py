@@ -177,6 +177,7 @@ def main():
                     def io():
                         return json.loads(qmp.command('qom-get',path='/machine',property='native-mcu-io-state'))
                     initial_io=io()
+                    check('IO observation covers every GPIO port A through K', [row['port'] for row in initial_io['gpio']]==list(range(11)))
                     check('Paused IO observation has no status-clearing side effects',initial_io==io())
                     qmp.command('qom-set',path='/machine',property='mcu-pins',value='G1=1')
                     check('IO observation sees explicit external GPIO level',next(x for x in io()['gpio'] if x['port']==6)['input']&2)

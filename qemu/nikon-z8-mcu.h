@@ -190,11 +190,10 @@ static char *get_z8_mcu_io(Object *obj,Error **errp)
         s->syscon[0x100c/4],s->syscon[0x1010/4],s->gpio_irq_config[0][0],s->gpio_irq_config[0][2],s->gpio_irq_config[0][5],s->gpio_irq_config[0][6],
         m->chip.exti.exti_imr,m->chip.exti.exti_rtsr,m->chip.exti.exti_ftsr,m->chip.exti.exti_pr,
         m->chip.syscfg[2],m->chip.syscfg[3],m->chip.syscfg[4],m->chip.syscfg[5]);
-    const unsigned ports[]={1,3,4,6};
-    for (unsigned i=0;i<ARRAY_SIZE(ports);i++) {
-        Z8Stm32Gpio *g=&m->chip.gpio[ports[i]];
+    for (unsigned i=0;i<Z8_STM32_GPIO_PORTS;i++) {
+        Z8Stm32Gpio *g=&m->chip.gpio[i];
         g_string_append_printf(out,"%s{\"port\":%u,\"mode\":%u,\"pull\":%u,\"input\":%u,\"output\":%u,\"driven\":%u}",
-            i ? "," : "",ports[i],g->moder,g->pupdr,z8_stm32_gpio_idr(g),g->odr,g->driven);
+            i ? "," : "",i,g->moder,g->pupdr,z8_stm32_gpio_idr(g),g->odr,g->driven);
     }
     g_string_append(out,"],\"serial\":[");
     for (unsigned i=0;i<2;i++) {

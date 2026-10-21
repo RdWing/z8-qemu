@@ -101,3 +101,10 @@ the UI thread; Session → Allow input access targets only the current configure
 file. Stop cancels startup, and generation checks discard stale completions.
 Only the active child may update the webview. Python receives a private,
 immutable configuration snapshot that is removed after admission or exit.
+
+
+Session log export is a native Save dialog for the stopped launcher's single
+log file. Keep it disabled during startup and execution, copy off the UI thread,
+retain the original file, and reject the original path as a destination. Do not
+turn this action into an input/card/capture bundle. Cancelling the input-access
+picker is startup cancellation, with no launcher or later stale-completion start.

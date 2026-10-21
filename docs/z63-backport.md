@@ -26,9 +26,9 @@ Z63 firmware on the Z8 machine.
 | Persistent virtual cards and exports | `--card` attaches an existing exFAT image for guest writes. Existing exact-file export plus bounded exFAT-window/ISO-BMFF helpers are available. | Guest-written lossless NEF accepted by two decoders. Export only after the emulator stops. |
 | Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. An explicit experimental profile now produces Movie frames and recovers to Photo; standard-profile and recording acceptance remain separate. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
-| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 73 synthetic reset/contact checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Remaining controls/capture remain open. |
+| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Remaining controls/capture remain open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | No physical or native Z8 qualification. |
-| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; complete debug/export/USB/plugin parity remains open. |
+| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; session-log export is native and checked; photo export, debug/USB/plugin parity remain open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
 ## Preserve Z8 timed-single ownership
@@ -249,11 +249,22 @@ Read-only CPU/GPIO observations distinguish terminal firmware power-down from
 an ordinary playback wait. The backend detects the verified C3.11 three-core
 SRAM park, disables controls and cancels pending inputs while retaining the last
 frame. Original-firmware readiness changes from true to false at 33.2 virtual
-seconds in a clean test. All 76 MCU reset/contact/read-only checks pass.
+seconds in a clean test. All 77 MCU reset/contact/read-only checks pass.
 
 Desktop input checks now run off the UI thread, with exact-file access recovery
 and startup cancellation. Session restart waits for the owned launcher to exit
-before opening the same card in a fresh cold session. These recovery paths
-build and have source review; full native-window restart/cancellation validation
-is pending a manual macOS unlock. Physical wake/reset/fastboot, remaining MCU
+before opening the same card in a fresh cold session. Native checks now cover
+Stop during a pending file check, access-picker Cancel,
+early boot Stop, and two cold restarts. After terminal power-down at virtual
+28.784, the original session stops cleanly; the next session reopens the same
+NEF and returns to fresh Photo frames (419 RAW frames). Each review completes
+one finite resize job, with no checksum failures. Picker cancellation now
+reports startup cancellation instead of a misleading file-save error. Physical wake/reset/fastboot, remaining
+MCU
 contacts and complete desktop parity remain open.
+
+
+Native Session → Save session log now copies the stopped launcher's single log
+through a Save dialog, retaining the source. A 103-byte export matches exactly;
+active-session disable, stopped-session enable and dialog cancellation are
+checked. Card/NEF export and the remaining debug/USB/plugin routes are separate.
