@@ -53,3 +53,28 @@ pinned public inverse. Nikon encoder microcode, physical ISP/color equivalence,
 repeat captures, post-capture recovery, movie recording and physical-camera
 quality remain unqualified. Stock LibRaw builds may lack the HE decode path;
 opening previews alone is not RAW decoding.
+
+
+## Original EX source-start timing
+
+The original MAIN/EX diagnostic now reaches one HE★ file with the same explicit
+synthetic input and preparation models. FRONT preparation precedes source
+admission: in the baseline timing trace, the old 64-poll timer cancelled at
+51.868495 virtual seconds, before MAIN enabled bitmap `0x201` at 52.650659.
+The finite writer now retains the request while waiting for that unchanged
+admission condition. Its 64-attempt limit starts after admission; original
+stop/reset/inactive cancellation remains effective. `source_waits` counts
+pre-admission timer polls separately. No readiness bits are forced.
+
+An accelerated diagnostic (`icount shift=3`) passes 280 transport/runtime
+checks and produces one 80,017,920-byte packed14 sensor frame, one HE★ job
+and original data/STOP acknowledgements. The guest writes a 29,324,288-byte
+NEF with a 28,565,504-byte RAW strip. Full inverse decoding, all three JPEG
+previews, receiver equality and all 45,705,600 producer samples pass, with
+maximum functional-codec error 26 and mean error 3.029557. There are 1,462
+MAIN / 1,428 EX frames, zero checksum failures and clean owned shutdown.
+
+This diagnostic ends on the original shutter-release reset error screen.
+Baseline-timing file acceptance, the preceding exposure handshake and normal
+post-shot/repeated-capture recovery remain separate gates. It does not establish
+physical sensor timing or camera image quality.

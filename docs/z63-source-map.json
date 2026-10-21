@@ -263,7 +263,7 @@
       "source_sha256": "d81077ba34e335abf40327c6754bf62a347ae716f0d43c4f5b158200c6b80e7b"
     },
     "qemu/nikon-z8-d980.h": {
-      "adapted_sha256": "f89a8200476a3ca4f1bb89fe0cd07d5eb011a2dd3151705f93217b13b9c7ef23",
+      "adapted_sha256": "a2239a479f471fa61d4be3ecb6060867749284933969937174feaa3534e3a42e",
       "source_path": "nikon-z9-d980.h",
       "source_sha256": "12666f245d7c02ad6436cddb66b5a450c810abfee43d9f90165287c4b7ccf576"
     },
@@ -283,7 +283,7 @@
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
     "qemu/nikon-z8-lab.c": {
-      "adapted_sha256": "2e2e1c93e280e6265f26592f4d57fe23d23917facb8f7420d5aa941a0c10f453",
+      "adapted_sha256": "f9a0c2f039d8f59f87075195df5ef549c51dc7a8414d7c5f47cf66aaa1ed181b",
       "source_path": "nikon-z63-z9lab.c",
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },

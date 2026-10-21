@@ -265,8 +265,22 @@ static void primary_d980_single_tick(void *opaque)
     NikonZ8State *s = opaque;
     if (!s->primary_d980_single_armed) { return; }
     if (s->primary_reset_stage || !(s->engine150c_active & 0x4000) ||
-        (s->event_timing_active && !s->primary_d980_live_single_model && !s->z8_still && !s->z8_timed_single_model) ||
-        ++s->primary_d980_single_attempts > 64) {
+        (s->event_timing_active && !s->primary_d980_live_single_model && !s->z8_still && !s->z8_timed_single_model)) {
+        primary_d980_single_cancel(s);
+        return;
+    }
+    /* FRONT preparation precedes source START. Original MAIN/EX can enable
+     * bitmap201 after more than 64 timer polls. A poll before readiness is
+     * not a DMA attempt: retain this request until START or original stop/
+     * reset. Keep the 64-attempt bound for an admitted source that refuses
+     * data. Neither waiting nor admission writes pixels or completes IRQs. */
+    if ((s->event_control_1508[3] & 0x201) != 0x201) {
+        s->primary_d980_single_source_waits++;
+        timer_mod(s->primary_d980_single_timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 33333333);
+        return;
+    }
+    if (++s->primary_d980_single_attempts > 64) {
         primary_d980_single_cancel(s);
         return;
     }

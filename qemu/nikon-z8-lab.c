@@ -745,6 +745,7 @@ struct NikonZ8State {
     uint64_t primary_d980_single_request_epoch;
     uint64_t primary_d980_single_cancelled, primary_d980_single_requests;
     unsigned primary_d980_single_attempts;
+    uint64_t primary_d980_single_source_waits;
     bool primary_d980_source_notify_model;
     uint64_t primary_d980_source_notifications;
     bool primary_d980_prepared_start_model, primary_d980_prepared;
@@ -11153,10 +11154,11 @@ static char *get_primary_d980_single_state(Object *obj, Error **errp)
     NikonZ8State *s = NIKON_Z8_LAB(obj);
     return g_strdup_printf("{\"enabled\":%s,\"armed\":%s,\"epoch\":%" PRIu64
         ",\"completed_epoch\":%" PRIu64 ",\"frames\":%" PRIu64 ",\"requests\":%" PRIu64
-        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"scope\":\"functional one-frame external input after original front2-to3 and bitmap200; physical protocol unproved\"}",
+        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"source_waits\":%" PRIu64 ",\"scope\":\"functional one-frame external input after original front2-to3 and bitmap200; physical protocol unproved\"}",
         s->primary_d980_single_model ? "true" : "false", s->primary_d980_single_armed ? "true" : "false",
         s->primary_d980_input_epoch, s->primary_d980_single_epoch, s->primary_d980_single_frames,
-        s->primary_d980_single_requests, s->primary_d980_single_cancelled, s->primary_d980_single_attempts);
+        s->primary_d980_single_requests, s->primary_d980_single_cancelled, s->primary_d980_single_attempts,
+        s->primary_d980_single_source_waits);
 }
 
 static bool get_primary_d980_source_notify_model(Object *obj, Error **errp)
@@ -20875,8 +20877,12 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
             } else {
                 s->event_control_1508[group] |= value;
             }
-            fprintf(stderr, "Z8_1508_CONTROL group=%u state=%x (no output producer)\n",
-                    group, s->event_control_1508[group]);
+            fprintf(stderr, "Z8_1508_CONTROL group=%u state=%x ns=%" PRId64
+                    " pc=%" PRIx64 " lr=%" PRIx64 " (no output producer)\n",
+                    group, s->event_control_1508[group],
+                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                    current_cpu ? ARM_CPU(current_cpu)->env.pc : 0,
+                    current_cpu ? ARM_CPU(current_cpu)->env.xregs[30] : 0);
             event_timing_update(s);
             event_secondary_timing_update(s);
             if (s->event_front_boundary_pending &&

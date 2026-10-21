@@ -42,6 +42,14 @@ corrected production-function test covers the missing-ready, refused-DMA,
 periodic ownership, duplicate tick, reset and opt-out controls. The accepted
 capture below uses the corrected implementation.
 
+FRONT preparation and source START have separate timing. A pending request
+now waits for the unchanged bitmap `0x201` before spending its 64 admitted
+DMA attempts. A production-function regression holds it through 96 waiting
+polls, then checks one completed frame and the existing refusal/stop/reset
+controls. The original-EX [HE diagnostic](native-he-stills.md#original-ex-source-start-timing)
+produces and audits a guest-written HE★ NEF; its final reset-error screen
+keeps normal recovery and repeated capture unqualified.
+
 The F0 encoder remains enabled by default for the Z8 RAW transport. It
 encodes the acknowledged guest-produced packed14 buffer with the original
 four 2048 metadata seeds. Output length reports actual completed bytes.
