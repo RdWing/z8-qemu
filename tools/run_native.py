@@ -117,7 +117,7 @@ try:
     if native_capture:
      he=g.data['native_he_models']['engine152c-he-still-state']
      row['capture_completed_jobs']=min(he['jobs'],he['acks'],he['stop_acks'])
-     row['capture_ready']=not row['preparing_capture'] and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==1 and g.read_bytes(0xa03bd042c,1)==b'\x01' and he['jobs']<16 and not he['pending'] and not he['stop_pending']
+     row['capture_ready']=native_he.capture_ready(g,row)
     row['powered_down']=powered_down(row['runtime-clock-state'],int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little'))
     if row['powered_down'] and inputs:inputs.release()
     g.data['native_powered_down']=g.data.get('native_powered_down',False) or row['powered_down']

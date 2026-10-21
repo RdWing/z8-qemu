@@ -33,7 +33,7 @@ The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
 | --- | --- |
 | Original menus, shooting HUD, controller input and four AArch64 CPU contexts | Synthetic boot and peripheral inputs; selected paths tested. |
 | Selected native graphics, four framebuffer banks and indexed palette overlays | Functional rendering; physical AF and display color accuracy remain open. |
-| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. Functional HE/HE★ single captures now have native Z8 synthetic-input acceptance; physical codec equivalence and repeated capture remain open. |
+| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. Functional HE/HE★ single captures now have native Z8 synthetic-input acceptance; three consecutive original-EX HE★ captures pass, while physical codec equivalence remains open. |
 | Firmware-written 8280 × 5520, 14-bit NEFs on virtual NVMe/exFAT | LibRaw and Adobe decoding checked all 45,705,600 samples. Capture requires three explicit experimental options and the Lossless menu setting. |
 | Picture Control metadata and Camera Raw defaults | Metadata inspected for Auto and Standard; lossless decoding checked with Auto. |
 | Movie configuration registers and selector handling | Explicit experimental Movie live view and two-cycle Photo recovery work; playable recording and physical AF/lens drive are unqualified. |

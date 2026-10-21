@@ -29,7 +29,7 @@ class NativeHE(unittest.TestCase):
             self.assertEqual((guest.out/'experimental-selector5.bin').read_bytes(),b'\x01')
             self.assertFalse(guest.data['experimental_native_he']['host_mcu_messages'])
             states={name:{} for name in native_he.STATES}
-            states.update({'engine152c-he-still-state':dict(jobs=1,acks=1,pending=False),
+            states.update({'engine152c-he-still-state':dict(jobs=1,acks=1,pending=False,stop_pending=False),
                 'engine152c-request-state':dict(output=0x800010000,capacity=64,width=8,height=4),
                 'primary-d980-state':dict(submitted={'0x100':32},last_physical=0x800020000)})
             class QMP:
@@ -42,6 +42,20 @@ class NativeHE(unittest.TestCase):
             self.assertEqual(guest.data['he_snapshots']['pitch'],32)
             self.assertEqual(sum(x.startswith('pmemsave') for x in guest.qmp.events),2)
             self.assertEqual(guest.qmp.events[-1],'cont')
+            guest.read_bytes=lambda address,size:b'\x01'
+            row=dict(preparing_capture=False,ui_control_hex=(b'\x01\0\0\0'+(6).to_bytes(4,'little')).hex())
+            self.assertTrue(native_he.capture_ready(guest,row))
+            for mode in (0,1,2):
+                candidate=dict(row,ui_control_hex=(b'\x01\0\0\0'+mode.to_bytes(4,'little')).hex())
+                self.assertFalse(native_he.capture_ready(guest,candidate))
+            self.assertFalse(native_he.capture_ready(guest,dict(row,preparing_capture=True)))
+            guest.read_bytes=lambda address,size:b'\0'
+            self.assertFalse(native_he.capture_ready(guest,row))
+            guest.read_bytes=lambda address,size:b'\x01'
+            he=guest.data['native_he_models']['engine152c-he-still-state']
+            for field,value in [('jobs',16),('pending',True),('stop_pending',True)]:
+                old=he[field];he[field]=value
+                self.assertFalse(native_he.capture_ready(guest,row));he[field]=old
             states['engine152c-he-still-state'].update(jobs=2,acks=2)
             native_he.sample(guest)
             self.assertEqual(guest.data['he_capture_snapshots'][-1]['capture_index'],2)

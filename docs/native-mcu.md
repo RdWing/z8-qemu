@@ -47,9 +47,10 @@ The compatible MCU clock is 180 MHz, timer clocks 90 MHz, RTC starts at
 panel received one clear packet and zero line packets in the native run.
 The donor mechanical shutter is unarmed and its position pins are not driven.
 Exact physical chip identity/clock, remaining Z8 key/lens/power mappings, native
-full-shutter capture, encoded recording, idle wake and top-panel drawing remain unqualified.
+continuous shooting, encoded recording, idle wake and top-panel drawing remain unqualified.
 Movie live view, normal Photo recovery and card-backed review have separate
-native acceptance below.
+native acceptance below; the explicit HE profile also qualifies bounded full
+capture and recovery.
 No host-peer acceptance transfers to this attachment.
 
 Firmware-free reset checks:
@@ -133,8 +134,8 @@ owner; attachment explicitly disables the host controller-GPIO reply model.
 A contact replay completed two 1,396,736-byte review transfers, with an early
 half-shutter return, Menu and a second half-shutter returning to fresh Photo
 frames. A later review entered UI mode 0 after about ten seconds; subsequent
-half/Menu contacts did not wake it. This is a separate idle-wake gap. Zoom,
-repeated still capture and full native controller parity remain unqualified.
+half/Menu contacts did not wake it. This is a separate idle-wake gap. Zoom, late-idle wake and full native controller parity remain unqualified.
+The explicit HE still profile has separate repeated-capture acceptance below.
 
 Use `tools/native-movie-recovery-contacts.json` for the bounded Movie replay.
 Contacts are scheduled in virtual firmware seconds; wall duration must allow
@@ -217,8 +218,9 @@ half at virtual 16.030, PG13 at 18.021, release at 22.037 and half release at
 Use `tools/native-full-report-contacts.json` with the original-EX contact-replay
 recipe. This validates a Z8 report binding independently of donor names.
 
-The desktop does not expose full capture yet: a switch report alone does
-not qualify image capture or the separately modeled MAIN half/full GPIO inputs.
+A switch report alone does not qualify image capture or the separately
+modeled MAIN half/full GPIO inputs. The desktop full-capture action therefore
+requires the separately qualified experimental HE profile below.
 Earlier PF2 controls produce no byte-8 report, including a four-second hold
 with actual input delivery observed. Runtime inspection validates all 19 direct
 input descriptors; PF2 resolves to port 0x40021400/mask 4, so the negative result
@@ -234,7 +236,7 @@ pending and screen-busy state are zero, ruling out a busy admission rejection
 for this control. D980 submissions and finite-frame/RAW-output/HE jobs remain
 zero. The run stops cleanly with 2,065 MAIN / 1,938 EX frames and no checksum
 failures, without host MCU replies, PC redirection or firmware RAM repair.
-This narrows the remaining join beyond admission; it does not qualify native
+This earlier control narrows the join beyond admission; it does not qualify native
 HE capture or the physical connection between EX and MAIN release inputs.
 
 

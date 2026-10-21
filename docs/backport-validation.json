@@ -4,8 +4,8 @@
   "host_family": "macOS Apple Silicon",
   "full_fresh_qemu_build": true,
   "host_tests": {
-    "run": 42,
-    "pass": 41,
+    "run": 46,
+    "pass": 45,
     "skip_optional_legacy": 1
   },
   "actual_board_mmio_checks": 18,
@@ -19,7 +19,7 @@
   "jpeg_previews_decoded": 3,
   "native_he_movie_playback_parity": false,
   "z8_native_mcu_desktop_parity": false,
-  "scope": "Functional source/model backport with single HE/HE-star capture, normal saved-photo recovery, experimental Movie/Photo recovery, original EX Movie/Play contacts and initial desktop integration; not complete feature parity.",
+  "scope": "Functional source/model backport with bounded original-EX HE/HE-star capture and three consecutive HE-star files, normal early playback recovery, experimental Movie/Photo recovery and guarded native/browser capture integration; not complete feature parity.",
   "native_he_single_capture": true,
   "native_movie_liveview_two_cycle_frames": [
     1089,
@@ -75,11 +75,11 @@
   "desktop_session_log_export_bytes": 103,
   "original_ex_full_release_report": true,
   "original_ex_full_release_contact": "PG13 active low; PG1 half held",
-  "original_ex_full_capture": false,
+  "original_ex_full_capture": true,
   "original_ex_direct_input_descriptors_verified": 19,
   "desktop_manual_exact_input_grant_verified": true,
   "original_ex_capture_admission_pass": true,
-  "original_ex_capture_image_jobs": 0,
+  "original_ex_capture_image_jobs": 3,
   "original_ex_capture_input_scope": "PG1/PG13 EX contacts plus separately declared MAIN GPIO; shared physical wiring unqualified",
   "original_ex_desktop_camera_menu_repeat": {
     "movie_frames": 50,
@@ -101,10 +101,10 @@
   "original_ex_capture_permission_after_date_setup": 1,
   "original_ex_capture_initial_sequence_after_date_setup": 3,
   "original_ex_d980_submissions_after_date_setup": 1,
-  "original_ex_sensor_frames_after_date_setup": 0,
+  "original_ex_sensor_frames_after_date_setup": 1,
   "native_photo_stop_routing_regression_tests": true,
   "native_photo_stop_routing_original_ex_verified": true,
-  "original_ex_capture_guard": "SfltDriver bank 1 start rejects absent D980 source after finite-input timeout; no complete native-EX capture accepted",
+  "original_ex_capture_guard": "Original SIF START owns current enabled finite descriptor; actual DMA precedes notifications and SfltDriver guards remain intact. Original EX GPIO output completes the separate MAIN capture request.",
   "original_ex_date_setup_repeat": true,
   "original_ex_stop_routing_probe": {
     "main_frames": 1217,
@@ -118,5 +118,75 @@
     "he_jobs": 0,
     "harness_passed": false,
     "owned_qemu_stopped": true
+  },
+  "original_ex_capture_permission_scope": "Pre-date-setup negative control; the committed stock date editor clears reason 37.",
+  "original_ex_he_capture": {
+    "profile": "Explicit synthetic sensor/ROM preparation, timed-single, guarded alternate processing bank and original-EX sync wires",
+    "host_mcu_replies": false,
+    "baseline_single": {
+      "checks": 280,
+      "main_frames": 1460,
+      "ex_frames": 1425,
+      "source_waits": 0,
+      "reset_error": false,
+      "clean_shutdown": true
+    },
+    "accelerated_consecutive_he_star": {
+      "checks": 318,
+      "main_frames": 2352,
+      "ex_frames": 2234,
+      "captures": 3,
+      "intervening_reset": false,
+      "source_waits": 0,
+      "reset_error": false,
+      "clean_shutdown": true
+    },
+    "accelerated_he": {
+      "checks": 334,
+      "main_frames": 1720,
+      "ex_frames": 1676,
+      "captures": 1,
+      "reset_error": false,
+      "clean_shutdown": true
+    },
+    "per_file_samples": 45705600,
+    "all_previews_decoded": true,
+    "receiver_strip_equal": true,
+    "producer_input_mismatches": 0,
+    "maximum_error_14bit": 26,
+    "mean_absolute_error_14bit": 3.0295569033116294,
+    "physical_wiring_verified": false,
+    "physical_exposure_timing_verified": false
+  },
+  "original_ex_desktop_he_capture": {
+    "scope": "Observed native AppKit and shared browser workflow at baseline icount shift=0; no physical camera",
+    "startup_stop_virtual_seconds": 2.502035617,
+    "same_card_cold_restart": true,
+    "capture_surfaces": [
+      "native Camera menu",
+      "C keyboard shortcut",
+      "shared browser Capture photo button"
+    ],
+    "capture_count": 3,
+    "duplicate_native_menu_disabled": true,
+    "busy_inputs_disabled": true,
+    "stop_available_while_busy": true,
+    "new_file_playback": "DSC_0003.NEF",
+    "new_file_review_jobs": 1,
+    "new_file_review_bytes": 1396736,
+    "half_return": "Photo UI mode 6; last review pixels retained, no fresh continuous RAW frame qualified",
+    "ui_modes": {
+      "menu": 1,
+      "review": 2,
+      "shooting": 6
+    },
+    "checks": 372,
+    "main_frames": 1935,
+    "ex_frames": 1855,
+    "checksum_failures": 0,
+    "error": null,
+    "owned_qemu_stopped": true,
+    "final_virtual_seconds": 83.664792036,
+    "per_file_full_raw_audits_pass": true
   }
 }

@@ -243,8 +243,9 @@ ASan/UBSan tests preserve invalid-pulse rejection, pending-owner checks and
 pixel/epoch admission. The updated host suite passes 41 of 42 tests with one
 optional legacy comparison skipped; all 18 board MMIO checks and the strict
 frontend audit pass. The macOS bundle builds and its signature verifies.
-Encoded recording, repeated still capture, idle wake/zoom and full desktop
-integration remain open; this PR remains a bounded backport.
+Encoded recording, continuous shooting, idle wake/zoom and full desktop
+integration remain open; the later original-EX HE checkpoint below separately
+qualifies three consecutive captures. This PR remains a bounded backport.
 
 
 ## Desktop commands and terminal power-down checkpoint
@@ -302,3 +303,23 @@ completion and bounded per-capture snapshots. Shared browser and native Camera
 controls expose the guarded paired-contact action; physical exposure/wiring,
 encoded Movie recording, idle wake, photo export and wider desktop parity
 remain open.
+
+
+## Native HE desktop checkpoint
+
+At baseline instruction timing, early-startup Stop and same-card cold Restart
+complete before the stock HE setup. Camera-menu, C-shortcut and browser-button
+captures then write three consecutive, independently audited HE★ NEFs. Capture
+and mode commands are disabled while busy, with Stop available. Newly written
+`DSC_0003.NEF` opens in original playback, completing one 1,396,736-byte review
+job. Half-shutter returns to Photo UI mode 6; the last preview is retained, so
+fresh continuous Photo pixels are not qualified by this HE-profile check.
+The run passes 372 checks with 1,935 MAIN / 1,855 EX frames, no checksum failures
+and clean owned shutdown. The readiness guard uses the observed shooting mode
+6 and rejects menu/review modes 1/2, preparation, pending output and the
+sixteen-snapshot bound. Source tests cover those admission cases.
+
+Current checks: 46 host tests (45 pass, one optional legacy comparison skipped),
+18 board MMIO checks, 77 MCU checks, production renderer/source closure,
+217-file inventory and strict frontend audit. The signed macOS app builds.
+These checks do not close the remaining parity gates listed above.

@@ -97,8 +97,8 @@ This is an initial native desktop integration. Remaining MCU keys/lens/power,
 top-panel drawing, recording, playback idle wake/zoom, USB/plugins, a firmware console/debug
 dock, photo export dialogs and Linux/Windows desktop bundles remain open.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
-Z8 controls. Native HE/HE★ capture remains available through the separately
-qualified capture launcher.
+Z8 controls. The experimental native HE profile below adds shared browser,
+keyboard and native Camera-menu capture using the qualified paired contacts.
 
 
 ## Firmware power-down
@@ -149,3 +149,12 @@ confirmed, contacts are released and the status directs you to the camera displa
 Capture results and per-capture sensor/receiver snapshots remain in session files;
 use the [native HE audits](../docs/native-he-stills.md) after shutdown. Native
 photo export remains separate.
+
+The native baseline check stopped startup at 2.502 virtual seconds, restarted
+the same card, then completed three captures through the Camera menu, C and the
+browser button. All three saved NEFs independently pass full RAW/preview and
+producer/receiver audits. Playback shows the newly written `DSC_0003.NEF`
+through one 1,396,736-byte review job; half-shutter returns to the Photo UI.
+This HE profile retains the last preview on that return, so this check does
+not qualify fresh continuous Photo pixels. The session passes 372 checks,
+1,935 MAIN / 1,855 EX frames, zero checksum failures and clean owned shutdown.

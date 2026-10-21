@@ -38,6 +38,16 @@ def attach(guest,args):
         'input_scope':'Declared original EX and separate MAIN GPIO contacts; physical shared wiring unqualified'}
 
 
+
+def capture_ready(guest,row):
+    """C3.11 shooting mode is 6; menu/review modes cannot admit a new shot."""
+    he=guest.data['native_he_models']['engine152c-he-still-state']
+    mode=int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')
+    return (not row['preparing_capture'] and mode==6 and
+            guest.read_bytes(0xa03bd042c,1)==b'\x01' and he['jobs']<16 and
+            not he['pending'] and not he['stop_pending'])
+
+
 def sample(guest):
     if not guest.data.get('experimental_native_he'):return
     states={name:json.loads(guest.qmp.command('qom-get',path='/machine',property=name)) for name in STATES}
