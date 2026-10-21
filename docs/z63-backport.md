@@ -20,14 +20,14 @@ Z63 firmware on the Z8 machine.
 | Shared221 capture, HE forward/inverse, RAW transport, capture pool, programmed clock, DSP boot, motion, main output and Wave5 | Included as source with explicit opt-in properties and dependencies. Original DSP microcode, physical ISP equations and R3D integration are excluded. | Synthetic host tests and actual board MMIO; native single HE/HE★ captures separately accepted. Movie recording remains open. |
 | NV12 live-view JPEG and cancellation | Ported mode `0x32`, completed-generation tracking, overwrite invalidation, once-only consumption and pending-result guards. Existing NV16 remains covered. | Host codec/provenance tests; Z8 PTP/RTSP delivery remains unqualified. |
 | JPEG decode and saved-preview resize | Ported both JPEG cores, per-core epochs, NV16 geometry/span/padding/overlap checks and output-before-IRQ ownership. | Production resize/rendering tests and one native saved-photo display accepted. Normal two-cycle Photo/Menu return is accepted; zoom and idle-wake remain open. |
-| Capture drains and movie exit | Ported source/processing ownership, deferred drains, masked-statistics reset and finite/continuous input separation. | Synthetic tests; repeated Z8 capture and movie return remain unqualified. |
+| Capture drains and movie exit | Ported source/processing ownership, deferred drains, masked-statistics reset and finite/continuous input separation. | Synthetic tests; explicit Movie/Photo recovery qualified below. Repeated Z8 capture remains open. |
 | Task `0xff` status clear | Separate `task1500-ff-clear-model`, off by default. Z8's original zero clear is preserved. | Empty-status clear/arm/start controls; neither value creates task data. |
 | Graphics/display | Preserve Z8 four-bank active acknowledgments, indexed overlays, region storage and additional rendering paths; add full-height NV16 direct scanout. | Actual renderer tests and original menu regression; physical panel/color fidelity unqualified. |
 | Persistent virtual cards and exports | `--card` attaches an existing exFAT image for guest writes. Existing exact-file export plus bounded exFAT-window/ISO-BMFF helpers are available. | Guest-written lossless NEF accepted by two decoders. Export only after the emulator stops. |
 | Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. An explicit experimental profile now produces Movie frames and recovers to Photo; standard-profile and recording acceptance remain separate. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
-| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 73 synthetic reset/contact checks pass; original shooting display and Menu/navigation/half contacts reached. Remaining controls/capture remain open. |
-| Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 mode controls, lens/motor, power and card hot-plug still need their own bindings. | No physical or native Z8 qualification. |
+| STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 73 synthetic reset/contact checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Remaining controls/capture remain open. |
+| Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | No physical or native Z8 qualification. |
 | Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; complete debug/export/USB/plugin parity remains open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
@@ -120,8 +120,8 @@ read-only exception observations; it changes neither instructions nor registers.
 The controller now accepts the statically traced `play` input for saved-photo
 experiments. Replay completion alone does not assert native workflow success.
 
-The opt-in movie selector16/preparation and YUV readiness experiments remain
-unqualified. They distinguish missing external table data, empty-channel
+The earlier selector16/preparation and YUV readiness experiments alone did not
+qualify Movie. The later complete live-view recipe below has separate acceptance. They distinguish missing external table data, empty-channel
 readiness and actual frame production. YUV ready state2 acknowledges arm state1
 without DMA, queue results or interrupts. Saved-photo GPU mode8 is a functional
 output-table-only interpretation requiring all three tables; physical stage
@@ -206,3 +206,31 @@ right/half inputs arrived, accompanied by MCU mode request 9. Transport
 completion alone did not wake that state.
 Production tests cover immutable input, padding, decoder epochs, pending
 owners, cancellation and absence of pixel work from the timeout pulse.
+
+
+## Original EX Movie and card controls checkpoint
+
+The original controller now supplies Movie/Photo reports from the verified
+expander `0x23` bit 10, and Play from bit 5. Native Movie capabilities require
+the complete five-option live-view recipe; Play requires an attached exFAT
+card, playback model, shared profile, boundary inputs and sensor source clock.
+Both server admission and shared browser/desktop configuration enforce these
+gates. Native EX owns replies; card attachment keeps host controller-GPIO
+replies disabled. No Z63 physical button names are inferred for unknown pins.
+
+Separate cold-boot contact and interactive workbench runs produced 97 and 261
+Movie frames with matching ISP/source acknowledgments, then recovered through
+Photo/Menu/half. Native card review independently completed two finite resize
+jobs, with normal early Photo/Menu/half return and fresh RAW frames. The later
+review idle transition still fails the tested half/Menu wake sequence. See
+[native MCU evidence and replay](native-mcu.md#native-movie-and-card-workflows).
+
+B6 timeout cleanup now retains only its control pulse, independent of a past
+playback epoch or geometry. It performs no DMA and creates no completion.
+Actual output remains exclusively guarded at A1 START. Production-function
+ASan/UBSan tests preserve invalid-pulse rejection, pending-owner checks and
+pixel/epoch admission. The updated host suite passes 38 of 39 tests with one
+optional legacy comparison skipped; all 18 board MMIO checks and the strict
+frontend audit pass. The macOS bundle builds and its signature verifies.
+Encoded recording, repeated still capture, idle wake/zoom and full desktop
+integration remain open; this PR remains a bounded backport.

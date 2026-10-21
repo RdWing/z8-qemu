@@ -4,8 +4,8 @@
   "host_family": "macOS Apple Silicon",
   "full_fresh_qemu_build": true,
   "host_tests": {
-    "run": 35,
-    "pass": 34,
+    "run": 39,
+    "pass": 38,
     "skip_optional_legacy": 1
   },
   "actual_board_mmio_checks": 18,
@@ -19,7 +19,7 @@
   "jpeg_previews_decoded": 3,
   "native_he_movie_playback_parity": false,
   "z8_native_mcu_desktop_parity": false,
-  "scope": "Functional source/model backport with bounded native single HE/HE-star capture, saved-photo display, experimental host-peer Movie/Photo recovery and original EX contact controls; not complete feature parity.",
+  "scope": "Functional source/model backport with single HE/HE-star capture, normal saved-photo recovery, experimental Movie/Photo recovery, original EX Movie/Play contacts and initial desktop integration; not complete feature parity.",
   "native_he_single_capture": true,
   "native_movie_liveview_two_cycle_frames": [
     1089,
@@ -36,11 +36,23 @@
     "up",
     "right",
     "i",
-    "half"
+    "half",
+    "play",
+    "photo_movie"
   ],
   "native_playback_finite_waits_complete": true,
   "native_playback_trigger": "A1 START; B6 timeout control produces no DMA",
   "native_playback_idle_wake": false,
   "native_playback_zoom": false,
-  "native_playback_recovery_cycles": 2
+  "native_playback_recovery_cycles": 2,
+  "original_ex_movie_liveview_frames": [
+    97,
+    261
+  ],
+  "original_ex_normal_playback_recovery": true,
+  "original_ex_movie_recording": false,
+  "original_ex_idle_wake": false,
+  "original_ex_movie_with_card_frames": 114,
+  "original_ex_desktop_playback_recovery": true,
+  "original_ex_desktop_movie_selection": false
 }

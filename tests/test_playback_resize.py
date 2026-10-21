@@ -118,7 +118,8 @@ int main(void){
  setup(&s);pair(s.engine1542_config[7],0x20,BASE+4096);assert(!z8_playback_prepare(&s));
  assert(!z8_playback_span(&s,UINT64_MAX-31,64));assert(!reads&&!writes&&!irq);
  setup(&s);assert(z8_playback_prepare(&s));s.engine1542_config[9][8]=1;
- z8_playback_output_control(&s,9,0x15422604,1);assert(invalid==1&&!writes);g_free(s.z8_playback_pixels);
+ z8_playback_output_control(&s,9,0x15422604,1);assert(!invalid&&!writes&&!irq&&s.z8_playback_requested);
+ z8_playback_output_control(&s,9,0x15422604,3);assert(invalid==1&&!writes&&!irq);g_free(s.z8_playback_pixels);
  setup(&s);assert(z8_playback_prepare(&s));s.z8_jdec_output_epoch[0]++;
  s.z8_playback_outputs_armed=2;z8_playback_run(&s);assert(invalid==1&&!writes&&!irq&&!s.z8_playback_pixels);
  /* A retained read cannot be replaced by later edits to source RAM. */

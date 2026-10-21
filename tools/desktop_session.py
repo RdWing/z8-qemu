@@ -26,8 +26,8 @@ def command(config):
         mcu=config['mcu']
         if not isinstance(mcu,str) or not Path(mcu).is_absolute() or not Path(mcu).is_file():
             raise ValueError('mcu must name an existing absolute EX component')
-        if config.get('card') or any(config.get(k) for k in FLAGS):
-            raise ValueError('Native MCU display mode currently requires card/playback/shared-profile options to be omitted')
+        if config.get('experimental_playback') and not all(config.get(k) for k in ('experimental_shared221','experimental_boundary_inputs','experimental_sensor_source_clock')):
+            raise ValueError('Native EX playback requires shared profile, boundary inputs and sensor source clock')
         if type(config.get('native_controls',False)) is not bool:raise ValueError('native_controls must be true or false')
         args += ['--mcu',mcu]
         if config.get('native_controls'):args += ['--native-controls']

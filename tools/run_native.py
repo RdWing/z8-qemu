@@ -19,9 +19,11 @@ from z8_global1_boundary_input import Peer as BoundaryPeer
 from control import Control, png_from_ppm
 from native_contact_replay import ContactReplay
 from native_inputs import Inputs, CONTACTS
+import movie_inputs
+import virtual_card
 
 p=arguments(__doc__)
-p.add_argument('--port',type=int,help='Loopback read-only native-MCU display, with Stop control')
+p.add_argument('--port',type=int,help='Loopback native-MCU display and optional qualified contacts')
 p.add_argument('--check-only',action='store_true')
 p.add_argument('--mcu',type=Path,required=True)
 p.add_argument('--native-controls',action='store_true',help='Qualified EX Menu/navigation/half contacts; requires loopback view')
@@ -29,7 +31,18 @@ p.add_argument('--contact-replay',type=Path,help='Ordered original-MCU external 
 p.add_argument('--mcu-pins',default='',help='Explicit external contacts, e.g. G1=1:G13=1; no inherited Z63 key names')
 p.add_argument('--seconds',type=int,default=180)
 p.add_argument('--experimental-shared221',action='store_true')
+p.add_argument('--card',type=Path,help='Existing virtual exFAT card; guest writes persist')
+p.add_argument('--experimental-playback',action='store_true',help='Functional decoder/finite transfer; original EX workflow has separate acceptance')
+movie_inputs.arguments(p)
 a=p.parse_args()
+try:movie_inputs.validate(a)
+except ValueError as error:p.error(str(error))
+if a.card:
+ try:a.card=virtual_card.validate(a.card)
+ except ValueError as error:p.error(str(error))
+if a.experimental_playback and not a.card:p.error('--experimental-playback requires --card')
+if a.experimental_playback and not (a.experimental_shared221 and a.experimental_boundary_inputs and a.experimental_sensor_source_clock):
+ p.error('Native EX playback requires shared profile, boundary inputs and sensor source clock')
 if not 1<=a.seconds<=3600:p.error('Duration must be 1..3600 seconds')
 if ',' in a.mcu_pins:p.error('Use colon-separated MCU contacts')
 if a.native_controls and (a.port is None or a.contact_replay):p.error('--native-controls requires --port and excludes contact replay')
@@ -47,23 +60,29 @@ g.command[index]=g.command[index].replace('nikon-z8-lab,','nikon-z8-full-lab,zr-
 if a.experimental_shared221:
  profile=json.loads(Path(__file__).with_name('experimental-shared221-profile.json').read_text())
  properties=dict(profile['properties']);properties['ccomp-gpio-model']='off'
+ g.data['experimental_shared221']=dict(profile,effective_properties=properties)
  g.command[index]+=','+','.join(k+'='+v for k,v in properties.items())
 g.command[g.command.index('-smp')+1]='4,maxcpus=5'
 g.command+=['-device',f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-num=0']
-attach(g);g.data.update(native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
-control=Control(a.port,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None) if a.port is not None else None
+attach(g);movie_inputs.attach(g,a)
+if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_mcu=True)
+mode_controls=a.native_controls and movie_inputs.native_modes_enabled(a)
+g.data.update(native_mode_controls=mode_controls,native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
+control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls) if a.port is not None else None
 if control:
  control.write_endpoint(g.out);signal.signal(signal.SIGTERM,lambda *_:control.stop.set())
 try:
  with g:
   g.rsp('z1,40160000,4')
-  inputs=Inputs(g.qmp) if a.native_controls else None
-  boundary=BoundaryPeer(g,33,auxiliary_masked=True,auxiliary1_masked=a.experimental_shared221,global0_bit26=a.experimental_shared221)
+  inputs=Inputs(g.qmp,allow_modes=mode_controls) if a.native_controls else None
+  boundary=BoundaryPeer(g,33,auxiliary_masked=True,auxiliary1_masked=a.experimental_boundary_inputs,global0_bit26=a.experimental_boundary_inputs)
   spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
   deadline=time.monotonic()+a.seconds;next_sample=0;capture_at=[]
   g.qmp.command('cont')
   while time.monotonic()<deadline and not (control and control.stop.is_set()):
-   if not g.qmp.command('query-status')['running'] or 'Z8_UNKNOWN' in g.log():break
+   if 'Z8_UNKNOWN' in g.log():break
+   if not g.qmp.command('query-status')['running']:
+    g.data['unexpected_native_stop']=True;break
    boundary.tick()
    if inputs:
     vt=json.loads(g.qmp.command('qom-get',path='/machine',property='runtime-clock-state'))['virtual_ns']/1e9
@@ -86,7 +105,7 @@ try:
     g.data.setdefault('native_samples',[]).append(row)
     if control:
      g.qmp.command('stop');frame=g.out/'current.ppm';g.qmp.command('screendump',filename=str(frame))
-     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9),ready=a.native_controls and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
+     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9),ready=a.native_controls and row['raw-pipeline-state']['frames']>=8 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
      g.qmp.command('cont')
     (g.out/'native-live.json').write_text(json.dumps(row)+'\n');next_sample=now+.5
    time.sleep(.002)
@@ -94,10 +113,14 @@ try:
   g.qmp.command('stop')
   g.qmp.command('memsave',val=0x2000d000,size=7964,filename=str(g.out/'mcu-initialized-data.bin'),**{'cpu-index':4})
   g.data['native_cpus']={str(i):g.qmp.hmp('info registers',i) for i in range(5)}
+  if a.experimental_shared221 or a.experimental_playback:
+   g.data['native_model_state']={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['raw-pipeline-state','z8-playback-state','engine15e2-jpeg-state','event1508-channel-state','engine1543-control-state']}
   g.data['final_native_mcu']=json.loads(g.qmp.command('qom-get',path='/machine',property='native-mcu-state'))
   g.qmp.command('screendump',filename=str(g.out/'final.ppm'))
   (g.out/'final.png').write_bytes(png_from_ppm(g.out/'final.ppm'))
   (g.out/'toplcd-bits.hex').write_text(g.qmp.command('qom-get',path='/machine',property='mcu-toplcd-bits')+'\n')
+  g.check('native run has no unmodeled MMIO', 'Z8_UNKNOWN' not in g.log())
+  g.check('native run has no unexpected stop',not g.data.get('unexpected_native_stop',False))
 finally:
  if control:control.close()
  print(g.out)

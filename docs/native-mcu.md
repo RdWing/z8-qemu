@@ -3,7 +3,7 @@
 The optional `mcu-image` attachment runs the user-supplied original Z8 EX03.00
 alongside C3.11 MAIN. The existing host-peer launcher remains the capture/menu
 baseline. This attachment uses no host MCU replies or firmware instruction
-patches. It is experimental; Menu/navigation/half-shutter contacts are qualified separately below.
+patches. It is experimental; contacts and bounded workflows are qualified separately below.
 
 ```sh
 python tools/run_native.py --firmware /private/MAIN.bi --mcu /private/EX.bi \
@@ -47,7 +47,9 @@ The compatible MCU clock is 180 MHz, timer clocks 90 MHz, RTC starts at
 panel received one clear packet and zero line packets in the native run.
 The donor mechanical shutter is unarmed and its position pins are not driven.
 Exact physical chip identity/clock, remaining Z8 key/lens/power mappings, native
-capture, Movie, card-backed playback, recovery and top-panel drawing remain unqualified.
+full-shutter capture, encoded recording, idle wake and top-panel drawing remain unqualified.
+Movie live view, normal Photo recovery and card-backed review have separate
+native acceptance below.
 No host-peer acceptance transfers to this attachment.
 
 Firmware-free reset checks:
@@ -68,8 +70,9 @@ qualification.
 `--native-controls --port 0` enables Menu, arrows, OK, i and half-shutter in the
 shared browser workbench. Each action changes an external active-low contact;
 original EX creates the switch report and MAIN consumes it. No host switch
-messages or firmware memory edits implement these actions. Other buttons and
-the Photo/Movie selector stay disabled in this mode.
+messages or firmware memory edits implement these actions. Playback additionally
+requires a supplied card and the explicit playback model. Photo/Movie additionally
+requires all five experimental Movie options below. Other buttons stay disabled.
 
 | Input | External contact | Original switch-report byte |
 | --- | --- | --- |
@@ -81,6 +84,8 @@ the Photo/Movie selector stay disabled in this mode.
 | Right | expander `0x23`, bit 14 | `0x22` |
 | i | expander `0x23`, bit 7 | `0x48` |
 | Half-shutter | PG1 | `0x07` |
+| Playback | expander `0x23`, bit 5 | `0x44` |
+| Photo/Movie | expander `0x23`, bit 10; high/low | `0x57` |
 
 Explicit idle inputs PG1/PG13/PG14/PG15 are high. Releasing PG14/PG15 clears
 report fields `0x6F/0x70`; leaving them low kept Menu blocked in the earlier
@@ -94,10 +99,63 @@ pixels with half-shutter. By 40.36 virtual seconds it exchanged 920 MAIN and
 863 EX frames with zero checksum failures. A separate macOS desktop session
 sent actual half-shutter/Menu contacts, displayed original Menu and stopped
 cleanly, with 1,413 MAIN / 1,301 EX frames and zero checksum failures. These
-checks establish the stated contacts and workflows, not native capture or
-card support. `--contact-replay` accepts finite ordered external contacts for
+checks establish the stated contacts and workflows. They do not qualify full-shutter
+capture. Later card and Movie checks are described below. `--contact-replay` accepts finite ordered external contacts for
 investigation and excludes interactive controls in the same run.
 
 The [desktop workbench](../desktop/README.md) enables these contacts with both
 `mcu` and `native_controls: true` in its configuration. Display-only native
 inspection remains available by omitting `native_controls`.
+
+## Native Movie and card workflows
+
+Enable `--experimental-shared221 --experimental-boundary-inputs
+--experimental-sensor-source-clock --experimental-yuv-channels
+--experimental-movie-selector16` together. These are declared functional models;
+the selector fixture is not factory calibration. The native selector changes
+expander `0x23` bit 10 and stays latched while other buttons press and release.
+Original EX supplies the resulting switch report. Boundary inputs are explicit
+in this launcher, matching the host-peer recipe.
+
+A cold-boot contact replay produced 97 Movie frames with 97 ISP and source
+acknowledgments, then returned through Photo, Menu and half-shutter to fresh
+Photo frames. It finished with 1,420 total RAW frames, zero rejected transfers,
+1,417 MAIN / 1,281 EX non-idle frames and zero checksum failures. An interactive
+shared-workbench run separately produced 261 Movie frames with matching
+acknowledgments and recovered to Photo. That UI run also sent one OK input
+while in Movie; the finite replay isolates the lever transition. Neither run
+uses host MCU replies. The 2160p UI label does not qualify encoded 4K recording.
+
+For native review add `--card /private/card.raw --experimental-playback` plus
+the shared profile, boundary inputs and sensor source clock. The supplied
+exFAT virtual card retains guest writes. Native EX remains the controller
+owner; attachment explicitly disables the host controller-GPIO reply model.
+A contact replay completed two 1,396,736-byte review transfers, with an early
+half-shutter return, Menu and a second half-shutter returning to fresh Photo
+frames. A later review entered UI mode 0 after about ten seconds; subsequent
+half/Menu contacts did not wake it. This is a separate idle-wake gap. Zoom,
+repeated still capture and full native controller parity remain unqualified.
+
+Use `tools/native-movie-recovery-contacts.json` for the bounded Movie replay.
+Contacts are scheduled in virtual firmware seconds; wall duration must allow
+the run to reach the last action. Interactive native controls require
+`--native-controls --port 0`; omit `--contact-replay` in that mode.
+
+
+A further cold boot attached the card while executing the native Movie replay.
+It produced 114 Movie frames with matching ISP/source acknowledgments, returned
+through Photo/Menu/half and reached 619 RAW frames at 40.4 virtual seconds.
+All eight scheduled Movie-recovery contacts were delivered, there were zero
+pixel rejects or checksum failures, and shutdown was clean (796 MAIN / 715 EX
+frames). The wall-time limit ended this run before its later scheduled Play
+input; it qualifies Movie with the card attached, not a combined review cycle.
+
+
+The rebuilt AppKit workbench independently completes native Play/half/Menu/half.
+Play is sent at virtual 20.535, review enters at 21.539, half returns to Photo
+at 23.667, Menu opens at 28.153 and final half returns at 31.190. RAW count
+advances from 351 during review to 453 after the first return and 518 by
+window close. One 1,396,736-byte review job completes, with 761 MAIN / 710 EX
+frames, zero checksum failures, zero pixel rejects and clean owned shutdown.
+The native Movie popup selection was not committed in this desktop test;
+shared-browser Movie and finite replay acceptance do not imply that action.

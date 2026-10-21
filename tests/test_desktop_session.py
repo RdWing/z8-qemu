@@ -32,7 +32,9 @@ class DesktopSession(unittest.TestCase):
             self.assertIn('--experimental-playback',args)
             args=desktop.command(dict(config,mcu=str(source)))
             self.assertIn('--mcu',args);self.assertTrue(args[2].endswith('run_native.py'))
-            with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),card=str(source)))
+            args=desktop.command(dict(config,mcu=str(source),card=str(source)))
+            self.assertIn('--card',args)
+            with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True))
             args=desktop.command(dict(config,mcu=str(source),native_controls=True))
             self.assertIn('--native-controls',args)
             with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),native_controls='yes'))
@@ -41,7 +43,11 @@ class DesktopSession(unittest.TestCase):
                        experimental_sensor_source_clock=True)
             args=desktop.command(dict(config,**movie))
             for flag in movie:self.assertIn('--'+flag.replace('_','-'),args)
-            with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),**movie))
+            args=desktop.command(dict(config,mcu=str(source),native_controls=True,**movie))
+            self.assertIn('--native-controls',args)
+            self.assertIn('--experimental-movie-selector16',args)
+            args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,**movie))
+            self.assertIn('--experimental-playback',args)
 
 
     @unittest.skipIf(os.name=='nt','POSIX private process-group lifecycle')

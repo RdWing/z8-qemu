@@ -18,6 +18,8 @@ Python 3.11 or newer and the built QEMU executable must already be available.
 Only public Python/HTML/JSON runtime source is copied into the bundle.
 
 Copy `desktop/example-config.json` to a private location and set absolute paths.
+`desktop/example-native-config.json` shows the explicit original-EX Movie/card
+configuration; every input path still names a user-supplied local file.
 Choose a **new output directory** for every session; the guest owns creation of
 that directory. Open the app and select the configuration, or run:
 
@@ -39,20 +41,22 @@ Without that explicit capability, both the frontend and server reject Playback.
 The guest can write the supplied card. Export camera files only after stopping
 its session, using the existing card/export tools.
 
-Add an absolute `mcu` path for the original EX03.00 component. This mode omits
-card, playback and shared profile options. Add `"native_controls": true` to
+Add an absolute `mcu` path for the original EX03.00 component. Add `"native_controls": true` to
 enable the independently qualified Menu, arrows, OK, i and half-shutter
 contacts. Original EX owns the resulting messages; the app changes external
-contacts only. Unsupported buttons and Photo/Movie stay disabled. Without
+contacts only. A virtual card and `experimental_playback` enable Play, with
+`experimental_shared221`, `experimental_boundary_inputs` and
+`experimental_sensor_source_clock` also required. All five Movie options below
+enable the native Photo/Movie lever. Unsupported buttons stay disabled. Without
 that option, native mode is display-only. Stop and window-close own either
 session's lifecycle. See the [contact map and limits](../docs/native-mcu.md).
 
-The experimental host-peer Movie live-view recipe is also available by setting
+The experimental Movie live-view recipe is also available by setting
 all five `experimental_shared221`, `experimental_boundary_inputs`,
 `experimental_yuv_channels`, `experimental_movie_selector16` and
 `experimental_sensor_source_clock` fields to `true`. These explicit models
-have separate two-cycle live-view/recovery acceptance; they do not qualify
-recording. See the [Movie checkpoint](../docs/z63-backport.md#movie-live-view-and-recovery-checkpoint).
+have host-peer two-cycle acceptance and separate original-EX live-view/recovery
+acceptance; they do not qualify recording. See the [Movie checkpoint](../docs/z63-backport.md#movie-live-view-and-recovery-checkpoint).
 
 ## Checked and remaining
 
@@ -68,10 +72,17 @@ The explicit host-peer Movie profile was exercised from the desktop selector:
 RAW frames at clean window-close shutdown.
 
 Original-EX desktop half-shutter and Menu inputs also reached the native Menu,
-with clean owned-process shutdown and zero checksum failures.
+with clean owned-process shutdown and zero checksum failures. The shared
+workbench separately exercised native Movie/Photo. A rebuilt AppKit window
+also completed native Play/half/Menu/half with one 1,396,736-byte review transfer,
+fresh Photo frames (518 RAW frames at shutdown), 761 MAIN / 710 EX frames, zero
+checksum failures or pixel rejects and clean window-close cleanup. Native
+Movie selection was not completed in that desktop test because popup
+automation was interrupted; shared-browser native Movie acceptance remains
+separate.
 
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
-top-panel drawing, recording/recovery, USB/plugins, a firmware console/debug
+top-panel drawing, recording, playback idle wake/zoom, USB/plugins, a firmware console/debug
 dock, photo/log export dialogs and Linux/Windows desktop bundles remain open.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
 Z8 controls. Native HE/HE★ capture remains available through the separately

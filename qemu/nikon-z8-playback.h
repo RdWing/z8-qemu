@@ -121,19 +121,7 @@ static bool z8_playback_output_control(NikonZ8State *s, unsigned i,
     /* B6 has no RAM destination. Original 40cb8738 pulses it only after
      * an input timeout, through 40c2606c / 40c26084. Retain this control;
      * it is not permission to perform a delayed pixel transfer. */
-    const uint32_t *c = s->engine1542_config[i];
-    const uint32_t *f = s->engine1542_config[21];
-    const uint32_t *a = s->z8_playback_input;
-    bool valid = value == 1 && i == 9 &&
-        c[0xc/4] == 0x41430010 &&
-        c[0x10/4] == 1 && c[0x40/4] == 0x22 &&
-        c[0x38/4] == a[0x38/4] && c[0x3c/4] == a[0x3c/4] &&
-        !capture_nv16_address(c, 0x20) && !capture_nv16_address(c, 0x28) &&
-        f[0] == 2 && f[1] == 1 && !f[2] && !f[3] &&
-        f[0x10/4] == 16384 && f[0x14/4] == 16384 && !f[0x20/4] &&
-        f[0x18/4] == a[0x4c/4] && f[0x1c/4] == a[0x50/4] &&
-        f[0x2c/4] == a[0x4c/4] && f[0x30/4] == a[0x50/4];
-    if (!valid) { unknown_access(s, addr, value, 4, true); return true; }
+    if (value!=1 || i!=9) { unknown_access(s,addr,value,4,true);return true; }
     s->engine1542_config[i][1] = value;
     fprintf(stderr, "Z8_PLAYBACK_CONTROL base=%x pulse=1; no DMA or completion\n", engine1542_bases[i]);
     return true;

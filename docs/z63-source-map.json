@@ -312,7 +312,7 @@
       "source_sha256": "aa3d71e363cffbb865ced6d2839f0975986c9e4a8ffbd0ef2401312906229dff"
     },
     "qemu/nikon-z8-playback.h": {
-      "adapted_sha256": "fb29fbd4d4826f7a16ea3190ebc081c17b1644e524a80bf4d4f7c1f6d0b99b5b",
+      "adapted_sha256": "92aa3af11b984f42047eac6cab47d5a99fb8353728b64733be180972825e79c4",
       "source_path": "nikon-z63-playback.h",
       "source_sha256": "7bf68f1d8fd212e613e98f0dcb47aea5b00dc0b391c79402b7bdd087a16c7314"
     },

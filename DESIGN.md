@@ -70,7 +70,8 @@ owned session. The native shell uses English copy and loopback navigation only. 
 the shared button/queue and requires an explicit virtual card plus model on
 both frontend and server. Native EX inspection identifies original controller
 replies. Its optional qualified-contact mode enables Menu, arrows, OK, i and
-half-shutter; capability checks disable other buttons and the mode selector.
+half-shutter. Card/model checks enable Play; the full experimental Movie profile
+enables the latched native lever. Capability checks disable unsupported actions.
 Display-only native mode retains Stop.
 `--compact` starts the same responsive workbench at 680px width for small screens.
 
