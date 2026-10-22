@@ -31,5 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build native workbench without Nikon inputs
         run: python3 desktop/build.py
+      - name: Native child environment and lifecycle contracts
+        run: python3 -m unittest discover -s tests -p 'test_desktop_session.py' -v
       - name: Verify ad-hoc bundle signature
         run: codesign --verify --deep --strict .local/desktop/Z8.app

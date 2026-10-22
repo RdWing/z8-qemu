@@ -283,7 +283,7 @@
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
     "qemu/nikon-z8-lab.c": {
-      "adapted_sha256": "7564a1fc14c5297da51fe9047539da9211a4a31b5f017514611b6ac6e601d120",
+      "adapted_sha256": "9e62c1b5321c1d8dfb410cd90592ca250efd987e94312d07ad9ab5c96905e3b2",
       "source_path": "nikon-z63-z9lab.c",
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },

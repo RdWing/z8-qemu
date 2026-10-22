@@ -14,6 +14,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     var lastError = false
     var modeReady = false
     var captureReady = false
+    var buttonsReady = Set<String>()
     var activeConfiguration: [String: Any]?
     var restartOutputRoot: String?
     var restartURL: URL?
@@ -57,7 +58,11 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         for (title, selector, key) in [
             ("Switch to Photo", #selector(selectPhoto), "1"),
             ("Switch to Movie", #selector(selectMovie), "2"),
-            ("Capture photo", #selector(capturePhoto), "")
+            ("Capture photo", #selector(capturePhoto), ""),
+            ("MENU", #selector(cameraMenuButton), ""),
+            ("Half shutter", #selector(cameraHalfButton), ""),
+            ("Playback", #selector(cameraPlayButton), ""),
+            ("i menu", #selector(cameraIButton), "")
         ] {
             let item = cameraMenu.addItem(withTitle: title, action: selector, keyEquivalent: key)
             item.target = self
@@ -184,7 +189,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     func start(_ configuration: URL, restoring: Bool = false) {
         guard child == nil && !starting && !exporting else { return }
-        lastError = false; modeReady = false; captureReady = false
+        lastError = false; modeReady = false; captureReady = false; buttonsReady = []
         do {
             let value = try JSONSerialization.jsonObject(with: Data(contentsOf: configuration))
             guard let config = value as? [String: Any], let python = config["python"] as? String,
@@ -214,9 +219,16 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             message("Could not start Z8", detail: error.localizedDescription + " Choose Session → Open configuration to try again.")
         }
     }
+    func configurePython(_ process: Process) {
+        // Keep the signed runtime immutable, including spawned Python workers.
+        var environment = ProcessInfo.processInfo.environment
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        process.environment = environment
+    }
     func launch(_ config: [String: Any], python: String, out: String, restoring: Bool) throws {
         output = URL(fileURLWithPath: out); baseURL = nil; lineBuffer = Data()
         let process = Process(); let pipe = Pipe()
+        configurePython(process)
         process.executableURL = URL(fileURLWithPath: python)
         let script = Bundle.main.resourceURL!.appendingPathComponent("runtime/tools/desktop_session.py")
         let snapshot = FileManager.default.temporaryDirectory.appendingPathComponent("z8-config-" + UUID().uuidString + ".json")
@@ -238,7 +250,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                 guard let self else { return }
                 self.cleanupSnapshot(snapshot)
                 guard self.child === process else { return }
-                self.child = nil; self.modeReady = false; self.captureReady = false
+                self.child = nil; self.modeReady = false; self.captureReady = false; self.buttonsReady = []
                 if self.terminating { self.cancelRestart(); NSApp.reply(toApplicationShouldTerminate: true) }
                 else if let restart = self.restartURL {
                     self.restartURL = nil
@@ -286,6 +298,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
               let value = message.body as? [String: Any], let ready = value["modeReady"] as? Bool else { return }
         modeReady = ready
         captureReady = value["captureReady"] as? Bool ?? false
+        buttonsReady = Set((value["buttonsReady"] as? [String] ?? []).filter { ["menu", "half", "play", "i"].contains($0) })
     }
     func selectMode(_ mode: String) {
         guard modeReady, child?.isRunning == true, baseURL != nil,
@@ -296,6 +309,18 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         guard captureReady, child?.isRunning == true, baseURL != nil else { return }
         view.evaluateJavaScript("window.z8Workbench?.capturePhoto()")
     }
+    var cameraButtonActions: [Selector: String] {
+        [#selector(cameraMenuButton): "menu", #selector(cameraHalfButton): "half",
+         #selector(cameraPlayButton): "play", #selector(cameraIButton): "i"]
+    }
+    func pressCameraButton(_ key: String) {
+        guard buttonsReady.contains(key), child?.isRunning == true, baseURL != nil else { return }
+        view.evaluateJavaScript("window.z8Workbench?.press('\(key)')")
+    }
+    @objc func cameraMenuButton() { pressCameraButton("menu") }
+    @objc func cameraHalfButton() { pressCameraButton("half") }
+    @objc func cameraPlayButton() { pressCameraButton("play") }
+    @objc func cameraIButton() { pressCameraButton("i") }
     @objc func selectPhoto() { selectMode("photo") }
     @objc func selectMovie() { selectMode("movie") }
     @objc func saveDisplay() {
@@ -348,6 +373,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         // Native dialogs own destination selection; the helper verifies stopped
         // ownership, holds QEMU-compatible card locks and publishes atomically.
         let process = Process(), pipe = Pipe()
+        configurePython(process)
         process.executableURL = URL(fileURLWithPath: python)
         let script = Bundle.main.resourceURL!.appendingPathComponent("runtime/tools/desktop_photo_export.py")
         process.arguments = [script.path, "--card", card, "--session", output.path, "--output", destination.path]
@@ -443,6 +469,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         }
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let action = item.action, let key = cameraButtonActions[action] { return buttonsReady.contains(key) && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(capturePhoto) { return captureReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(selectPhoto) || item.action == #selector(selectMovie) { return modeReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(exportPhotos) { return activeConfiguration?["card"] is String && output != nil && child == nil && !starting && !exporting }

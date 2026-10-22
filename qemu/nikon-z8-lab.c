@@ -3473,6 +3473,50 @@ static bool graphics_init46(unsigned reg, uint32_t value)
     }
 }
 
+/* The original Z8 i-menu also emits the donor's e73/A8/e85/A8
+ * empty-inline pair. Both families retain exact matching-end ownership;
+ * nonempty inline geometry is unsupported and must still fault the stream.
+ * Original Z8 40226acc emits 5e5/A8/5ec/A8 with zero segment/coordinate
+ * counts. ZR 4022b214's count<1 branch at 4022b31c goes to 4022c1d4 and
+ * emits e73/A8/e85/A8. Native390 retains stroke program2 after a glyph;
+ * Native400 can select fill1 with the previous stroke2 program resident.
+ * Require the selected resident paint, not the stale shader's paint bit.
+ * Neither start nor matching end executes pixels or reports completion. */
+static bool graphics_inline_packet_allowed(const Z8Graphics *g, uint32_t header)
+{
+    return !g->inline_path_phase ||
+           header == (0xa0000000 | (g->inline_path_end << 7)) ||
+           (header == 0xa8000000 && g->image_selector == g->inline_path_end);
+}
+
+static bool graphics_inline_path(Z8Graphics *g, unsigned selector)
+{
+    if (g->image_pending || g->path_pending) {
+        return false;
+    }
+    if (selector == 0x5e5 || selector == 0xe73) {
+        if (g->inline_path_phase || !g->path_controls[0] ||
+            (g->path_kind != 1 && g->path_kind != 2) ||
+            !(g->path_paint_valid & g->path_paint_mask & 3) || !g->path_program) {
+            return false;
+        }
+        g->path_edge_count = 0;
+        g->inline_path_phase = 1;
+        g->inline_path_end = selector == 0xe73 ? 0xe85 : 0x5ec;
+    } else if (selector == 0x5ec || selector == 0xe85) {
+        if (g->inline_path_phase != 1 || selector != g->inline_path_end) {
+            return false;
+        }
+        g->inline_path_phase = 0;
+        g->inline_path_end = 0;
+        g->path_pending = true; /* zero pixels; later draw owns completion */
+        g->path_descriptors++;
+    } else {
+        return false;
+    }
+    return true;
+}
+
 static bool graphics_commit(NikonZ8State *s)
 {
     Z8Graphics *g = &s->graphics;
@@ -3483,9 +3527,7 @@ static bool graphics_commit(NikonZ8State *s)
     if (g->clear_phase && !clear_packet) {
         return false; /* incomplete native clear sequence cannot report idle */
     }
-    if (g->inline_path_phase &&
-        !(g->header == (0xa0000000 | (g->inline_path_end << 7)) ||
-          (g->header == 0xa8000000 && g->image_selector == g->inline_path_end))) {
+    if (!graphics_inline_packet_allowed(g, g->header)) {
         return false; /* nonempty inline geometry is not implemented */
     }
     if (s->graphics_image_model && (g->header & 0xf7c0007f) == 0xa0000000) {
@@ -3505,43 +3547,11 @@ static bool graphics_commit(NikonZ8State *s)
             g->path_direction = 0;
         } else if (g->header == 0xa8000000 && s->graphics_path_model &&
                    g->image_initialized && (g->image_selector == 0x5e5 ||
-                    (g->image_selector == 0xe73 &&
-                     object_dynamic_cast(OBJECT(s), MACHINE_TYPE_NAME("nikon-zr-lab"))))) {
-            /* Original 40226acc with segment/coordinate counts zero emits
-             * exactly 5e5,A8,5ec,A8. Clear prior edges now, but do not queue
-             * or finish a draw before its matching end and 46/4a commit.
-             * ZR 4022b214 branches directly from segment count <1 at
-             * 4022b31c to 4022c1d4, emitting e73,A8,e85,A8 instead.
-             * Nonempty inline streams remain unsupported. */
-            /* Native390 also emits the exact empty5e5/A8/5ec/A8
-             * pair after a stroked glyph, with resident stroke program2.
-             * Its own paint must be present. Clear stale edges now; the
-             * matching end and draw still own zero-pixel completion. */
-            if (g->inline_path_phase || !g->path_controls[0] ||
-                (g->path_kind != 1 && g->path_kind != 2) ||
-                /* Native400 constructs an empty fill path immediately
-                 * after a stroked glyph. Both paints are resident while
-                 * the selected mask is fill1 and the previous shader is
-                 * stroke2. No vertex consumes the previous shader's paint;
-                 * require a valid selected paint, not the stale shader bit.
-                 * Nonempty queue validation and end/draw ownership stay strict. */
-                !(g->path_paint_valid & g->path_paint_mask & 3) || !g->path_program) {
+                    g->image_selector == 0xe73 || g->image_selector == 0x5ec ||
+                    g->image_selector == 0xe85)) {
+            if (!graphics_inline_path(g, g->image_selector)) {
                 return false;
             }
-            g->path_edge_count = 0;
-            g->inline_path_phase = 1;
-            g->inline_path_end = g->image_selector == 0xe73 ? 0xe85 : 0x5ec;
-        } else if (g->header == 0xa8000000 && s->graphics_path_model &&
-                   g->image_initialized && (g->image_selector == 0x5ec ||
-                    (g->image_selector == 0xe85 &&
-                     object_dynamic_cast(OBJECT(s), MACHINE_TYPE_NAME("nikon-zr-lab"))))) {
-            if (g->inline_path_phase != 1 || g->image_selector != g->inline_path_end) {
-                return false;
-            }
-            g->inline_path_phase = 0;
-            g->inline_path_end = 0;
-            g->path_pending = true; /* valid empty work, pixel count is zero */
-            g->path_descriptors++;
         } else if (g->header == 0xa8000000 && s->graphics_path_model && g->image_initialized) {
             /* Original Z8 4020f0ec/402406c4 style selectors, independently
              * varied in stroke-parameters-001. A8 commits configuration,
@@ -3561,8 +3571,7 @@ static bool graphics_commit(NikonZ8State *s)
                      (s->graphics_path_model && (selector == 0x97f || selector == 0x93b ||
                       selector == 0x826 || selector == 0x7df ||
                       selector == 0x5e5 || selector == 0x5ec ||
-                      ((selector == 0xe73 || selector == 0xe85) &&
-                       object_dynamic_cast(OBJECT(s), MACHINE_TYPE_NAME("nikon-zr-lab"))) ||
+                      selector == 0xe73 || selector == 0xe85 ||
                       selector == 0x7cd || selector == 0x7d0 || selector == 0x7ca ||
                       selector == 0x935 || selector == 0x937 || selector == 0x939)))))) {
             g->image_selector = selector;

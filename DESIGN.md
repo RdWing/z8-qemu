@@ -150,3 +150,23 @@ background read by generation. Native destination Cancel and successful
 three-photo export are exercised; worker cancellation and malformed-card paths
 have firmware-free host tests. This uses standard AppKit presentation and the
 existing workbench; there is no new palette or screen hierarchy.
+
+
+## Native Camera button commands
+
+Camera → MENU, Half shutter, Playback and i menu call the shared
+`z8Workbench.press` function. The page publishes the exact enabled button keys
+alongside mode/capture readiness through the existing same-origin main-frame
+message. AppKit intersects that set with the four known commands and also
+requires its owned child and endpoint. Playback keeps its card/model gate;
+boot, disconnection and capture admission disable these commands. Button-set
+changes must notify AppKit even when mode/capture readiness stays unchanged.
+Browser buttons and native commands share local capture-pending/waiting guards
+plus server-side serialization. This adds no new EX contact or physical key map.
+
+
+The AppKit launcher sets `PYTHONDONTWRITEBYTECODE=1` in both session and export
+process environments, preserving other environment values. Every spawned
+Python descendant inherits this policy. Bundled runtime imports must never
+modify signed resources; verify the bundle signature after running sessions
+and export, not just immediately after building.

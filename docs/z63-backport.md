@@ -353,3 +353,42 @@ Four actual-QEMU lock checks exclude existing/new writers, allow reopening after
 release and preserve the card. Native startup diagnostics retain a separate
 macOS initializer wait at the repository path; relocating the identical binary
 starts original MAIN/EX and cold restart. The underlying host cause is unresolved.
+
+
+## Native command and signed-runtime checkpoint
+
+Camera → MENU, Half shutter, Playback and i menu share the browser's qualified
+original-EX contacts, per-button readiness and serialized queue. Their native
+menu state updates even when mode/capture readiness does not change. Local
+capture admission blocks other buttons immediately while the request or job is
+pending; backend guards remain independent. Boot and disconnection disable the
+commands; Playback retains its card/model gate.
+
+The native i input exposed an unported empty-path family: `E73/A8/E85/A8` was
+restricted to ZR although original Z8 emits it too. The model now admits that
+exact matching pair with the existing resident paint/program guards and later
+draw ownership. Nonempty inline geometry, unmatched ends and pending work still
+fail without completion. Production-helper sanitizer tests cover both empty
+families and negative controls. Original EX now reaches its i settings grid
+through the native command after Menu/half recovery; this is functional UI
+acceptance, not physical display or rendering-fidelity qualification.
+
+Native Python imports previously wrote bytecode caches into the signed bundle,
+invalidating its sealed resources. Both session and export processes now disable
+bytecode writes for all descendants. A compiled production-function test uses
+real parent/child imports; macOS CI runs it alongside process-lifecycle checks.
+The updated app starts repository-path QEMU without relocation and retains a
+valid signature during use. Earlier relocation observations remain a diagnostic
+control; the exact internal macOS XPC causal chain is not established.
+
+Current macOS host suite: 54 tests, 53 pass and one optional comparison skips.
+The rebuilt QEMU passes 18 actual-board MMIO checks; the source inventory
+contains 222 files. HE/Movie preview remains
+deferred while the other parity gaps are addressed.
+
+The final native sequence passes 392 checks with 1,223 MAIN / 1,133 EX frames,
+zero bad frames and clean owned shutdown. It displays `DSC_0003.NEF` through
+one 1,396,736-byte review job and returns to fresh Photo frames (920→974 RAW
+frames). The app remains signature-valid with zero bytecode cache files after
+both native sessions and three exact NEF exports. Original repository-path
+QEMU cold restart publishes its socket in 0.049345 seconds.

@@ -58,6 +58,30 @@ class DesktopSession(unittest.TestCase):
                 self.assertIn('--experimental-'+flag,args)
 
 
+    @unittest.skipUnless(sys.platform=='darwin', 'Native macOS Process environment')
+    def test_native_python_and_descendants_leave_runtime_immutable(self):
+        # Compile the production configuration function, then import a module
+        # in real parent/child interpreters. A missing environment flag would
+        # create __pycache__ inside the signed runtime.
+        source=(ROOT/'desktop/Z8.swift').read_text()
+        function=source[source.index('    func configurePython('):source.index('    func launch(')]
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp); runtime=root/'runtime';runtime.mkdir()
+            (runtime/'module.py').write_text('value=1\n')
+            code="import module,os,subprocess,sys;assert os.environ['Z8_RUNTIME_SENTINEL']=='retained';subprocess.run([sys.executable,'-c','import module'],check=True)"
+            swift=root/'main.swift';binary=root/'check-runtime'
+            swift.write_text('import Foundation\nfinal class Runtime {\n'+function+'}\n'+
+                'let process=Process();Runtime().configurePython(process)\n'+
+                'process.executableURL=URL(fileURLWithPath:'+json.dumps(sys.executable)+')\n'+
+                'process.arguments=["-c",'+json.dumps(code)+']\n'+
+                'process.currentDirectoryURL=URL(fileURLWithPath:'+json.dumps(str(runtime))+')\n'+
+                'try process.run();process.waitUntilExit();precondition(process.terminationStatus==0)\n')
+            subprocess.run(['xcrun','swiftc','-module-cache-path',str(root/'cache'),str(swift),'-o',str(binary)],check=True,capture_output=True)
+            environment=os.environ.copy();environment.pop('PYTHONDONTWRITEBYTECODE',None)
+            environment.pop('PYTHONPYCACHEPREFIX',None);environment['Z8_RUNTIME_SENTINEL']='retained'
+            subprocess.run([str(binary)],env=environment,check=True,capture_output=True)
+            self.assertFalse((runtime/'__pycache__').exists())
+
     @unittest.skipIf(os.name=='nt','POSIX private process-group lifecycle')
     def test_unresponsive_owned_group_is_reaped(self):
         with tempfile.TemporaryDirectory() as temp:

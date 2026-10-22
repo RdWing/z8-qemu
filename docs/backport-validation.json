@@ -245,5 +245,43 @@
       "restart_bad_frames": 0,
       "restart_owned_qemu_stopped": true
     }
+  },
+  "native_camera_commands_and_runtime": {
+    "native_commands": [
+      "MENU",
+      "Half shutter",
+      "Playback",
+      "i menu"
+    ],
+    "per_button_capability_bridge": true,
+    "disabled_during_boot_and_after_stop": true,
+    "i_settings_grid_rendered": true,
+    "i_graphics_empty_pair": [
+      "0xe73",
+      "A8",
+      "0xe85",
+      "A8"
+    ],
+    "nonempty_inline_geometry_supported": false,
+    "playback_file": "DSC_0003.NEF",
+    "playback_jobs": 1,
+    "playback_bytes": 1396736,
+    "raw_frames_before_review_return": 920,
+    "raw_frames_after_review_return": 974,
+    "runtime_checks": 392,
+    "main_frames": 1223,
+    "ex_frames": 1133,
+    "bad_frames": 0,
+    "owned_qemu_stopped": true,
+    "repository_qemu_restart_seconds": 0.049345,
+    "signature_valid_after_sessions_and_export": true,
+    "runtime_pyc_files": 0,
+    "exported_nefs_equal": 3,
+    "macos_host_tests": 54,
+    "macos_host_pass": 53,
+    "macos_host_skip": 1,
+    "rebuilt_board_mmio_checks": 18,
+    "physical_display_fidelity_qualified": false,
+    "he_movie_preview_deferred": true
   }
 }

@@ -30,3 +30,8 @@ For the native macOS app, a dedicated runtime build location such as
 `~/Library/Caches/z8-qemu` can avoid the observed repository-path startup wait.
 Pass that absolute location to `--build-dir` and the resulting binary path in
 the desktop configuration. See the [bounded location workaround](../desktop/README.md#macos-startup-location-workaround).
+
+The current desktop launcher prevents Python bytecode writes inside its signed
+resources and now starts the repository-path binary in the checked host runs.
+Build a fresh app directory after updating; the runtime-location workaround
+above records an earlier diagnostic rather than a required relocation.

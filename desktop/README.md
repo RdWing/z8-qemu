@@ -207,6 +207,12 @@ acceptance.
 
 ### macOS startup location workaround
 
+The current app disables bytecode writes inside its signed runtime and starts
+the original repository-path QEMU in the checked native runs below. Rebuild into
+a new app directory to repair an older bundle whose resources already changed.
+The location control below records the earlier failure and remains a fallback
+for a separately diagnosed host-path problem.
+
 If the app times out waiting for QEMU's control socket while the same inputs
 work from the CLI, try a QEMU build in a runtime directory outside Documents,
 such as `~/Library/Caches/z8-qemu`. `tools/build.py --build-dir` accepts an
@@ -224,3 +230,38 @@ This is a tested location workaround; the
 underlying macOS filesystem-access cause remains unresolved. It does not
 establish a new firmware-feature or camera acceptance result. Temporary paths
 are diagnostic only; use a stable runtime path for a saved configuration.
+
+
+## Native Camera button commands
+
+Camera → MENU, Half shutter, Playback and i menu use the same qualified EX
+contacts as the page buttons. They work through the native menu without
+requiring keyboard focus in the embedded page. Their enabled state follows the
+page's actual per-button readiness; Playback still requires a card and model.
+Boot, shutdown, disconnect and admitted capture disable the corresponding
+commands. Capture admission immediately disables other inputs while its HTTP
+request or confirmed job is pending, preserving the server's independent gate.
+The original EX input map is unchanged.
+
+
+The native launcher disables Python bytecode writes for sessions, export and
+their descendants. Earlier builds wrote `__pycache__` inside the signed runtime
+and failed signature verification after use. A compiled production-function
+test runs actual parent/child Python imports and verifies the runtime remains
+unchanged. Verify app signatures after exercising the runtime as well as after
+building. The updated native build also starts the original repository-path
+QEMU without relocation; this observation is separate from proving macOS's
+internal XPC wait mechanism.
+
+
+The updated native build completed Camera-menu MENU/half, i-menu/half and
+Playback/half using original MAIN/EX. The i settings grid and retained
+`DSC_0003.NEF` displayed, with one 1,396,736-byte review job; return to Photo
+advanced RAW frames from 920 to 974. The session passed 392 runtime checks,
+exchanged 1,223 MAIN / 1,133 EX frames with zero bad frames, and stopped cleanly.
+Its original repository-path QEMU socket appeared in 0.049 seconds after cold
+restart. Three exported NEFs still match the audited originals exactly.
+After both sessions and export, the app has zero pyc files and its strict code
+signature check passes. This qualifies these native commands and bounded
+recovery; physical display fidelity, idle wake/zoom and HE/Movie preview remain
+separate.

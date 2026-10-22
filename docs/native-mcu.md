@@ -281,3 +281,18 @@ files and an independent ordinary HE file pass full audits. This establishes
 bounded virtual recovery; physical wire identity and exposure timing remain
 unqualified. Shared browser and native Camera-menu capture controls use the
 same guarded contact queue. The separate [stopped-card photo export](../desktop/README.md#export-photos-from-a-stopped-card) now has native dialog and exact-copy acceptance.
+
+
+## Native Camera commands and i-menu graphics
+
+The AppKit Camera menu now exposes MENU, Half shutter, Playback and i menu
+through the same contact queue and capability/readiness gates. The native
+sequence displays the original Menu, i settings grid and retained file 3,
+then returns to fresh Photo frames. This adds desktop access to the qualified
+contacts without introducing a new Z8 physical map.
+
+The i-menu drawing route uses the donor empty `E73/A8/E85/A8` path family,
+previously restricted to ZR. Z8 now accepts that exact pair with resident
+paint/program and matched-end ownership; nonempty inline geometry remains
+unsupported. Sanitizer controls and a native regression preserve the existing
+`5E5/A8/5EC/A8` family and later draw completion. See the [desktop checkpoint](z63-backport.md#native-command-and-signed-runtime-checkpoint).

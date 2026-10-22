@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
-const buttons=['menu','half','play'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
+const buttons=['menu','half','play','i'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
 let respond=async()=>({ok:true,status:202});
 const context=vm.createContext({console,AbortSignal,setTimeout:()=>{},Date,
  document:{querySelector:s=>nodes[s.slice(1)],querySelectorAll:()=>buttons,activeElement:null},
@@ -12,6 +12,16 @@ vm.runInContext(source,context);
 const run=code=>vm.runInContext(code,context);
 (async()=>{
  assert.equal(Object.isFrozen(context.window.z8Workbench),true);
+ await run("window.z8Workbench.press('menu')");assert.equal(calls.length,0);
+ run("allowedButtons=['menu','half','play'];playback=false;available(true)");
+ assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),['menu','half']);
+ await run("window.z8Workbench.press('play')");await run("window.z8Workbench.press('i')");
+ await run("window.z8Workbench.press('../stop')");assert.equal(calls.length,0);
+ run("playback=true;available(true)");
+ assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),['menu','half','play']);
+ await run("window.z8Workbench.press('play')");assert.equal(calls.at(-1).path,'/button/play');
+ assert.equal(calls.at(-1).options.headers['X-Control-Token'],'TOKEN_HERE');calls.length=0;
+ run('available(false)');assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),[]);
  assert.equal(await run("window.z8Workbench.selectMode('movie')"),false);
  run('modeAvailable=false;available(true)');
  assert.equal(await run("window.z8Workbench.selectMode('movie')"),false);
@@ -46,6 +56,8 @@ const run=code=>vm.runInContext(code,context);
  respond=()=>new Promise(resolve=>{finishCapture=resolve});
  const capture=run('window.z8Workbench.capturePhoto()');
  assert.equal(nodes.capture.disabled,true);
+ assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),[]);
+ const beforeButton=calls.length;await run("window.z8Workbench.press('menu')");assert.equal(calls.length,beforeButton);
  assert.equal(await run('window.z8Workbench.capturePhoto()'),false);
  assert.equal(calls.at(-1).path,'/capture');
  finishCapture({ok:true,status:202,json:async()=>({capture_id:7})});
