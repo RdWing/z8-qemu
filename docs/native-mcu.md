@@ -521,3 +521,21 @@ frames, zero bad frames and clean stop at 30.054 virtual seconds. The browser's
 one optional skip; source/renderer contracts, strict UI audit and signed macOS
 build/signature checks pass. New AppKit menu clicks retain separate runtime
 acceptance; the shared bridge/build checks do not qualify them.
+
+## Native main-switch shutdown input
+
+Target EX input tables and original MAIN/EX execution now bind the main-switch
+sense to PC5. Low is the running sense in the tested fixture. Replaying
+`mcu-pins` value `C5=1` changes original report byte 4 from 1 to 0 and invokes
+software shutdown; MAIN reaches its terminal SRAM WFI loops. This uses the
+existing explicit contact-replay interface, with no firmware memory/PC writes
+or host switch replies.
+
+The finite check passes all 210 harness checks, with 429 MAIN / 396 EX frames,
+zero bad frames and clean owned shutdown. Returning PC5 low does not resume
+MAIN. A separate candidate wake pulse produces an EX GPIO response while its
+retained main-switch byte stays off; the missing service/power/reset connection
+is still under investigation. No Power-on action or inferred reset wire is
+advertised. Use the separately qualified cold Session restart to start another
+workbench session. Electrical wake, fastboot and retained-memory behavior remain
+unqualified.

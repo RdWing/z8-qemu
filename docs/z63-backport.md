@@ -517,3 +517,9 @@ frames and zero bad frames, including return to zero and an actual browser
 increase. Cancellation tests, source contracts, signed macOS build and strict
 UI audit pass. ISO, lens/power, complete stock logging/console/USB and combined
 HE/Movie preview still prevent a full-parity claim.
+
+The Z8 main-switch sense now has a target PC5 binding and original software-
+shutdown acceptance through explicit contact replay. Returning its level does
+not restart MAIN; a separate EX wake-candidate output response does not join a
+reset/power domain. The [native power boundary](native-mcu.md#native-main-switch-shutdown-input)
+keeps this result separate from cold workbench restart and full power parity.
