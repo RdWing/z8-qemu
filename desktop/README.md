@@ -207,6 +207,25 @@ starts the same binary. This host-specific failure is not firmware boot or MCU
 acceptance.
 
 
+### Firmware-free executable preflight
+
+Desktop startup runs the selected QEMU with `--version` before the Python
+launcher reads firmware or creates the session directory/log. A ten-second
+deadline distinguishes executable failure from guest boot failure. Stop cancels
+this check and reaps its owned process group. Cancellation and nonzero exit
+remain distinct; there is no automatic relocation or firmware-session retry.
+AppKit's existing exact-input access check still precedes Python startup.
+
+Run the same check independently:
+
+```sh
+python3 tools/qemu_preflight.py --qemu /absolute/path/to/qemu-system-aarch64
+```
+
+A successful result proves only `--version` completion. It does not guarantee
+a subsequent launch or repair the intermittent macOS path failure below.
+Desktop `--check-only` performs this check before original input validation.
+
 ### macOS startup location workaround
 
 The current app disables bytecode writes inside its signed runtime. Rebuild into
@@ -237,14 +256,14 @@ are diagnostic only; use a stable runtime path for a saved configuration.
 
 ## Native Camera button commands
 
-Camera → MENU, Half shutter, Playback, i menu, Up, Down, Left, Right and OK use the same qualified EX
+Camera → MENU, Half shutter, Playback, i menu, DISP, Up, Down, Left, Right and OK use the same qualified EX
 contacts as the page buttons. They work through the native menu without
 requiring keyboard focus in the embedded page. Their enabled state follows the
 page's actual per-button readiness; Playback still requires a card and model.
 Boot, shutdown, disconnect and admitted capture disable the corresponding
 commands. Capture admission immediately disables other inputs while its HTTP
 request or confirmed job is pending, preserving the server's independent gate.
-The original EX input map is unchanged.
+DISP uses the separately qualified Z8 expander contact; host-peer and display-only sessions keep it disabled.
 
 
 The native launcher disables Python bytecode writes for sessions, export and

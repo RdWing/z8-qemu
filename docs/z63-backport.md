@@ -19,7 +19,7 @@ Z63 firmware on the Z8 machine.
 | --- | --- | --- |
 | Shared221 capture, HE forward/inverse, RAW transport, capture pool, programmed clock, DSP boot, motion, main output and Wave5 | Included as source with explicit opt-in properties and dependencies. Original DSP microcode, physical ISP equations and R3D integration are excluded. | Synthetic host tests and actual board MMIO; native single HE/HE★ captures separately accepted. Movie recording remains open. |
 | NV12 live-view JPEG and cancellation | Ported mode `0x32`, completed-generation tracking, overwrite invalidation, once-only consumption and pending-result guards. Existing NV16 remains covered. | Host codec/provenance tests; Z8 PTP/RTSP delivery remains unqualified. |
-| JPEG decode and saved-preview resize | Ported both JPEG cores, per-core epochs, NV16 geometry/span/padding/overlap checks and output-before-IRQ ownership. | Production resize/rendering tests and one native saved-photo display accepted. Normal two-cycle Photo/Menu return is accepted; zoom and idle-wake remain open. |
+| JPEG decode and saved-preview resize | Ported both JPEG cores, per-core epochs, NV16 geometry/span/padding/overlap checks and output-before-IRQ ownership. | Production resize/rendering tests and one native saved-photo display accepted. Normal two-cycle Photo/Menu return is accepted. Two zoom data stages have native pixel-production checks; the later overview format, complete zoom recovery and idle-wake remain open. |
 | Capture drains and movie exit | Ported source/processing ownership, deferred drains, masked-statistics reset and finite/continuous input separation. | Synthetic tests; explicit Movie/Photo recovery qualified below. Three consecutive original-EX HE★ captures pass; repeated host-peer lossless capture remains open. |
 | Task `0xff` status clear | Separate `task1500-ff-clear-model`, off by default. Z8's original zero clear is preserved. | Empty-status clear/arm/start controls; neither value creates task data. |
 | Graphics/display | Preserve Z8 four-bank active acknowledgments, indexed overlays, region storage and additional rendering paths; add full-height NV16 direct scanout. | Actual renderer tests and original menu regression; physical panel/color fidelity unqualified. |
@@ -27,8 +27,8 @@ Z63 firmware on the Z8 machine.
 | Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. An explicit experimental profile now produces Movie frames and recovers to Photo; standard-profile and recording acceptance remain separate. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
 | STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Original-EX HE files now have separate source/decoder acceptance; three consecutive HE★ captures recover normally with explicit sync wiring; remaining controls stay open. |
-| Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top panel now uses source-confirmed Z8 geometry and ready routing with separate native rendering checks; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | Native panel drawing is checked separately; physical timing/appearance and remaining contacts are unqualified. |
-| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench has native session lifecycle, screenshot/photo export, card-gated Playback, UART/device diagnostics and optional explicit-address call/store tracing. Native EX contacts have separate acceptance. Z63 assets/maps and stock firmware hooks are not copied as Z8 bindings. | Read-only trace integration has 48 real-plugin synthetic checks; interactive console, stock log decoding and USB remain open. |
+| Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top panel now uses source-confirmed Z8 geometry and ready routing with separate native rendering checks; Z8 lens/motor and power still need their own bindings; external CFexpress detection now has a separately tested MAIN-side input; the native Photo/Movie lever now has separate acceptance. | Native panel drawing is checked separately; physical timing/appearance and remaining contacts are unqualified. |
+| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench has native session lifecycle, screenshot/photo export, card-gated Playback, UART/device diagnostics and optional explicit-address call/store tracing. Native EX contacts have separate acceptance. Z63 assets/maps and stock firmware hooks are not copied as Z8 bindings. | Read-only trace integration has 48 real-plugin synthetic checks; interactive console, complete stock log decoding and USB remain open. Optional numeric application-entry observation has separate synthetic checks. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
 ## Preserve Z8 timed-single ownership
@@ -435,8 +435,7 @@ selector preset is applied. The 19 synthetic actual-board ADC checks qualify
 regular/injected conversion, updated samples and controller-reset retention.
 The native workbench also exports the complete known diagnostic logs into a
 bounded private ZIP, with shared cancellable export lifecycle and no-replace
-publication. Physical control labels, stock logger/console/USB and top-panel
-drawing remain independent gaps; combined HE/Movie preview remains deferred.
+publication. Remaining physical control labels and stock logger/console/USB remain independent gaps; combined HE/Movie preview remains deferred.
 
 ## Target control-panel geometry and ready route
 
@@ -448,3 +447,22 @@ controls. Browser and native workbench share the bounded panel decoder and
 capability/display/disconnection behavior. Model memory order and declared
 ready delay remain separate from physical rotation and timing. See the
 [Z8 panel contract](native-mcu.md#z8-top-panel-binding).
+
+
+## Additional control and host-startup parity
+
+DISP now joins its Z8 expander input to original EX serialization, MAIN's switch
+mask and an observed display-overlay change. Browser/native menu actions share
+the existing capability and queue owner. Playback zoom now completes its two checked A1/F4/B4 image stages, including a bounded crop of prior output. Its following 384×256 single-address format remains strict; complete zoom/recovery and UI access stay open.
+
+A separate runtime CFexpress detect input changes only the original port-2
+sample while retaining the NVMe endpoint and backing lock. Twenty-four synthetic
+actual-board checks pass. A bounded original MAIN/EX toggle/review/Photo sequence passes 300 checks and stops cleanly. Filesystem removal/reinsertion remains a separate gate, not an inferred consequence of a changed bit.
+
+Desktop startup now performs a cancellable, firmware-free `QEMU --version`
+preflight before Python session creation. It gives executable timeout/exit a
+distinct failure and reaps the check's owned group. The underlying intermittent
+macOS path failure remains open. Optional application-ring entry tracing adds
+numeric W1/W2/W3/W4 decoding at an explicit AArch64 address, without object or
+guest-memory reads. All 84 real-plugin synthetic checks pass; complete stock
+format/EX/TOPPERS decoding and hardware behavior remain unqualified.

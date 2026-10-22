@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2026 RdWing: QEMU 11 adaptation.
- * Adapted observation mechanisms from RdWing/z63-qemu z63watch/z63ftrace.
+ * Adapted observation mechanisms from RdWing/z63-qemu z63watch/z63ftrace/z63log.
  * Explicit user addresses only: no donor firmware hooks, stack scan or writes.
  */
 #include <errno.h>
@@ -22,14 +22,16 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 #define MAX_SITES 4096
 typedef struct { uint64_t pc, address; unsigned cpu, kind; } Site;
 typedef struct {
-    struct qemu_plugin_register *arg[4], *link;
-    bool arg_present[4], link_present;
+    struct qemu_plugin_register *arg[5], *link;
+    bool arg_present[5], link_present, aarch64;
 } Registers;
 static Registers regs[MAX_CPUS];
 static uint64_t calls[MAX_CALLS], lo, hi, pclo, pchi, limit = 10000, per_site = 4;
 static unsigned n_calls, options;
 static int selected_cpu = -1;
 static bool watch;
+static bool app_log;
+static uint64_t app_log_pc;
 static FILE *out;
 static GMutex lock;
 static GHashTable *sites;
@@ -66,18 +68,30 @@ static bool admit(unsigned cpu, unsigned kind, uint64_t pc, uint64_t address)
     (*count)++; emitted++;
     return true;
 }
-static void print_reg(struct qemu_plugin_register *reg, bool present)
+static bool read_reg(struct qemu_plugin_register *reg, bool present, uint64_t *value)
 {
     g_autoptr(GByteArray) bytes = g_byte_array_new();
     /* Register zero may have a NULL-valued opaque handle in QEMU 11.
      * Presence comes from the descriptor, never from the pointer value. */
     if (!present || !qemu_plugin_read_register(reg, bytes) ||
         (bytes->len != 4 && bytes->len != 8)) {
-        fputs("null", out); return;
+        return false;
     }
-    uint64_t value = 0;
-    for (unsigned i = 0; i < bytes->len; i++) { value |= (uint64_t)bytes->data[i] << (8 * i); }
-    fprintf(out, "\"0x%" PRIx64 "\"", value);
+    *value = 0;
+    for (unsigned i = 0; i < bytes->len; i++) { *value |= (uint64_t)bytes->data[i] << (8 * i); }
+    return true;
+}
+static void print_reg(struct qemu_plugin_register *reg, bool present)
+{
+    uint64_t value;
+    if (read_reg(reg, present, &value)) { fprintf(out, "\"0x%" PRIx64 "\"", value); }
+    else { fputs("null", out); }
+}
+static void print_low32(struct qemu_plugin_register *reg, bool present)
+{
+    uint64_t value;
+    if (read_reg(reg, present, &value)) { fprintf(out, "%" PRIu32, (uint32_t)value); }
+    else { fputs("null", out); }
 }
 static void vcpu_init(unsigned idx, void *unused)
 {
@@ -86,12 +100,13 @@ static void vcpu_init(unsigned idx, void *unused)
     g_autoptr(GArray) list = qemu_plugin_get_registers();
     for (guint i = 0; list && i < list->len; i++) {
         qemu_plugin_reg_descriptor *d = &g_array_index(list, qemu_plugin_reg_descriptor, i);
-        for (unsigned a = 0; a < 4; a++) {
+        for (unsigned a = 0; a < 5; a++) {
             char x[4], r[4];
             snprintf(x, sizeof(x), "x%u", a); snprintf(r, sizeof(r), "r%u", a);
             if (!strcmp(d->name, x) || !strcmp(d->name, r)) {
                 regs[idx].arg[a] = d->handle; regs[idx].arg_present[a] = true;
             }
+            if (!strcmp(d->name, x)) { regs[idx].aarch64 = true; }
         }
         if (!strcmp(d->name, "x30") || !strcmp(d->name, "lr") || !strcmp(d->name, "r14")) {
             regs[idx].link = d->handle;
@@ -116,6 +131,36 @@ static void call_hit(unsigned idx, void *opaque)
             print_reg(regs[idx].arg[a], regs[idx].arg_present[a]);
         }
         fputs("],\"link\":", out); print_reg(regs[idx].link, regs[idx].link_present); fputs("}\n", out);
+    }
+    g_mutex_unlock(&lock);
+}
+/* Explicit AArch64 application-ring register schema. The object is an opaque
+ * address: never dereference it, including for a module ID. Debug memory reads
+ * can have MMIO side effects, and a call entry does not establish a valid object
+ * or a completed ring write. No addresses, module names or severity names are
+ * inferred here. */
+static void app_log_hit(unsigned idx, void *unused)
+{
+    (void)unused;
+    if (!cpu_allowed(idx)) { return; }
+    bool supported = regs[idx].aarch64;
+    g_mutex_lock(&lock);
+    if (admit(idx, 2, app_log_pc, 0)) {
+        fprintf(out, "{\"event\":\"app_log\",\"host_us\":%" PRId64 ",\"cpu\":%u,\"pc\":\"0x%" PRIx64 "\",\"abi_available\":%s,\"object\":",
+                g_get_monotonic_time() - started, idx, app_log_pc,
+                supported ? "true" : "false");
+        print_reg(regs[idx].arg[0], supported && regs[idx].arg_present[0]);
+        fputs(",\"module_id\":null,\"module_id_source\":\"not_read\",\"selector\":", out);
+        print_low32(regs[idx].arg[1], supported && regs[idx].arg_present[1]);
+        fputs(",\"payload\":[", out);
+        for (unsigned a = 2; a < 5; a++) {
+            if (a != 2) { fputc(',', out); }
+            print_low32(regs[idx].arg[a], supported && regs[idx].arg_present[a]);
+        }
+        fputs("],\"link\":", out);
+        print_reg(regs[idx].link, supported && regs[idx].link_present);
+        if (!supported) { fputs(",\"reason\":\"unsupported_architecture\"", out); }
+        fputs("}\n", out);
     }
     g_mutex_unlock(&lock);
 }
@@ -159,6 +204,9 @@ static void translated(struct qemu_plugin_tb *tb, void *unused)
                 qemu_plugin_register_vcpu_insn_exec_cb(insn, call_hit, QEMU_PLUGIN_CB_R_REGS, &calls[k]);
             }
         }
+        if (app_log && app_log_pc == pc) {
+            qemu_plugin_register_vcpu_insn_exec_cb(insn, app_log_hit, QEMU_PLUGIN_CB_R_REGS, NULL);
+        }
         if (watch && pc >= pclo && pc < pchi) {
             qemu_plugin_register_vcpu_mem_cb(insn, store, QEMU_PLUGIN_CB_NO_REGS,
                                             QEMU_PLUGIN_MEM_W, (void *)(uintptr_t)pc);
@@ -182,7 +230,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
 {
     const char *path = NULL;
     if (!info->system_emulation || strcmp(info->target_name, "aarch64")) { return -1; }
-    const char *names[] = { "out", "cpu", "calls", "lo", "hi", "pclo", "pchi", "limit", "per_site" };
+    const char *names[] = { "out", "cpu", "calls", "lo", "hi", "pclo", "pchi", "limit", "per_site", "app_log" };
     for (int i = 0; i < argc; i++) {
         g_auto(GStrv) kv = g_strsplit(argv[i], "=", 2);
         unsigned key;
@@ -207,13 +255,14 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
             case 5: pclo = n; break; case 6: pchi = n; break;
             case 7: if (!n || n > 1000000) { return -1; } limit = n; break;
             case 8: if (!n || n > 1000000) { return -1; } per_site = n; break;
+            case 9: if (!n || (n & 3)) { return -1; } app_log_pc = n; app_log = true; break;
             default: return -1;
             }
         }
     }
     unsigned watch_options = options & 0x78;
     watch = watch_options == 0x78;
-    if (!path || (!n_calls && !watch) || (watch_options && !watch) ||
+    if (!path || (!n_calls && !watch && !app_log) || (watch_options && !watch) ||
         (watch && (lo >= hi || pclo >= pchi))) { return -1; }
     int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
     if (fd < 0) { return -1; }
@@ -222,8 +271,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
     setvbuf(out, NULL, _IOLBF, 0);
     sites = g_hash_table_new_full(site_hash, site_equal, g_free, g_free);
     started = g_get_monotonic_time();
-    fprintf(out, "{\"event\":\"start\",\"clock\":\"host_monotonic_us\",\"calls\":%u,\"watch\":%s,\"limit\":%" PRIu64 ",\"per_site\":%" PRIu64 "}\n",
-            n_calls, watch ? "true" : "false", limit, per_site);
+    fprintf(out, "{\"event\":\"start\",\"clock\":\"host_monotonic_us\",\"calls\":%u,\"watch\":%s,\"app_log\":%s,\"limit\":%" PRIu64 ",\"per_site\":%" PRIu64 "}\n",
+            n_calls, watch ? "true" : "false", app_log ? "true" : "false", limit, per_site);
     qemu_plugin_register_vcpu_init_cb(id, vcpu_init, NULL);
     qemu_plugin_register_vcpu_tb_trans_cb(id, translated, NULL);
     qemu_plugin_register_atexit_cb(id, finished, NULL);

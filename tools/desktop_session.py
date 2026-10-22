@@ -12,6 +12,7 @@ import threading
 import time
 import trace_plugin
 import native_adc
+import qemu_preflight
 
 ROOT = Path(__file__).resolve().parents[1]
 FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
@@ -108,13 +109,26 @@ def main():
     parser.add_argument('--check-only', action='store_true')
     a = parser.parse_args()
     config = json.loads(a.config.read_text())
+    # Validate fields and file metadata without opening firmware contents.
     args = command(config)
-    if a.check_only:
-        subprocess.run(args + ['--check-only'], check=True)
-        return
     stopping = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: stopping.set())
+    # Check the executable before the launcher reads firmware or creates a
+    # session. A blocked --version is a host startup failure, not a guest boot.
+    try:
+        qemu_preflight.check(config['qemu'], cancelled=stopping.is_set)
+    except InterruptedError:
+        if stopping.is_set():
+            print(json.dumps(dict(event='stopped')), flush=True)
+            return
+        raise
+    if stopping.is_set():
+        print(json.dumps(dict(event='stopped')), flush=True)
+        return
+    if a.check_only:
+        subprocess.run(args + ['--check-only'], check=True)
+        return
     out = Path(config['output'])
     out.parent.mkdir(parents=True, exist_ok=True)
     # Keep the launcher log beside the result directory without pre-creating

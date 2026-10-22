@@ -178,6 +178,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Half shutter", #selector(cameraHalfButton), ""),
             ("Playback", #selector(cameraPlayButton), ""),
             ("i menu", #selector(cameraIButton), ""),
+            ("DISP", #selector(cameraDispButton), ""),
             ("Up", #selector(cameraUpButton), ""),
             ("Down", #selector(cameraDownButton), ""),
             ("Left", #selector(cameraLeftButton), ""),
@@ -432,7 +433,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     var cameraButtonActions: [Selector: String] {
         [#selector(cameraMenuButton): "menu", #selector(cameraHalfButton): "half",
-         #selector(cameraPlayButton): "play", #selector(cameraIButton): "i",
+         #selector(cameraPlayButton): "play", #selector(cameraIButton): "i", #selector(cameraDispButton): "disp",
          #selector(cameraUpButton): "up", #selector(cameraDownButton): "down",
          #selector(cameraLeftButton): "left", #selector(cameraRightButton): "right", #selector(cameraOKButton): "ok"]
     }
@@ -444,6 +445,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     @objc func cameraHalfButton() { pressCameraButton("half") }
     @objc func cameraPlayButton() { pressCameraButton("play") }
     @objc func cameraIButton() { pressCameraButton("i") }
+    @objc func cameraDispButton() { pressCameraButton("disp") }
     @objc func cameraUpButton() { pressCameraButton("up") }
     @objc func cameraDownButton() { pressCameraButton("down") }
     @objc func cameraLeftButton() { pressCameraButton("left") }

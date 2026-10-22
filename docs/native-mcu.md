@@ -68,7 +68,7 @@ qualification.
 
 ## Original EX controls
 
-`--native-controls --port 0` enables Menu, arrows, OK, i and half-shutter in the
+`--native-controls --port 0` enables Menu, arrows, OK, i, DISP and half-shutter in the
 shared browser workbench. Each action changes an external active-low contact;
 original EX creates the switch report and MAIN consumes it. No host switch
 messages or firmware memory edits implement these actions. Playback additionally
@@ -84,6 +84,7 @@ requires all five experimental Movie options below. Other buttons stay disabled.
 | Up | expander `0x23`, bit 15 | `0x24` |
 | Right | expander `0x23`, bit 14 | `0x22` |
 | i | expander `0x23`, bit 7 | `0x48` |
+| DISP | expander `0x23`, bit 8 | `0x53` |
 | Half-shutter | PG1 | `0x07` |
 | Playback | expander `0x23`, bit 5 | `0x44` |
 | Photo/Movie | expander `0x23`, bit 10; high/low | `0x57` |
@@ -368,3 +369,47 @@ after stopping. These remain private runtime outputs.
 Run `tests/check_mcu_panel.py` with `--qemu` and a fresh `--output` directory
 for thirteen firmware-free actual-board routing/packet checks. Those tests
 qualify model integration, not panel electronics or physical-camera behavior.
+
+
+## Additional display control and zoom boundary
+
+Original EX serializes expander `0x23` bit 8 into report byte `0x53`; original
+MAIN consumes its display-switch mask. A finite native run presses/releases
+that contact at virtual 18.0/18.4 seconds and removes the shooting overlays.
+Browser DISP, the D shortcut and AppKit Camera → DISP share the qualified
+contact queue and its readiness/capture/shutdown gates. Host-peer and native
+display-only sessions keep DISP disabled. Modified keyboard shortcuts do not
+send camera input.
+
+The same run enters card-backed review, then identifies a distinct A1 zoom
+selector. The model now accepts only matched selector/data-word pairs and the
+single checked crop of a just-produced zoom surface. A native replay completes
+three actual jobs: normal review, full-size JPEG to 1040×696 and its 1024×682
+crop, totaling 4,241,152 output bytes. Cropped input reads only active rows;
+stale epochs, incomplete output, padding, crossed planes and recursive crops
+remain rejected.
+
+The next original request uses a separate 384×256 single-address B4 format,
+which remains strict and unsupported. The replay stops cleanly at that boundary
+with zero checksum failures; zoom-out and Photo return are not reached. Zoom
+controls remain disabled. Neither a decoded JPEG nor the two completed image
+stages qualifies the full zoom workflow or physical filtering.
+
+## External CFexpress detect input
+
+With the existing explicit PCIe/card profile, QOM property
+`cfexpress-card-present` can change the external port-2 detect sample at runtime.
+It defaults to true; false clears only bit 1 of the original Z8 status query at
+`0x17a00044`. `pcie-dbi-model` is required for mutation. This is a MAIN-side
+input, independent of EX key contacts.
+
+The NVMe endpoint, backing-file lock, PCIe wrapper, DMA state and other port
+samples stay attached and unchanged. Original firmware must poll and own its
+removal/insertion handling; the input creates no IRQ, transfer completion or
+filesystem event. It does not simulate physical hot-unplug or make copying an
+active card safe. Stopped-card export keeps its existing gate.
+
+Twenty-four firmware-free actual-board checks cover present/absent boot,
+repeated removal/reinsertion, unchanged endpoint/backing-file/adapter ownership,
+neighbor isolation, read-only observation and rejection without the adapter.
+A disposable-card original MAIN/EX run toggles false/true at virtual 19/23 seconds, then completes review and returns to Photo: 300 harness checks, 633 RAW frames, 761 MAIN/698 EX frames, zero checksum failures and clean shutdown. The backend stays identical. No absent-period filesystem event was independently observed, so complete native hot-plug remains unqualified.

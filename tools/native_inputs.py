@@ -6,7 +6,7 @@ CONTACTS={'menu':('mcu-contacts','23.6'),'down':('mcu-contacts','23.13'),
           'ok':('mcu-contacts','23.11'),'left':('mcu-contacts','23.12'),
           'up':('mcu-contacts','23.15'),'right':('mcu-contacts','23.14'),
           'i':('mcu-contacts','23.7'),'half':('mcu-pins','G1'),
-          'play':('mcu-contacts','23.5')}
+          'play':('mcu-contacts','23.5'),'disp':('mcu-contacts','23.8')}
 
 class Inputs:
     def __init__(self,qmp,*,allow_modes=False,allow_capture=False):

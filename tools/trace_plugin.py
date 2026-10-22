@@ -3,7 +3,7 @@
 import hashlib
 from pathlib import Path
 
-KEYS={'trace_plugin','trace_calls','trace_watch','trace_cpu','trace_limit','trace_per_site'}
+KEYS={'trace_plugin','trace_calls','trace_watch','trace_cpu','trace_limit','trace_per_site','trace_app_log'}
 WATCH_KEYS=('lo','hi','pclo','pchi')
 
 
@@ -33,10 +33,14 @@ def configuration(config):
         for key in WATCH_KEYS:integer(watch[key],'trace_watch '+key)
         if watch['lo']>=watch['hi'] or watch['pclo']>=watch['pchi']:
             raise ValueError('Trace watch address/code ranges must be increasing and end-exclusive')
-    if not calls and watch is None:raise ValueError('Trace requires explicit call addresses or a memory/code watch range')
+    app_log=integer(selected['trace_app_log'],'trace_app_log',1) if 'trace_app_log' in selected else None
+    if app_log is not None and app_log&3:
+        raise ValueError('AArch64 application log instruction address must be aligned to four bytes')
+    if not calls and watch is None and app_log is None:
+        raise ValueError('Trace requires explicit call/application log addresses or a memory/code watch range')
     result=dict(plugin=str(Path(path).resolve()),calls=list(calls),watch=dict(watch) if watch else None,
                 limit=integer(selected.get('trace_limit',10000),'trace_limit',1,1000000),
-                per_site=integer(selected.get('trace_per_site',4),'trace_per_site',1,1000000))
+                per_site=integer(selected.get('trace_per_site',4),'trace_per_site',1,1000000),app_log=app_log)
     result['cpu']=integer(selected['trace_cpu'],'trace_cpu',0,15) if 'trace_cpu' in selected else None
     return result
 
@@ -46,6 +50,7 @@ def cli_args(profile):
     args=['--trace-plugin',profile['plugin'],'--trace-limit',str(profile['limit']),
           '--trace-per-site',str(profile['per_site'])]
     for pc in profile['calls']:args+=['--trace-call',hex(pc)]
+    if profile['app_log'] is not None:args+=['--trace-app-log',hex(profile['app_log'])]
     if profile['watch']:
         args+=['--trace-watch',':'.join(hex(profile['watch'][key]) for key in WATCH_KEYS)]
     if profile['cpu'] is not None:args+=['--trace-cpu',str(profile['cpu'])]
@@ -55,6 +60,7 @@ def cli_args(profile):
 def arguments(parser):
     parser.add_argument('--trace-plugin',help='Optional locally built read-only QEMU trace plugin')
     parser.add_argument('--trace-call',type=lambda x:int(x,0),action='append',dest='trace_calls',help='Explicit instruction address; repeat at most 32 times')
+    parser.add_argument('--trace-app-log',type=lambda x:int(x,0),help='Explicit AArch64 application-ring entry; numeric registers only, no object reads')
     parser.add_argument('--trace-watch',help='Explicit LO:HI:PCLO:PCHI end-exclusive store-watch ranges')
     parser.add_argument('--trace-cpu',type=int,help='Optional vCPU index 0..15')
     parser.add_argument('--trace-limit',type=int,help='Maximum output records, default 10000')
@@ -78,6 +84,7 @@ def attach(guest, profile):
     options=[profile['plugin'],'out='+str(output),'limit='+str(profile['limit']),
              'per_site='+str(profile['per_site'])]
     if profile['calls']:options+=['calls='+':'.join(hex(x) for x in profile['calls'])]
+    if profile['app_log'] is not None:options+=['app_log='+hex(profile['app_log'])]
     if profile['watch']:options += [key+'='+hex(profile['watch'][key]) for key in WATCH_KEYS]
     if profile['cpu'] is not None:options+=['cpu='+str(profile['cpu'])]
     guest.command+=['-plugin',','.join(options)]

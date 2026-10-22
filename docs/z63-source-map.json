@@ -283,7 +283,7 @@
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
     "qemu/nikon-z8-lab.c": {
-      "adapted_sha256": "9e62c1b5321c1d8dfb410cd90592ca250efd987e94312d07ad9ab5c96905e3b2",
+      "adapted_sha256": "25fed064ebbafc361d4517201c7909b8190e1a1262cc09726be194d40bc84bee",
       "source_path": "nikon-z63-z9lab.c",
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },
@@ -312,7 +312,7 @@
       "source_sha256": "aa3d71e363cffbb865ced6d2839f0975986c9e4a8ffbd0ef2401312906229dff"
     },
     "qemu/nikon-z8-playback.h": {
-      "adapted_sha256": "92aa3af11b984f42047eac6cab47d5a99fb8353728b64733be180972825e79c4",
+      "adapted_sha256": "f7fa179a8be2a2d5f4c9b9dc24a04b6cca85b8d31d88c889fe21fea5756bd082",
       "source_path": "nikon-z63-playback.h",
       "source_sha256": "7bf68f1d8fd212e613e98f0dcb47aea5b00dc0b391c79402b7bdd087a16c7314"
     },
@@ -369,16 +369,20 @@
       "adapted_sha256": "6d63234abfd8194bb25e6b5e9c4a19b32bde772de268f84c60e224ca44ffe41e"
     },
     "plugins/z8trace.c": {
-      "adapted_sha256": "e8b188b2091317ede61d1938ac39d0e3d21c0f519cc187b502064008cbdf003f",
+      "adapted_sha256": "672b3353496403990ea9dda8fd2128c833edfcda9860c34f90c76fc3d1c9b65a",
       "source_path": "z63-tools/plugins/z63watch.c",
       "source_sha256": "2779e5bdef453ab000937b5f4fbbf455451409d70f367cb7f1136d93b294e5b1",
       "related_sources": [
         {
           "source_path": "z63-tools/plugins/z63ftrace.c",
           "source_sha256": "274aab3ba0a940984280552a6eed788b006bdfc23a8c0de63102334611e80c7f"
+        },
+        {
+          "source_path": "z63-tools/plugins/z63log.c",
+          "source_sha256": "7318e92bae308971b68b9169fb4fd576397623c605124157122009f095769a62"
         }
       ],
-      "adaptation": "Explicit addresses only; QEMU 11 API7 callbacks, descriptor-presence register reads, bounded collision-safe per-CPU sites and no-replace output. No inherited firmware hooks or stack scan."
+      "adaptation": "Explicit addresses only; QEMU 11 API7 callbacks, descriptor-presence register reads, bounded collision-safe per-CPU sites and no-replace output. Optional AArch64 application-ring register schema; no object/guest-memory reads, inherited firmware hooks or stack scan."
     }
   }
 }

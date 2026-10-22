@@ -41,12 +41,27 @@ class TraceProfile(unittest.TestCase):
                 dict(trace_calls=[0x40160001]),dict(trace_calls=[2]*33),dict(trace_calls=[2,2]),
                 dict(trace_calls=[]),dict(trace_limit=0),dict(trace_limit=1000001),dict(trace_cpu=16),
                 dict(trace_per_site=True),dict(trace_watch=dict(lo=2,hi=1,pclo=0,pchi=1)),
-                dict(trace_watch=dict(lo=0,hi=1,pclo=0,pchi=1,extra=1))]
+                dict(trace_watch=dict(lo=0,hi=1,pclo=0,pchi=1,extra=1)),
+                dict(trace_app_log=True),dict(trace_app_log=0),dict(trace_app_log=-2),
+                dict(trace_app_log=2),dict(trace_app_log=3),dict(trace_app_log=1<<64)]
             for change in invalid:
                 with self.subTest(change=change),self.assertRaises(ValueError):trace_plugin.configuration(dict(base,**change))
             with self.assertRaises(ValueError):trace_plugin.configuration(dict(trace_calls=[2]))
             parser=argparse.ArgumentParser();trace_plugin.arguments(parser)
             with self.assertRaises(ValueError):trace_plugin.validate(parser.parse_args(['--trace-watch','1:2:3']))
+
+    def test_explicit_application_log_only_roundtrip_and_attach(self):
+        parser=argparse.ArgumentParser();trace_plugin.arguments(parser)
+        with tempfile.TemporaryDirectory() as temp:
+            plugin=Path(temp)/'plugin.dylib';plugin.touch()
+            profile=trace_plugin.configuration(dict(trace_plugin=str(plugin),trace_app_log=0x100))
+            self.assertEqual(trace_plugin.validate(parser.parse_args(trace_plugin.cli_args(profile))),profile)
+            self.assertEqual(profile['app_log'],0x100)
+            self.assertEqual(profile['calls'],[])
+            guest=argparse.Namespace(out=Path(temp)/'output',command=[],data={})
+            trace_plugin.attach(guest,profile)
+            self.assertIn('app_log=0x100',guest.command[1])
+            self.assertEqual(guest.data['trace_plugin']['app_log'],0x100)
 
 
 if __name__=='__main__':unittest.main()

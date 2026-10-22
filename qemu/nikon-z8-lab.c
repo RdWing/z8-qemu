@@ -767,6 +767,7 @@ struct NikonZ8State {
     uint32_t z8_jdec_pending[2], z8_jdec_core[2], z8_jdec_hold[2];
     uint64_t z8_jdec_jobs, z8_jdec_errors;
     bool z8_jdec_output_valid[2], z8_playback_requested, z8_playback_active;
+    bool z8_playback_output_valid;
     uint8_t *z8_playback_pixels;
     uint64_t z8_jdec_y[2], z8_jdec_uv[2], z8_jdec_output_epoch[2];
     uint64_t z8_playback_decode_epoch;
@@ -1076,6 +1077,7 @@ struct NikonZ8State {
     uint64_t zr_orientation_samples;
     bool pcie_empty_fixture;
     uint8_t pcie_link_diagnostic_mask;
+    bool cfexpress_card_out;
     bool pcie_dbi_model;
     bool pcie_ram_dma_input, pcie_image_ram_dma_input;
     MemoryRegion pcie_image_ram_dma[ARRAY_SIZE(image_bank_ranges)];
@@ -15437,7 +15439,10 @@ static bool engine1542_write(NikonZ8State *s, hwaddr addr, uint64_t value,
         return z8_playback_output_control(s, i, addr, value);
     }
     if (s->z8_jdec_on && i == 1 && off == 4 &&
-        (value == 0x5001 || value == 0x5000)) {
+        (value == 0x5001 || value == 0x5000 || value == 0x1001 ||
+         (value == 0x1000 && (s->z8_playback_active || s->z8_playback_requested ||
+          ((s->engine1542_config[1][1] & ~3u) == 0x1000 &&
+           s->engine1542_config[1][2] == 0x10000000))))) {
         return z8_playback_control(s, addr, value);
     }
     if (s->video_preview_model && i == 1 && off == 4 && (value & 3) == 1) {
@@ -19914,14 +19919,18 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
         addr >= 0x17a00010 && addr <= 0x17a0001c) {
         return s->control_17a0010[(addr - 0x17a00010) / 4];
     }
-    /* APcieDriver 4028fe00 queries bit 1 through 402b564c and the
-     * original halfword offset table a02808508. Explicit no-link input;
+    /* Z8 C3.11 APcieDriver 4028fc8c selects register 13 + 2*port,
+     * then 402b542c reads the halfword offset table a02808508. Port2
+     * consumes bit1 of 17a00044. Explicit no-link input;
      * other status bits are unmeasured zero, not a trained PCIe controller.
      * Link training, config accesses, BARs, DMA and all writes stay unknown. */
     if (s->pcie_empty_fixture && size == 4 &&
         addr >= 0x17a00034 && addr <= 0x17a0004c && (addr & 7) == 4) {
         /* Explicit diagnostic link input only. Config/BAR/DMA remain
          * strict until a real virtual endpoint has been implemented. */
+        if (addr == 0x17a00044 && s->cfexpress_card_out) {
+            return 0;
+        }
         return (s->pcie_link_diagnostic_mask & (1u << ((addr - 0x17a00034) / 8))) ? 2 : 0;
     }
     if (s->bootstrap_fixtures && addr == 0x0d15000c && size == 4) {
@@ -21608,6 +21617,11 @@ static void nikon_z8_init(MachineState *machine)
         exit(1);
     }
 
+    if (s->cfexpress_card_out && !s->pcie_dbi_model) {
+        error_report("cfexpress-card-present=off requires pcie-dbi-model");
+        exit(1);
+    }
+
     if (s->service_core_event_model && (cpus != 4 || !icount_enabled())) {
         error_report("service-core-event-model requires four CPUs and single-thread TCG with -icount");
         exit(1);
@@ -22622,6 +22636,24 @@ static void set_zr_orientation_fixture(Object *obj, bool value, Error **errp)
     s->zr_orientation_fixture = value;
 }
 
+/* External detect input only: keep the NVMe endpoint, backing-file lock,
+ * PCIe wrapper and DMA ownership unchanged. Original firmware must poll
+ * and perform its own removal/insertion work. No IRQ is fabricated. */
+static bool get_cfexpress_card_present(Object *obj, Error **errp)
+{
+    return !NIKON_Z8_LAB(obj)->cfexpress_card_out;
+}
+
+static void set_cfexpress_card_present(Object *obj, bool value, Error **errp)
+{
+    NikonZ8State *s = NIKON_Z8_LAB(obj);
+    if ((s->image_ram.ram || s->image_ram.rom_device) && !s->pcie_dbi_model) {
+        error_setg(errp, "cfexpress-card-present requires pcie-dbi-model");
+        return;
+    }
+    s->cfexpress_card_out = !value;
+}
+
 static char *get_pcie_link_diagnostic_mask(Object *obj, Error **errp)
 {
     return g_strdup_printf("%u", NIKON_Z8_LAB(obj)->pcie_link_diagnostic_mask);
@@ -23008,6 +23040,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "zr-secondary-state", get_zr_secondary_state, NULL);
     object_class_property_add_bool(oc, "pcie-empty-fixture", get_pcie_empty_fixture, set_pcie_empty_fixture);
     object_class_property_add_str(oc, "pcie-link-diagnostic-mask", get_pcie_link_diagnostic_mask, set_pcie_link_diagnostic_mask);
+    object_class_property_add_bool(oc, "cfexpress-card-present", get_cfexpress_card_present, set_cfexpress_card_present);
     object_class_property_add_bool(oc, "pcie-dbi-model", get_pcie_dbi_model, set_pcie_dbi_model);
     object_class_property_add_str(oc, "pcie-dbi-state", get_pcie_dbi_state, NULL);
     object_class_property_add_bool(oc, "pcie-ram-dma-input", get_pcie_ram_dma_input, set_pcie_ram_dma_input);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','ex-panel','panel-screen','panel-status'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
-const buttons=['menu','half','play','i'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
+const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','display-help','ex-panel','panel-screen','panel-status'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
+const buttons=['menu','half','play','i','disp'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
 let respond=async()=>({ok:true,status:202});
 const context=vm.createContext({console,AbortSignal,setTimeout:()=>{},Date,
  document:{querySelector:s=>nodes[s.slice(1)],querySelectorAll:()=>buttons,activeElement:null},
@@ -21,6 +21,13 @@ const run=code=>vm.runInContext(code,context);
  assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),['menu','half','play']);
  await run("window.z8Workbench.press('play')");assert.equal(calls.at(-1).path,'/button/play');
  assert.equal(calls.at(-1).options.headers['X-Control-Token'],'TOKEN_HERE');calls.length=0;
+ run("allowedButtons.push('disp');available(true)");
+ assert.equal(buttons.find(b=>b.dataset.key==='disp').disabled,false);
+ await run("window.z8Workbench.press('disp')");assert.equal(calls.at(-1).path,'/button/disp');
+ const beforeShortcut=calls.length;
+ context.document.onkeydown({key:'d',target:{tagName:'BODY'},metaKey:true});
+ assert.equal(calls.length,beforeShortcut);
+ calls.length=0;
  run('available(false)');assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),[]);
  assert.equal(await run("window.z8Workbench.selectMode('movie')"),false);
  run('modeAvailable=false;available(true)');

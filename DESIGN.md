@@ -225,3 +225,19 @@ Display on/off and line count. Host-peer and pre-sample states hide it.
 Disconnect preserves the last pixels under the existing disconnected status;
 new-session pages start without inherited panel state. No new controls, queues,
 menu entries, visual tokens or locale ownership are introduced.
+
+
+## Additional qualified display control
+
+DISP reuses the existing camera button style, capability set, guarded queue and
+AppKit button bridge. Browser button, D shortcut and Camera → DISP have the
+same label and enabled state. Its native EX contact is qualified separately;
+host-peer and display-only profiles show the disabled button with an explicit
+reason. Modified keyboard shortcuts are reserved for the platform. There are
+no new visual tokens, dialogs, layout variants or input queues.
+
+The desktop's firmware-free QEMU preflight remains part of existing startup.
+Stop and generation guards retain ownership while the child runs `--version`;
+a timeout never starts or automatically retries a firmware session. Existing
+startup/error presentation owns the result; successful preflight does not
+present the camera as ready.

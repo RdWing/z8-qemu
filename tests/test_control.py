@@ -21,6 +21,7 @@ class ControlAdmission(unittest.TestCase):
             self.assertEqual(post('menu'),503)
             owner.ready=True;owner.last_publish=time.monotonic()
             self.assertEqual(post('play'),409)
+            self.assertEqual(post('disp'),409)
             self.assertEqual(owner.queue.qsize(),0)
             self.assertEqual(post('menu'),202)
             self.assertEqual(owner.next_input(),('button',67))
@@ -33,10 +34,12 @@ class ControlAdmission(unittest.TestCase):
             self.assertEqual(post('play'),409)
             owner.playback=True;self.assertEqual(post('play'),202)
             self.assertEqual(owner.next_input(),('button',68))
-            owner.allowed_buttons={'menu','ok'}
+            owner.allowed_buttons={'menu','ok','disp'}
             self.assertEqual(post('half'),409)
             self.assertEqual(post('menu'),202)
             self.assertEqual(owner.next_input(),('button',67))
+            self.assertEqual(post('disp'),202)
+            self.assertEqual(owner.next_input(),('button',83))
             owner.native_mcu=False;owner.allowed_buttons=set(BUTTONS)
             owner.last_publish-=6
             self.assertEqual(post('play'),503)
