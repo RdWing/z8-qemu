@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+import trace_plugin
 
 ROOT = Path(__file__).resolve().parents[1]
 FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
@@ -17,7 +18,7 @@ FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_bounda
 
 
 def command(config):
-    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'seconds', *FLAGS}
+    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'seconds', *FLAGS, *trace_plugin.KEYS}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Unknown desktop configuration fields')
     native=bool(config.get('mcu'))
@@ -70,6 +71,7 @@ def command(config):
             raise ValueError(flag+' requires experimental_shared221')
     if config.get('experimental_playback') and not config.get('card'):
         raise ValueError('Playback requires an existing card image')
+    args += trace_plugin.cli_args(trace_plugin.configuration(config))
     return args
 
 

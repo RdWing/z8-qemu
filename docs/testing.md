@@ -53,3 +53,16 @@ symlinks, path traversal and non-source payloads. These controls supplement
 manual review of documentation, PR text, logs and published artifacts; they do
 not guarantee that every private fact matches a pattern. History checking needs
 a full clone; the source CI job fetches complete history for that check.
+
+The optional [read-only tracing plugin](../plugins/README.md) has a separate
+firmware-free runtime check against the actual QEMU plugin ABI:
+
+```sh
+python3 tests/check_trace_plugin.py --qemu /path/to/qemu-system-aarch64 \
+  --plugin /path/to/libz8trace.dylib --output .local/new-trace-check
+```
+
+Its 48 checks cover synthetic A53/M4 execution, argument/store values, filtering,
+bounds and rejected configurations. Host tests validate launcher profiles; source
+CI does not load an external plugin binary. Native macOS checks separately cover
+trace selection, restart, stopped-log retention and the unconfigured disabled state.

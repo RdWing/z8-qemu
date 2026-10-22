@@ -12,6 +12,7 @@ import time
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'tools'))
 spec=importlib.util.spec_from_file_location('desktop_session',ROOT/'tools/desktop_session.py')
 desktop=importlib.util.module_from_spec(spec);spec.loader.exec_module(desktop)
 

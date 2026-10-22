@@ -367,6 +367,18 @@
       "source_sha256": "114e420f8e10a1d9e1821be396529d65035793a6e73ae07ae74433eeee542da2",
       "qemu_11_upstream_sha256": "d759f72edec32ba2878e3d47de670ebf64e717955858ab516468ff0be2d05b3c",
       "adapted_sha256": "6d63234abfd8194bb25e6b5e9c4a19b32bde772de268f84c60e224ca44ffe41e"
+    },
+    "plugins/z8trace.c": {
+      "adapted_sha256": "e8b188b2091317ede61d1938ac39d0e3d21c0f519cc187b502064008cbdf003f",
+      "source_path": "z63-tools/plugins/z63watch.c",
+      "source_sha256": "2779e5bdef453ab000937b5f4fbbf455451409d70f367cb7f1136d93b294e5b1",
+      "related_sources": [
+        {
+          "source_path": "z63-tools/plugins/z63ftrace.c",
+          "source_sha256": "274aab3ba0a940984280552a6eed788b006bdfc23a8c0de63102334611e80c7f"
+        }
+      ],
+      "adaptation": "Explicit addresses only; QEMU 11 API7 callbacks, descriptor-presence register reads, bounded collision-safe per-CPU sites and no-replace output. No inherited firmware hooks or stack scan."
     }
   }
 }

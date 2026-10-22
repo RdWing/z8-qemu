@@ -96,7 +96,7 @@ The native commands avoid depending on popup automation; both use the same
 shared selector queue.
 
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
-top-panel drawing, recording, playback idle wake/zoom, USB/plugins, interactive firmware commands
+top-panel drawing, recording, playback idle wake/zoom, USB, format-aware firmware logging, interactive firmware commands
 and Linux/Windows desktop bundles remain open. Read-only UART/device diagnostics are available below.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
 Z8 controls. The experimental native HE profile below adds shared browser,
@@ -306,3 +306,18 @@ These contacts were already qualified through the browser; this closes native
 menu access, without adding a new physical input map. The native EX boot emits
 one NUL on USART1 and no text on the other streams in the inspected interval;
 retaining TX does not establish an interactive command console.
+
+## Optional execution trace plugin
+
+The [read-only trace plugin](../plugins/README.md) supplies explicit call-site
+and memory-store observation, shared by the CLI and desktop launcher. Optional
+`trace_plugin`, `trace_calls`, `trace_watch`, `trace_cpu`, `trace_limit` and
+`trace_per_site` configuration fields select its locally built binary and
+bounded observation profile. No plugin is bundled or enabled by default.
+
+Diagnostics → Plugin trace is enabled only for a configured session and uses
+the same bounded reader, Pause/Resume and restart-generation rules as other
+sources. Startup checks access to the configured plugin; unsupported QEMU/plugin
+API combinations fail explicitly. Stop retains the exclusively created private
+trace file. This adds read-only diagnostic integration; stock firmware log
+decoding, monitor/UART command input, USB and wider MCU bindings remain open.

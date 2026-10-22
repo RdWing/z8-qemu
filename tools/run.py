@@ -11,6 +11,7 @@ from stream import run
 from control import Control, png_from_ppm
 import movie_inputs
 import virtual_card
+import trace_plugin
 
 def main():
     p = arguments(__doc__)
@@ -26,7 +27,10 @@ def main():
     p.add_argument('--experimental-playback', action='store_true', help='Enable the imported JPEG decoder/resize model; saved-preview display accepted; recovery/zoom remain open')
     p.add_argument('--check-only', action='store_true')
     movie_inputs.arguments(p)
+    trace_plugin.arguments(p)
     a = p.parse_args()
+    try:trace_profile=trace_plugin.validate(a)
+    except ValueError as error:p.error(str(error))
     try:movie_inputs.validate(a)
     except ValueError as error:p.error(str(error))
     if not 1 <= a.seconds <= 3600 or not (a.port == 0 or 1024 <= a.port <= 65535): p.error('Invalid duration or port')
@@ -43,6 +47,7 @@ def main():
     from replay import Replay
     replay = Replay(a.replay) if a.replay else None
     g = Guest(firmware, a.qemu, a.raw, a.output)
+    trace_plugin.attach(g,trace_profile)
     if replay: g.data['input_replay'] = replay.actions
     g.trace_transitions = a.trace_transitions
     g.extra_boundary_inputs = a.experimental_boundary_inputs

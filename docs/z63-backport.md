@@ -28,7 +28,7 @@ Z63 firmware on the Z8 machine.
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
 | STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Original-EX HE files now have separate source/decoder acceptance; three consecutive HE★ captures recover normally with explicit sync wiring; remaining controls stay open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | No physical or native Z8 qualification. |
-| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; session-log and photo export dialogs are native and checked; read-only UART/device diagnostics are integrated; interactive debug/USB/plugin parity remain open. |
+| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench has native session lifecycle, screenshot/photo export, card-gated Playback, UART/device diagnostics and optional explicit-address call/store tracing. Native EX contacts have separate acceptance. Z63 assets/maps and stock firmware hooks are not copied as Z8 bindings. | Read-only trace integration has 48 real-plugin synthetic checks; interactive console, stock log decoding and USB remain open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
 ## Preserve Z8 timed-single ownership
@@ -414,3 +414,15 @@ Host-path startup remains unresolved. See [desktop diagnostics](../desktop/READM
 for stream identities and acceptance limits. Remaining physical MCU mappings,
 interactive console/USB/plugins and cross-platform bundles stay open; HE/Movie
 preview remains deferred behind those items.
+
+## Explicit-address tracing plugin
+
+The donor call/store observation mechanisms now use QEMU 11 API-7 callbacks,
+separate descriptor-presence flags for register zero, collision-safe per-vCPU
+site accounting, bounded output/site counts and exclusive private log creation.
+CLI and desktop profiles share strict explicit-address/range validation.
+The native diagnostics picker exposes the trace only when configured; no
+compiled plugin or firmware hook map is bundled. All 48 real-plugin checks pass
+with synthetic A53/M4 programs and independent continued guest execution.
+See [plugin operation and limits](../plugins/README.md). This does not claim
+format-aware stock logging, interactive console or USB parity.

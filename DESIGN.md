@@ -187,3 +187,12 @@ results. Closing diagnostics leaves the camera running; stopping keeps its
 logs inspectable. This is output inspection, with no command-input control.
 Camera navigation adds Up/Down/Left/Right/OK through the existing shared bridge,
 per-button capability and capture-busy gates. Do not introduce a second queue.
+
+The same native source popup also offers Plugin trace. Enable that choice only
+when the session explicitly configures a trace plugin; EX USART choices retain
+their independent native-EX gate. Both host-peer and native-EX sessions can
+trace. A source becoming unavailable resets selection to MAIN UART TX.
+Keep the existing read-only text, bounds, Pause/Resume, stopped inspection and
+generation-guarded restart behavior. The configured plugin path joins the
+existing exact-input access checks. No new command-input control or visual
+token system is introduced.

@@ -43,7 +43,7 @@ final class Diagnostics: NSObject {
         window.title = "Z8 diagnostics"; window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 320); window.center()
         source.addItems(withTitles: ["MAIN UART TX", "QEMU diagnostics", "Launcher",
-            "EX USART1 TX", "EX USART2 TX", "EX USART3 TX", "EX UART4 TX", "EX UART5 TX", "EX USART6 TX"])
+            "EX USART1 TX", "EX USART2 TX", "EX USART3 TX", "EX UART4 TX", "EX UART5 TX", "EX USART6 TX", "Plugin trace"])
         source.menu?.autoenablesItems = false
         source.selectItem(at: 0); source.target = self; source.action = #selector(changeSource)
         source.setAccessibilityLabel("Diagnostic source")
@@ -71,10 +71,11 @@ final class Diagnostics: NSObject {
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.refresh() }
     }
     deinit { timer?.invalidate() }
-    func setOutput(_ output: URL?, nativeEX: Bool) {
+    func setOutput(_ output: URL?, nativeEX: Bool, trace: Bool) {
         self.output = output; revision = UUID(); paused = false; pause.title = "Pause"
-        for item in source.itemArray.dropFirst(3) { item.isEnabled = nativeEX }
-        if !nativeEX && source.indexOfSelectedItem >= 3 { source.selectItem(at: 0) }
+        for index in 3...8 { source.item(at: index)?.isEnabled = nativeEX }
+        source.item(at: 9)?.isEnabled = trace
+        if (!nativeEX && (3...8).contains(source.indexOfSelectedItem)) || (!trace && source.indexOfSelectedItem == 9) { source.selectItem(at: 0) }
         text.string = "Waiting for session logs…"
         refresh(force: true)
     }
@@ -95,6 +96,7 @@ final class Diagnostics: NSObject {
         case 0: url = output.appendingPathComponent("uart-tx.log")
         case 1: url = output.appendingPathComponent("stderr.log")
         case 2: url = output.deletingLastPathComponent().appendingPathComponent(output.lastPathComponent + ".desktop.log")
+        case 9: url = output.appendingPathComponent("plugin-trace.log")
         default: url = output.appendingPathComponent("ex-usart\(source.indexOfSelectedItem - 2)-tx.log")
         }
         reading = true; let expected = revision
@@ -315,7 +317,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                 throw NSError(domain: "Z8", code: 1, userInfo: [NSLocalizedDescriptionKey: "Configuration needs an absolute Python 3.11+ executable and output path."])
             }
             starting = true; let id = UUID(); startupID = id
-            let paths = ["firmware", "mcu", "qemu", "raw", "card"].compactMap { config[$0] as? String }
+            let paths = ["firmware", "mcu", "qemu", "raw", "card", "trace_plugin"].compactMap { config[$0] as? String }
             authorizeInputs(paths, id: id) { [weak self] result in
                 guard let self, self.starting, self.startupID == id else { return }
                 self.starting = false; self.checkingPath = nil
@@ -344,7 +346,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     func launch(_ config: [String: Any], python: String, out: String, restoring: Bool) throws {
         output = URL(fileURLWithPath: out); baseURL = nil; lineBuffer = Data()
-        diagnostics?.setOutput(output, nativeEX: config["mcu"] is String)
+        diagnostics?.setOutput(output, nativeEX: config["mcu"] is String, trace: config["trace_plugin"] is String)
         let process = Process(); let pipe = Pipe()
         configurePython(process)
         process.executableURL = URL(fileURLWithPath: python)
@@ -447,7 +449,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     @objc func cameraRightButton() { pressCameraButton("right") }
     @objc func cameraOKButton() { pressCameraButton("ok") }
     @objc func showDiagnostics() {
-        if diagnostics == nil { diagnostics = Diagnostics(); diagnostics?.setOutput(output, nativeEX: activeConfiguration?["mcu"] is String) }
+        if diagnostics == nil { diagnostics = Diagnostics(); diagnostics?.setOutput(output, nativeEX: activeConfiguration?["mcu"] is String, trace: activeConfiguration?["trace_plugin"] is String) }
         diagnostics?.show()
     }
     @objc func selectPhoto() { selectMode("photo") }

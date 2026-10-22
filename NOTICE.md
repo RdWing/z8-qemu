@@ -41,3 +41,7 @@ The source is included so the statically linked runtime can be rebuilt; no
 proprietary codec SDK or R3D integration is included. The bridge and Wave5
 models perform host-side functional encoding; original DSP/codec microcode
 and physical camera behavior are not reproduced.
+
+The optional `plugins/z8trace.c` adapts the Z63 donor's GPL call-observation and
+store-watch mechanisms to the QEMU 11 plugin API. Its source receipts are in
+`docs/z63-source-map.json`; compiled plugins remain external user inputs.

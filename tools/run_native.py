@@ -23,6 +23,7 @@ import movie_inputs
 import native_he
 import virtual_card
 from native_power import powered_down
+import trace_plugin
 
 p=arguments(__doc__)
 p.add_argument('--port',type=int,help='Loopback native-MCU display and optional qualified contacts')
@@ -37,9 +38,11 @@ p.add_argument('--card',type=Path,help='Existing virtual exFAT card; guest write
 p.add_argument('--experimental-playback',action='store_true',help='Functional decoder/finite transfer; original EX workflow has separate acceptance')
 movie_inputs.arguments(p)
 native_he.arguments(p)
+trace_plugin.arguments(p)
 p.add_argument('--virtual-seconds',type=float,help='Optional finite virtual-time limit; wall duration remains an independent bound')
 a=p.parse_args()
 try:
+ trace_profile=trace_plugin.validate(a)
  movie_inputs.validate(a)
  native_capture=native_he.validate(a)
 except ValueError as error:p.error(str(error))
@@ -65,6 +68,7 @@ if native_capture and a.native_controls:
  contacts=ContactReplay(Path(__file__).with_name('native-he-setup-contacts.json'))
 if a.native_controls:a.mcu_pins='G1=1:G13=1:G14=1:G15=1'+(':'+a.mcu_pins if a.mcu_pins else '')
 g=Guest(firmware,a.qemu,a.raw,a.output)
+trace_plugin.attach(g,trace_profile)
 index=g.command.index('-M')+1
 g.command[index]=g.command[index].replace('nikon-z8-lab,','nikon-z8-full-lab,zr-sd-empty-fixture=on,')+',mcu-image='+str(mcu)+',mcu-pins='+a.mcu_pins
 if a.experimental_shared221:
