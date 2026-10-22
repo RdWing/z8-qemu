@@ -29,9 +29,10 @@ def png_from_ppm(path):
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(scan,3))+chunk(b'IEND',b'')
 
 class Control:
- def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None,native_modes=False,native_capture=False):
+ def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None,native_modes=False,native_capture=False,native_dials=False):
   self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes and not native_capture);self.powered_down=False;self.cancelled=0
   self.allowed_buttons=set(set(BUTTONS)-{'disp','protect','delete'} if not native_mcu else native_buttons or [])
+  self.native_dials=bool(native_mcu and native_dials)
   self.playback=bool(playback)
   self.native_capture=bool(native_mcu and native_capture);self.capture_ready=False;self.capture_busy=False
   self.capture_serial=0;self.capture_finished=0;self.capture_error=None;self.capture_completed_jobs=0
@@ -73,6 +74,17 @@ class Control:
       except queue.Full:self.send(429,b'Wait for previous input','text/plain');return
       owner.capture_busy=True;owner.capture_serial+=1;owner.capture_error=None;owner.submitted+=1
       self.send(202,json.dumps({'capture_id':owner.capture_serial}).encode(),'application/json')
+    elif self.path.startswith('/dial/'):
+     pieces=self.path.split('/')
+     if len(pieces)!=4 or pieces[2] not in ('main','sub') or pieces[3] not in ('-1','1'):
+      self.send(400,b'Expected main/sub dial and direction -1 or 1.','text/plain');return
+     if not owner.status()['dials_available']:self.send(409,b'Dials require native EX controls.','text/plain');return
+     if owner.capture_busy:self.send(409,b'Wait for capture to finish.','text/plain');return
+     if not owner.status()['ready']:self.send(503,b'Camera controls are not ready.','text/plain');return
+     try:
+      owner.queue.put_nowait(('dial',(pieces[2],int(pieces[3]))));owner.submitted+=1
+      self.send(202,json.dumps({'queued':owner.submitted}).encode(),'application/json')
+     except queue.Full:self.send(429,b'Wait for previous input','text/plain')
     elif self.path in ('/mode/photo','/mode/movie'):
      if owner.capture_busy:self.send(409,b'Wait for capture to finish.','text/plain');return
      if not owner.status()['mode_available']:self.send(409,b'Photo/Movie requires the experimental native Movie profile.','text/plain');return
@@ -108,6 +120,7 @@ class Control:
   stale=self.last_publish is not None and time.monotonic()-self.last_publish>5
   ready=self.ready and (not self.native_mcu or bool(self.allowed_buttons)) and not stale and not self.stop.is_set()
   info=dict(self.info,powered_down=self.powered_down,cancelled_inputs=self.cancelled,allowed_buttons=sorted(self.allowed_buttons),mode_available=not self.native_mcu or bool(self.native_modes and self.allowed_buttons),controller='native_ex' if self.native_mcu else 'host_peer',playback_available=self.playback,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
+  info['dials_available']=bool(self.native_dials and self.allowed_buttons)
   info.update(panel_available=bool(self.native_mcu and self.panel_png),panel_version=self.panel_version,
               panel_display_on=self.panel_info.get('display_on',False),panel_lines=self.panel_info.get('lines',0),panel_packets=self.panel_info.get('packets',0))
   info.update(capture_available=self.native_capture,capture_busy=self.capture_busy,

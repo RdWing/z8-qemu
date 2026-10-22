@@ -480,3 +480,16 @@ selected file, then returns to fresh Photo frames. A stopped catalog confirms
 the copied card has two NEFs while the original retains three. Confirmation
 cancellation, protection persistence and other assigned roles remain separate.
 See the [native review-key boundary](native-mcu.md#native-protect-and-delete-keys).
+
+
+## Native command-dial continuation
+
+Main/Sub command dials now have target EX pin-table/polling/report bindings and
+browser/AppKit controls. Four separated external phases generate one signed EX
+count; the existing queue serializes turns with camera input. No donor exposure
+mode ladder or firmware write supplies these controls. A native run observes all
+four signed report pulses, menu/submenu navigation, an actual browser turn and
+Photo recovery; all 300 checks pass with zero checksum failures. The host suite
+passes 87 tests (86 passed, one optional skip). Exposure/ISO chords, sustained
+fast turns, lens/power, complete stock logging/console/USB and combined HE/Movie
+preview remain open. See [command-dial limits](native-mcu.md#native-mainsub-command-dials).

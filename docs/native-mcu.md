@@ -87,6 +87,8 @@ requires all five experimental Movie options below. Other buttons stay disabled.
 | DISP | expander `0x23`, bit 8 | `0x53` |
 | Half-shutter | PG1 | `0x07` |
 | Playback | expander `0x23`, bit 5 | `0x44` |
+| Protect | expander `0x23`, bit 9 | `0x49` |
+| Delete | expander `0x23`, bit 18 | `0x45` |
 | Photo/Movie | expander `0x23`, bit 10; high/low | `0x57` |
 
 Explicit idle inputs PG1/PG13/PG14/PG15 are high. Releasing PG14/PG15 clears
@@ -440,3 +442,33 @@ can remove the selected virtual-card file. The queue reports input delivery,
 not a saved protection flag or completed deletion. Confirmation cancellation,
 protection persistence after restart and other assigned shooting roles remain
 separate checks.
+
+
+## Native Main/Sub command dials
+
+The original Z8 EX pin table and polling routines independently bind Main to
+PE7/PE13 and Sub to PF11/PF14. Each external pair follows a complete four-phase
+Gray cycle; original EX emits the signed report delta. The workbench's Main/Sub
+minus and plus buttons and AppKit Camera commands reuse the existing queue.
+They require native EX controls, with no added card requirement. Host-peer and
+display-only sessions keep them disabled.
+
+One queued turn produces a single `-1` or `+1` EX count, rather than a host
+switch packet or firmware memory write. Each phase lasts at least 80 virtual
+milliseconds; this is a declared input cadence, not measured dial electronics.
+Late ticks do not collapse phases. Turns serialize with buttons/modes/capture;
+Stop releases an unfinished turn to its starting levels and never retries it.
+Signs name the firmware delta, without claiming clockwise physical rotation.
+
+A finite original MAIN/EX run records all four signed report pulses, navigates
+menu entries and enters/leaves a submenu. It also accepts a Main-plus turn from
+the live browser. Half-shutter returns to Photo, with 269 RAW frames at virtual
+28.029, 635 MAIN / 602 EX frames, zero checksum failures, all 300 harness checks
+passing and clean owned shutdown. The pulses last about eleven virtual
+milliseconds; ordinary half-second host snapshots missed some of them, so the
+acceptance uses separate read-only higher-frequency report observations.
+
+Browser 640px layout, live queue feedback and disconnected disabling are checked.
+The native menu bridge has host checks and a signed macOS build. Exposure/ISO
+button-plus-dial chords, lens-dependent settings, rapid continuous turns and
+physical dial timing remain separate work.

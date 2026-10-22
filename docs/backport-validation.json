@@ -4,8 +4,8 @@
   "host_family": "macOS Apple Silicon",
   "full_fresh_qemu_build": true,
   "host_tests": {
-    "run": 46,
-    "pass": 45,
+    "run": 87,
+    "pass": 86,
     "skip_optional_legacy": 1
   },
   "actual_board_mmio_checks": 18,
@@ -38,7 +38,12 @@
     "i",
     "half",
     "play",
-    "photo_movie"
+    "photo_movie",
+    "disp",
+    "protect",
+    "delete",
+    "dial_main",
+    "dial_sub"
   ],
   "native_playback_finite_waits_complete": true,
   "native_playback_trigger": "A1 START; B6 timeout control produces no DMA",
@@ -283,5 +288,19 @@
     "rebuilt_board_mmio_checks": 18,
     "physical_display_fidelity_qualified": false,
     "he_movie_preview_deferred": true
+  },
+  "original_ex_command_dials": {
+    "signed_counts_per_axis": [
+      -1,
+      1
+    ],
+    "native_checks": 300,
+    "main_frames": 635,
+    "ex_frames": 602,
+    "bad_frames": 0,
+    "photo_raw_frames": 269,
+    "virtual_seconds": 28.0288208,
+    "physical_timing_verified": false,
+    "button_dial_chords_verified": false
   }
 }

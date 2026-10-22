@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Z8 external contacts qualified through original EX 124-byte switch reports."""
 from control import BUTTONS
+from native_dials import Dial
 
 CONTACTS={'menu':('mcu-contacts','23.6'),'down':('mcu-contacts','23.13'),
           'ok':('mcu-contacts','23.11'),'left':('mcu-contacts','23.12'),
@@ -12,9 +13,11 @@ CONTACTS={'menu':('mcu-contacts','23.6'),'down':('mcu-contacts','23.13'),
 class Inputs:
     def __init__(self,qmp,*,allow_modes=False,allow_capture=False):
         self.qmp=qmp;self.allow_modes=allow_modes;self.held=None;self.release_at=0;self.next_at=0
-        self.allow_capture=allow_capture;self.capture=None
+        self.allow_capture=allow_capture;self.capture=None;self.dial=None
         self.by_offset={BUTTONS[name]:binding for name,binding in CONTACTS.items()}
     def release(self):
+        if self.dial:
+            self.dial.release();self.dial=None
         if self.capture:
             self.qmp.command('qom-set',path='/machine',property='mcu-pins',value='G1=1:G13=1')
             self.qmp.command('qom-set',path='/machine',property='capture-gpio-input',value='0')
@@ -25,6 +28,10 @@ class Inputs:
             self.qmp.command('qom-set',path='/machine',property=prop,value=contact+'=1')
             self.held=None
     def tick(self,control,virtual_seconds):
+        if self.dial:
+            event=self.dial.tick(virtual_seconds)
+            if self.dial.finished:self.dial=None;self.next_at=virtual_seconds+.25
+            return event
         if self.capture:
             current=self.capture
             actions=((0,'G1=0','1'),(2,'G13=0','3'),(6,'G13=1','1'),(8,'G1=1','0'))
@@ -48,6 +55,10 @@ class Inputs:
         action=control.next_input()
         if action is None:return None
         kind,value=action
+        if kind=='dial':
+            self.dial=Dial(self.qmp,*value,virtual_seconds)
+            event=self.dial.tick(virtual_seconds);control.mark_sent()
+            return event
         if kind=='capture':
             if not self.allow_capture:raise ValueError('Native capture profile is not enabled')
             self.capture={'at':virtual_seconds,'phase':0,'before':control.capture_completed_jobs,'control':control}

@@ -98,7 +98,7 @@ shared selector queue.
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
 physical top-panel timing, recording, playback idle wake/zoom, USB, format-aware firmware logging, interactive firmware commands
 and Linux/Windows desktop bundles remain open. Read-only UART/device diagnostics are available below.
-The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
+The Z63 camera skin, exposure-mode ADC ladder and unjoined firmware addresses are not presented as
 Z8 controls. The experimental native HE profile below adds shared browser,
 keyboard and native Camera-menu capture using the qualified paired contacts.
 
@@ -393,3 +393,18 @@ Photo frames. Stopped-card catalogs independently show three original NEFs and
 two remaining copied-card NEFs. Shared browser admission/queue checks and the
 signed macOS build pass separately; these checks do not qualify protection
 persistence, confirmation cancellation or physical buttons.
+
+
+## Native command dials
+
+Original-EX control sessions offer Main/Sub dial minus and plus buttons plus
+matching Camera-menu commands. Each queues one signed dial count through a
+complete external quadrature cycle. The existing queue serializes camera inputs;
+no firmware message, memory write or automatic retry supplies the count. The
+buttons remain disabled in host-peer/display-only sessions, during capture and
+after disconnection. No keyboard shortcuts are assigned.
+
+Original-firmware checks cover both signs on both axes, menu movement, submenu
+entry/return, a live browser turn and half-shutter recovery. The 80-millisecond
+phase cadence is a functional input choice, not physical timing. Button-held
+exposure/ISO adjustments and lens-dependent behavior remain unqualified.

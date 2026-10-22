@@ -96,7 +96,7 @@ if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_m
 native_he.attach(g,a)
 mode_controls=a.native_controls and native_he.control_modes_enabled(a)
 g.data.update(native_mode_controls=mode_controls,native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
-control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls) if a.port is not None else None
+control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls,native_dials=a.native_controls) if a.port is not None else None
 if control:
  g.startup_cancelled=control.stop.is_set
  control.write_endpoint(g.out);signal.signal(signal.SIGTERM,lambda *_:control.stop.set())

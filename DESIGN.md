@@ -253,3 +253,20 @@ camera screen, including Play to cancel and another Delete press to confirm.
 The workbench reports queued input only. It never skips that screen, deletes
 host files, retries a key automatically or claims a deletion has completed.
 Keep the consequence text next to the keys; Stop remains available below them.
+
+
+## Native command dials
+
+Main/Sub dial minus and plus controls use the existing button styles and guarded
+queue. Group each pair with its axis label and accessible names. On narrow
+screens the complete dial group spans the control grid, with the axes side by
+side. No new colors, dialogs, keyboard shortcuts or visual tokens are introduced.
+The existing AppKit Camera menu calls the same `z8Workbench.turnDial` API and
+receives an independent `dialsReady` capability through the same-origin bridge.
+Host-peer and display-only sessions retain disabled controls and an inline reason.
+
+Each admitted turn is one signed EX count, delivered through four separated
+external pin phases. The backend serializes turns, buttons, modes and capture.
+A delayed tick preserves minimum phase spacing; it never catches up by emitting
+multiple edges at once. Shutdown returns an unfinished turn to its starting pin
+levels without replaying it. Input delivery and firmware acceptance stay distinct.

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','display-help','ex-panel','panel-screen','panel-status'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
+const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','display-help','ex-panel','panel-screen','panel-status','dial-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
 const buttons=['menu','half','play','i','disp','protect','delete'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
+const dials=['main','sub'].flatMap(dial=>[-1,1].map(direction=>({dataset:{dial,direction:String(direction)},disabled:true})));
 let respond=async()=>({ok:true,status:202});
 const context=vm.createContext({console,AbortSignal,setTimeout:()=>{},Date,
- document:{querySelector:s=>nodes[s.slice(1)],querySelectorAll:()=>buttons,activeElement:null},
+ document:{querySelector:s=>nodes[s.slice(1)],querySelectorAll:s=>s==='[data-dial]'?dials:buttons,activeElement:null},
  window:{webkit:{messageHandlers:{z8State:{postMessage:value=>notifications.push(value)}}}},
  fetch:async(path,options)=>{calls.push({path,options});return respond()}});
 const source=fs.readFileSync(process.argv[2],'utf8').match(/<script>([\s\S]*?)<\/script>/)[1].replace(/poll\(\);\s*$/,'');
@@ -41,6 +42,17 @@ const run=code=>vm.runInContext(code,context);
  context.document.onkeydown({key:'d',target:{tagName:'BODY'},metaKey:true});
  assert.equal(calls.length,beforeShortcut);
  calls.length=0;
+ assert.equal(await run("window.z8Workbench.turnDial('main',1)"),false);
+ run('dialsAvailable=true;available(true)');
+ assert.equal(notifications.at(-1).dialsReady,true);assert.equal(dials.every(b=>!b.disabled),true);
+ for(const axis of ['main','sub'])for(const sign of [-1,1]) {
+  assert.equal(await run(`window.z8Workbench.turnDial('${axis}',${sign})`),true);
+  assert.equal(calls.at(-1).path,`/dial/${axis}/${sign}`);
+ }
+ const beforeInvalidDial=calls.length;
+ for(const command of ["turnDial('../stop',1)","turnDial('main',0)","turnDial('main',true)","turnDial('main',127)"])
+  assert.equal(await run('window.z8Workbench.'+command),false);
+ assert.equal(calls.length,beforeInvalidDial);calls.length=0;
  run('available(false)');assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),[]);
  assert.equal(await run("window.z8Workbench.selectMode('movie')"),false);
  run('modeAvailable=false;available(true)');
@@ -77,6 +89,7 @@ const run=code=>vm.runInContext(code,context);
  const capture=run('window.z8Workbench.capturePhoto()');
  assert.equal(nodes.capture.disabled,true);
  assert.deepEqual(Array.from(notifications.at(-1).buttonsReady),[]);
+ const beforeDial=calls.length;assert.equal(await run("window.z8Workbench.turnDial('main',1)"),false);assert.equal(calls.length,beforeDial);
  const beforeButton=calls.length;await run("window.z8Workbench.press('menu')");assert.equal(calls.length,beforeButton);
  assert.equal(await run('window.z8Workbench.capturePhoto()'),false);
  assert.equal(calls.at(-1).path,'/capture');

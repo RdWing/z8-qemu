@@ -58,6 +58,28 @@ class ControlAdmission(unittest.TestCase):
             self.assertEqual(post('play'),503)
         finally:connection.close();owner.close()
 
+    def test_dial_admission_requires_native_capability_and_shared_readiness(self):
+        owner=Control(0,native_mcu=True,native_buttons={'menu'},native_dials=True)
+        connection=http.client.HTTPConnection('127.0.0.1',owner.server.server_address[1],timeout=3)
+        def post(path,token=None):
+            connection.request('POST',path,headers={'X-Control-Token':token or owner.token})
+            reply=connection.getresponse();reply.read();return reply.status
+        try:
+            self.assertEqual(post('/dial/main/1','stale'),403)
+            self.assertEqual(post('/dial/main/1'),503)
+            owner.ready=True;owner.last_publish=time.monotonic()
+            for path in ('/dial/main/0','/dial/sub/127','/dial/main/1/extra','/dial/other/1'):
+                self.assertEqual(post(path),400)
+            for axis in ('main','sub'):
+                for sign in (-1,1):
+                    self.assertEqual(post(f'/dial/{axis}/{sign}'),202)
+                    self.assertEqual(owner.next_input(),('dial',(axis,sign)))
+            owner.capture_busy=True;self.assertEqual(post('/dial/main/1'),409)
+            owner.capture_busy=False;owner.last_publish-=6;self.assertEqual(post('/dial/main/1'),503)
+            owner.native_dials=False;self.assertEqual(post('/dial/main/1'),409)
+            self.assertEqual(owner.queue.qsize(),0)
+        finally:connection.close();owner.close()
+
     def test_native_mode_capability_and_readiness_are_independent(self):
         owner=Control(0,native_mcu=True,native_buttons={'menu','half'},native_modes=True)
         connection=http.client.HTTPConnection('127.0.0.1',owner.server.server_address[1],timeout=3)

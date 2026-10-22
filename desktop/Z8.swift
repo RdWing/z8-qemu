@@ -127,6 +127,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     var lastError = false
     var modeReady = false
     var captureReady = false
+    var dialsReady = false
     var buttonsReady = Set<String>()
     var activeConfiguration: [String: Any]?
     var restartOutputRoot: String?
@@ -179,6 +180,10 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Playback", #selector(cameraPlayButton), ""),
             ("i menu", #selector(cameraIButton), ""),
             ("DISP", #selector(cameraDispButton), ""),
+            ("Main dial −", #selector(mainDialMinus), ""),
+            ("Main dial +", #selector(mainDialPlus), ""),
+            ("Sub dial −", #selector(subDialMinus), ""),
+            ("Sub dial +", #selector(subDialPlus), ""),
             ("Protect key", #selector(cameraProtectButton), ""),
             ("Delete key", #selector(cameraDeleteButton), ""),
             ("Up", #selector(cameraUpButton), ""),
@@ -312,7 +317,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     func start(_ configuration: URL, restoring: Bool = false) {
         guard child == nil && !starting && !exporting else { return }
-        lastError = false; modeReady = false; captureReady = false; buttonsReady = []
+        lastError = false; modeReady = false; captureReady = false; dialsReady = false; buttonsReady = []
         do {
             let value = try JSONSerialization.jsonObject(with: Data(contentsOf: configuration))
             guard let config = value as? [String: Any], let python = config["python"] as? String,
@@ -374,7 +379,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                 guard let self else { return }
                 self.cleanupSnapshot(snapshot)
                 guard self.child === process else { return }
-                self.child = nil; self.modeReady = false; self.captureReady = false; self.buttonsReady = []
+                self.child = nil; self.modeReady = false; self.captureReady = false; self.dialsReady = false; self.buttonsReady = []
                 if self.terminating { self.cancelRestart(); NSApp.reply(toApplicationShouldTerminate: true) }
                 else if let restart = self.restartURL {
                     self.restartURL = nil
@@ -422,6 +427,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
               let value = message.body as? [String: Any], let ready = value["modeReady"] as? Bool else { return }
         modeReady = ready
         captureReady = value["captureReady"] as? Bool ?? false
+        dialsReady = value["dialsReady"] as? Bool ?? false
         buttonsReady = Set((value["buttonsReady"] as? [String] ?? []).filter { cameraButtonActions.values.contains($0) })
     }
     func selectMode(_ mode: String) {
@@ -433,6 +439,19 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         guard captureReady, child?.isRunning == true, baseURL != nil else { return }
         view.evaluateJavaScript("window.z8Workbench?.capturePhoto()")
     }
+    var dialActions: [Selector: (String, Int)] {
+        [#selector(mainDialMinus): ("main", -1), #selector(mainDialPlus): ("main", 1),
+         #selector(subDialMinus): ("sub", -1), #selector(subDialPlus): ("sub", 1)]
+    }
+    func turnDial(_ axis: String, _ direction: Int) {
+        guard dialsReady, child?.isRunning == true, baseURL != nil,
+              ["main", "sub"].contains(axis), [-1, 1].contains(direction) else { return }
+        view.evaluateJavaScript("window.z8Workbench?.turnDial('\(axis)',\(direction))")
+    }
+    @objc func mainDialMinus() { turnDial("main", -1) }
+    @objc func mainDialPlus() { turnDial("main", 1) }
+    @objc func subDialMinus() { turnDial("sub", -1) }
+    @objc func subDialPlus() { turnDial("sub", 1) }
     var cameraButtonActions: [Selector: String] {
         [#selector(cameraMenuButton): "menu", #selector(cameraHalfButton): "half",
          #selector(cameraPlayButton): "play", #selector(cameraIButton): "i", #selector(cameraDispButton): "disp",
@@ -611,7 +630,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             try JSONSerialization.data(withJSONObject: configuration).write(to: temporary, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
             if child != nil {
-                restartURL = temporary; modeReady = false; captureReady = false; terminateChild()
+                restartURL = temporary; modeReady = false; captureReady = false; dialsReady = false; terminateChild()
             } else {
                 start(temporary, restoring: true)
                 try? FileManager.default.removeItem(at: temporary)
@@ -623,6 +642,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         }
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let action = item.action, dialActions[action] != nil { return dialsReady && child?.isRunning == true && baseURL != nil }
         if let action = item.action, let key = cameraButtonActions[action] { return buttonsReady.contains(key) && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(capturePhoto) { return captureReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(selectPhoto) || item.action == #selector(selectMovie) { return modeReady && child?.isRunning == true && baseURL != nil }
