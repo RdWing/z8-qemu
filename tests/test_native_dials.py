@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools'))
-from native_dials import Dial, ModeDial, PINS
+from native_dials import Dial, ModifiedDial, PINS, MODIFIERS
 from native_inputs import Inputs
 
 
@@ -65,41 +65,50 @@ class NativeDials(unittest.TestCase):
         self.assertEqual(q.value,3)
 
 
-class ModeDialOwnership(unittest.TestCase):
+class ModifiedDialOwnership(unittest.TestCase):
     class Contacts(QMP):
         def __init__(self):
-            super().__init__();self.mode=1;self.contacts=[]
+            super().__init__();self.level=1;self.contacts=[];self.contact_ids=[]
         def command(self,name,**kw):
             if name=='qom-set' and kw['property']=='mcu-contacts':
-                self.mode=int(kw['value'][-1]);self.contacts.append(self.mode)
+                self.level=int(kw['value'][-1]);self.contacts.append(self.level);self.contact_ids.append(kw['value'].split('=')[0])
                 return
             return super().command(name,**kw)
 
     def test_hold_settles_then_turns_then_releases_before_next_input(self):
+        for modifier in MODIFIERS:
+            with self.subTest(modifier=modifier):self.assert_hold(modifier)
+
+    def assert_hold(self,modifier):
         q=self.Contacts()
         class Control:
-            def __init__(self):self.actions=[('mode-dial',1),('button',67)];self.sent=0
+            def __init__(self):self.actions=[(modifier+'-dial',1),('button',67)];self.sent=0
             def next_input(self):return self.actions.pop(0) if self.actions else None
             def mark_sent(self):self.sent+=1
         c=Control();inputs=Inputs(q)
-        self.assertEqual(inputs.tick(c,0)['kind'],'mode-dial-hold')
-        self.assertEqual(q.mode,0);self.assertIsNone(inputs.tick(c,.24))
+        self.assertEqual(inputs.tick(c,0)['kind'],modifier+'-dial-hold')
+        self.assertEqual(q.level,0);self.assertIsNone(inputs.tick(c,.24))
         for at in (.25,.35,.45,.55):
-            self.assertEqual(inputs.tick(c,at)['modifier'],'mode')
-            self.assertEqual(q.mode,0);self.assertEqual(len(c.actions),1)
+            self.assertEqual(inputs.tick(c,at)['modifier'],modifier)
+            self.assertEqual(q.level,0);self.assertEqual(len(c.actions),1)
         self.assertIsNone(inputs.tick(c,.79))
-        self.assertEqual(inputs.tick(c,.81)['kind'],'mode-dial-release')
-        self.assertEqual(q.mode,1);self.assertEqual(q.count,1)
+        self.assertEqual(inputs.tick(c,.81)['kind'],modifier+'-dial-release')
+        self.assertEqual(q.level,1);self.assertEqual(q.count,1)
         self.assertEqual(c.sent,1);self.assertEqual(len(c.actions),1)
         self.assertIsNone(inputs.tick(c,1))
 
     def test_cancel_at_every_phase_restores_both_inputs_once(self):
-        for phases in range(5):
-            with self.subTest(phases=phases):
-                q=self.Contacts();chord=ModeDial(q,-1,0)
-                for n in range(phases):chord.tick(.25+n*.1)
-                chord.release();self.assertTrue(chord.finished)
-                self.assertEqual(q.mode,1);self.assertEqual(q.value,3)
-                count=(len(q.values),len(q.contacts))
-                chord.release();self.assertEqual(count,(len(q.values),len(q.contacts)))
-                self.assertIsNone(chord.tick(10))
+        for modifier in MODIFIERS:
+            for phases in range(5):
+                with self.subTest(modifier=modifier,phases=phases):
+                    q=self.Contacts();chord=ModifiedDial(q,modifier,-1,0)
+                    for n in range(phases):chord.tick(.25+n*.1)
+                    chord.release();self.assertTrue(chord.finished)
+                    self.assertEqual(q.level,1);self.assertEqual(q.value,3)
+                    self.assertEqual(q.contact_ids,[MODIFIERS[modifier]]*2)
+                    count=(len(q.values),len(q.contacts))
+                    chord.release();self.assertEqual(count,(len(q.values),len(q.contacts)))
+                    self.assertIsNone(chord.tick(10))
+        q=self.Contacts()
+        with self.assertRaises(ValueError):ModifiedDial(q,'unknown',1,0)
+        self.assertEqual(q.contacts,[]);self.assertEqual(q.values,[])

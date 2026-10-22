@@ -76,13 +76,13 @@ class Control:
       self.send(202,json.dumps({'capture_id':owner.capture_serial}).encode(),'application/json')
     elif self.path.startswith('/dial/'):
      pieces=self.path.split('/')
-     if len(pieces)!=4 or pieces[2] not in ('main','sub','mode') or pieces[3] not in ('-1','1'):
-      self.send(400,b'Expected main/sub/mode dial and direction -1 or 1.','text/plain');return
+     if len(pieces)!=4 or pieces[2] not in ('main','sub','mode','compensation') or pieces[3] not in ('-1','1'):
+      self.send(400,b'Expected main/sub/mode/compensation dial and direction -1 or 1.','text/plain');return
      if not owner.status()['dials_available']:self.send(409,b'Dials require native EX controls.','text/plain');return
      if owner.capture_busy:self.send(409,b'Wait for capture to finish.','text/plain');return
      if not owner.status()['ready']:self.send(503,b'Camera controls are not ready.','text/plain');return
      try:
-      owner.queue.put_nowait(('mode-dial',int(pieces[3])) if pieces[2]=='mode' else ('dial',(pieces[2],int(pieces[3]))));owner.submitted+=1
+      owner.queue.put_nowait((pieces[2]+'-dial',int(pieces[3])) if pieces[2] in ('mode','compensation') else ('dial',(pieces[2],int(pieces[3]))));owner.submitted+=1
       self.send(202,json.dumps({'queued':owner.submitted}).encode(),'application/json')
      except queue.Full:self.send(429,b'Wait for previous input','text/plain')
     elif self.path in ('/mode/photo','/mode/movie'):

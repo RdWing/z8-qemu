@@ -490,7 +490,7 @@ count; the existing queue serializes turns with camera input. No donor exposure
 mode ladder or firmware write supplies these controls. A native run observes all
 four signed report pulses, menu/submenu navigation, an actual browser turn and
 Photo recovery; all 300 checks pass with zero checksum failures. The host suite
-passes 87 tests (86 passed, one optional skip). ISO/exposure-compensation chords, sustained
+passes 87 tests (86 passed, one optional skip). ISO chords, sustained
 fast turns, lens/power, complete stock logging/console/USB and combined HE/Movie
 preview remain open. See [command-dial limits](native-mcu.md#native-mainsub-command-dials).
 
@@ -505,3 +505,15 @@ optional skip. Native browser acceptance includes M → A → M and a live chord
 new AppKit-menu runtime clicks, shutter-step consumption and settings across
 restart remain unqualified. The [native control owner](native-mcu.md#exposure-mode-chord)
 retains the detailed scope and acceptance.
+
+Exposure compensation now has its own target contact/report/mask join and uses
+the same finite held-button/Main owner as MODE. Original firmware displays
+`0.0 → +0.3 → +0.7 → +0.3` under an external-contact replay; host settings and
+switch packets are not injected. The [compensation scope](native-mcu.md#exposure-compensation-chord)
+keeps displayed EV acceptance separate from physical exposure or saved pixels.
+
+The production-queue check passes all 208 harness checks, 695 MAIN / 652 EX
+frames and zero bad frames, including return to zero and an actual browser
+increase. Cancellation tests, source contracts, signed macOS build and strict
+UI audit pass. ISO, lens/power, complete stock logging/console/USB and combined
+HE/Movie preview still prevent a full-parity claim.

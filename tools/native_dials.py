@@ -46,13 +46,18 @@ class Dial:
             self.finished = True
 
 
-class ModeDial:
-    """One Main turn inside a finite MODE hold, sharing the dial lease."""
-    def __init__(self, qmp, direction, virtual_seconds):
-        self.qmp = qmp
+MODIFIERS = {'mode': '22.5', 'compensation': '22.3'}
+
+
+class ModifiedDial:
+    """One Main turn inside a finite qualified button hold."""
+    def __init__(self, qmp, modifier, direction, virtual_seconds):
+        if modifier not in MODIFIERS:
+            raise ValueError('Expected a qualified dial modifier')
+        self.qmp = qmp; self.modifier = modifier; self.contact = MODIFIERS[modifier]
         self.dial = Dial(qmp, 'main', direction, virtual_seconds + .25)
         self.finished = False; self.release_at = None
-        qmp.command('qom-set', path='/machine', property='mcu-contacts', value='22.5=0')
+        qmp.command('qom-set', path='/machine', property='mcu-contacts', value=self.contact+'=0')
 
     def tick(self, virtual_seconds):
         if self.finished:
@@ -61,10 +66,10 @@ class ModeDial:
             if virtual_seconds < self.release_at:
                 return None
             self.release()
-            return dict(kind='mode-dial-release', virtual_seconds=virtual_seconds)
+            return dict(kind=self.modifier+'-dial-release', virtual_seconds=virtual_seconds)
         event = self.dial.tick(virtual_seconds)
         if event:
-            event['modifier'] = 'mode'
+            event['modifier'] = self.modifier
         if self.dial.finished:
             self.release_at = virtual_seconds + .25
         return event
@@ -74,5 +79,5 @@ class ModeDial:
             try:
                 self.dial.release()
             finally:
-                self.qmp.command('qom-set', path='/machine', property='mcu-contacts', value='22.5=1')
+                self.qmp.command('qom-set', path='/machine', property='mcu-contacts', value=self.contact+'=1')
                 self.finished = True

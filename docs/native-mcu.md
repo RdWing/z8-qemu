@@ -469,8 +469,7 @@ milliseconds; ordinary half-second host snapshots missed some of them, so the
 acceptance uses separate read-only higher-frequency report observations.
 
 Browser 640px layout, live queue feedback and disconnected disabling are checked.
-The native menu bridge has host checks and a signed macOS build. ISO/exposure-compensation
-chords, lens-dependent settings, rapid continuous turns and
+The native menu bridge has host checks and a signed macOS build. ISO chords, lens-dependent settings, rapid continuous turns and
 physical dial timing remain separate work.
 
 ### Exposure-mode chord
@@ -498,3 +497,27 @@ M again. The host suite runs 89 tests (88 pass, one optional skip); source and
 renderer contracts, strict UI audit, signed macOS build and signature checks
 pass. Exact shutter-step consumption, restart persistence and new AppKit-menu
 runtime clicks remain separate acceptance gates.
+
+### Exposure-compensation chord
+
+Exposure compensation minus/plus holds the target compensation contact
+(expander `0x22`, bit 3) around one Main turn. Original EX supplies the button
+at report byte `0x15` and the signed Main count at `0x0B`. The shared finite
+modifier owner handles MODE and compensation: 250 virtual milliseconds to
+settle, four separated dial phases, another 250 milliseconds held, then release
+and cooldown. Stop restores both inputs; later actions cannot interleave.
+
+An original MAIN/EX contact replay displays `0.0 → +0.3 → +0.7 → +0.3` for two
+positive counts and one negative count. This is the firmware's displayed
+third-EV step in the tested fixture. The host never writes an EV value, and
+the firmware owns custom step/reversal behavior. Metering, physical exposure,
+saved-pixel changes, limits and restart persistence remain separate gates.
+
+The production HTTP queue separately displays `0.0 → +0.3 → +0.7 → +0.3 → 0.0`;
+a live browser plus request displays `+0.3` again. Original EX reports every
+hold, count and release. All 208 harness checks pass with 695 MAIN / 652 EX
+frames, zero bad frames and clean stop at 30.054 virtual seconds. The browser's
+640px layout and disconnected disabling are checked. Host tests pass 88 with
+one optional skip; source/renderer contracts, strict UI audit and signed macOS
+build/signature checks pass. New AppKit menu clicks retain separate runtime
+acceptance; the shared bridge/build checks do not qualify them.

@@ -276,3 +276,9 @@ Camera bridge. It holds MODE around one Main turn, then releases both inputs;
 there is no persistent modifier toggle or keyboard shortcut. The label distinguishes
 exposure mode from the separate Photo/Movie selector. Firmware owns the resulting
 P/S/A/M choice; queue feedback does not claim the mode changed.
+
+Exposure compensation minus/plus extends the same dial group beside exposure
+mode on narrow screens. It holds the qualified compensation button around one
+Main turn using the shared finite chord owner. Existing queue feedback, native
+capability, capture guard, Stop release and AppKit bridge apply. Original firmware
+owns the EV step and result; no host setting write or fixed EV promise is added.

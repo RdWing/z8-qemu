@@ -186,6 +186,8 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Sub dial +", #selector(subDialPlus), ""),
             ("Exposure mode −", #selector(exposureModeMinus), ""),
             ("Exposure mode +", #selector(exposureModePlus), ""),
+            ("Exposure compensation −", #selector(exposureCompMinus), ""),
+            ("Exposure compensation +", #selector(exposureCompPlus), ""),
             ("Protect key", #selector(cameraProtectButton), ""),
             ("Delete key", #selector(cameraDeleteButton), ""),
             ("Up", #selector(cameraUpButton), ""),
@@ -444,11 +446,12 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     var dialActions: [Selector: (String, Int)] {
         [#selector(mainDialMinus): ("main", -1), #selector(mainDialPlus): ("main", 1),
          #selector(subDialMinus): ("sub", -1), #selector(subDialPlus): ("sub", 1),
-         #selector(exposureModeMinus): ("mode", -1), #selector(exposureModePlus): ("mode", 1)]
+         #selector(exposureModeMinus): ("mode", -1), #selector(exposureModePlus): ("mode", 1),
+         #selector(exposureCompMinus): ("compensation", -1), #selector(exposureCompPlus): ("compensation", 1)]
     }
     func turnDial(_ axis: String, _ direction: Int) {
         guard dialsReady, child?.isRunning == true, baseURL != nil,
-              ["main", "sub", "mode"].contains(axis), [-1, 1].contains(direction) else { return }
+              ["main", "sub", "mode", "compensation"].contains(axis), [-1, 1].contains(direction) else { return }
         view.evaluateJavaScript("window.z8Workbench?.turnDial('\(axis)',\(direction))")
     }
     @objc func mainDialMinus() { turnDial("main", -1) }
@@ -457,6 +460,8 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     @objc func subDialPlus() { turnDial("sub", 1) }
     @objc func exposureModeMinus() { turnDial("mode", -1) }
     @objc func exposureModePlus() { turnDial("mode", 1) }
+    @objc func exposureCompMinus() { turnDial("compensation", -1) }
+    @objc func exposureCompPlus() { turnDial("compensation", 1) }
     var cameraButtonActions: [Selector: String] {
         [#selector(cameraMenuButton): "menu", #selector(cameraHalfButton): "half",
          #selector(cameraPlayButton): "play", #selector(cameraIButton): "i", #selector(cameraDispButton): "disp",

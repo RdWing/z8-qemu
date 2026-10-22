@@ -406,7 +406,7 @@ after disconnection. No keyboard shortcuts are assigned.
 
 Original-firmware checks cover both signs on both axes, menu movement, submenu
 entry/return, a live browser turn and half-shutter recovery. The 80-millisecond
-phase cadence is a functional input choice, not physical timing. ISO/exposure-compensation chords and lens-dependent behavior remain unqualified.
+phase cadence is a functional input choice, not physical timing. ISO chords and lens-dependent behavior remain unqualified.
 
 Exposure mode minus/plus uses the same controls and Camera menu. Each action
 holds MODE around one Main turn and releases both inputs before another camera
@@ -418,3 +418,15 @@ Native browser acceptance covers M → A → M, an actual browser chord, narrow
 layout and disabled controls after clean shutdown. The updated host suite has
 88 passes and one optional skip; the signed macOS build and signature verify.
 New Camera-menu runtime clicks and exact shutter-step consumption remain separate.
+
+Exposure compensation minus/plus adds the corresponding Camera commands and
+workbench pair. Each holds the compensation button around a single Main turn,
+using MODE's existing finite lease and cancellation rules. The tested firmware
+displays third-EV steps; watch its display for the result. These controls do not
+write an EV setting directly or guarantee changed sensor/recorded pixels.
+
+Native browser testing covers two increases, two decreases back to zero and
+another live-browser increase, with all contacts released and clean shutdown.
+The shared cancellation tests, 640px layout, disconnected state and signed app
+build pass. The new Camera-menu actions have build/bridge checks; their own
+native runtime clicks and restart persistence remain unqualified.
