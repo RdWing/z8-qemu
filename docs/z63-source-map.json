@@ -343,7 +343,7 @@
     "qemu/nikon-z8-stm32.h": {
       "source_path": "nikon-z63-stm32.h",
       "source_sha256": "1286bfad92089dad118f12a0eeab15c700d96b55dd7c86af72139592885b2492",
-      "adapted_sha256": "41e4cf2115f151a7fa7207e1b4b237857340bff550e81fad3f5b4666a0f11509"
+      "adapted_sha256": "1aea8bc7f2d17c0f8d62da5723c45cca6a6989f6de2f74ab697e8cad2cd35b21"
     },
     "qemu/nikon-z8-toplcd.h": {
       "source_path": "nikon-z63-toplcd.h",

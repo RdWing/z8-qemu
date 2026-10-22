@@ -47,6 +47,10 @@ str r0, [r4, #0x24]
 ldr r0, =0x400000
 str r0, [r5]
 str r0, [r5, #8]
+movs r0, #0xca
+str r0, [r4, #0x24]
+movs r0, #0x53
+str r0, [r4, #0x24]
 ldr r0, =0x40000
 str r0, [r4, #8]
 movs r0, #0
@@ -79,6 +83,10 @@ wait_wakes:
 ldr r0, [r7, #8]
 cmp r0, #3
 blo wait_wakes
+movs r0, #0xca
+str r0, [r4, #0x24]
+movs r0, #0x53
+str r0, [r4, #0x24]
 ldr r0, =0x40000
 str r0, [r4, #8]
 movs r0, #2
@@ -118,6 +126,10 @@ wait_alarms:
 ldr r0, [r7, #12]
 cmp r0, #3
 blo wait_alarms
+movs r0, #0xca
+str r0, [r4, #0x24]
+movs r0, #0x53
+str r0, [r4, #0x24]
 ldr r0, =0x40000
 str r0, [r4, #8]
 movs r0, #4
@@ -148,6 +160,10 @@ wait_both:
 ldr r0, [r7, #36]
 cmp r0, #1
 blo wait_both
+movs r0, #0xca
+str r0, [r4, #0x24]
+movs r0, #0x53
+str r0, [r4, #0x24]
 ldr r0, =0x40000
 str r0, [r4, #8]
 movs r0, #5
@@ -183,6 +199,10 @@ wait_retained:
 ldr r0, [r7, #8]
 cmp r0, #4
 blo wait_retained
+movs r0, #0xca
+str r0, [r4, #0x24]
+movs r0, #0x53
+str r0, [r4, #0x24]
 ldr r0, =0x40000
 str r0, [r4, #8]
 movs r0, #6
@@ -196,8 +216,11 @@ b finish
 wake_irq:
 push {r0-r3,lr}
 ldr r0, =0x40002800
+movs r1, #0xff
+str r1, [r0, #0x24]
 ldr r1, [r0, #12]
 bic r1, r1, #0x400
+orr r1, r1, #0x80
 str r1, [r0, #12]
 ldr r0, =0x40013c14
 ldr r1, =0x400000
@@ -213,6 +236,8 @@ pop {r0-r3,pc}
 alarm_irq:
 push {r0-r3,lr}
 ldr r0, =0x40002800
+movs r1, #0xff
+str r1, [r0, #0x24]
 ldr r1, [r0, #12]
 ldr r2, =0x20001000
 str r1, [r2, #52]
@@ -233,6 +258,7 @@ str r3, [r2, #40]
 ldr r3, [r0, #4]
 str r3, [r2, #44]
 bic r1, r1, #0x300
+orr r1, r1, #0x80
 str r1, [r0, #12]
 ldr r0, =0x40013c14
 ldr r1, =0x20000
@@ -305,7 +331,7 @@ def main():
             level(0);w=advance(6);s=state()
             check('date and weekday alarms both reach shared NVIC41',w[3]==4 and w[9]==1 and w[13]&0x300==0x300)
             check('calendar alarm crosses midnight and year',w[10]==0 and w[11]==0x27a101)
-            check('handlers clear flags and both EXTI pending bits',not(s['rtc']['stored_status']&0x700) and not(s['exti']['pending']&0x420000))
+            check('locked handlers clear flags while INIT stays protected',not(s['rtc']['stored_status']&0x780) and not(s['exti']['pending']&0x420000))
             check('RTC timer/control survive an actual MCU-only reset',w[16]==2 and w[17]&0x4400==0x4400 and w[18]==409 and w[2]==4)
             native=json.loads(qmp.command('qom-get',path='/machine',property='native-mcu-state'))
             check('controller reset count is independent of the A53',native['system_resets']==1)

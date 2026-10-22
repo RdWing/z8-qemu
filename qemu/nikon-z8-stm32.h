@@ -1178,15 +1178,18 @@ static void z8_stm32_rtc_write(void *opaque, hwaddr off, uint64_t value,
         m->rtc[off / 4] = value;
         return;
     }
-    if (locked) {
-        return;                         /* write-protected, as on the part */
+    if (locked && off != Z8_RTC_ISR) {
+        return;                         /* protected configuration */
     }
     switch (off) {
     case Z8_RTC_ISR: {
         uint32_t old = m->rtc[off / 4];
         uint32_t keep = (old & ~0x3ff00u) | (value & 0x3ff00u & old);
 
-        /* INIT is read/write; the event flags (8..17) only clear. */
+        /* Event flags clear even with WPR locked; INIT remains protected. */
+        if (locked) {
+            value = (value & ~(1u << 7)) | (old & (1u << 7));
+        }
         m->rtc[off / 4] = (keep & ~(1u << 7)) | (value & (1u << 7));
         if ((old & (1u << 7)) && !(value & (1u << 7))) {
             m->rtc_base_s = z8_stm32_rtc_to_s(m->rtc[Z8_RTC_TR / 4],

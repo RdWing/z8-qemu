@@ -547,23 +547,28 @@ The RTC model now generates Alarm A/B and periodic wake flags from the declared
 matches; WUTR and WUCKSEL select the wake interval. Enabled flags drive EXTI17
 (shared Alarm A/B, NVIC41) and EXTI22 (wake, NVIC3). Delivery still requires the
 guest's EXTI edge, mask and NVIC configuration. Clearing a flag lowers its RTC
-source; disabling a timer cancels future events. MCU-only reset retains the
+source even while WPR is locked; INIT and configuration remain protected.
+Disabling a timer cancels future events. MCU-only reset retains the
 backup-domain calendar, controls and active timer, while resetting EXTI/NVIC.
 The read-only `native-mcu-io-state` RTC fields expose stored flags, configuration,
 match/expiry counters and source levels without acknowledging an event.
 
 Sixteen firmware-free actual-board checks cover periodic timing, pending-flag
-interrupt enable, masked/unmasked EXTI delivery, repeated alarms, calendar/date
+interrupt enable, locked-handler flag clearing, masked/unmasked EXTI delivery, repeated alarms, calendar/date
 and weekday matches across a year boundary, flag clearing, timer cancellation,
 MCU-reset retention and independent A53 progress. The test uses an explicit
 instruction-count clock so host scheduling does not determine its timing check.
 
 Original MAIN/EX enables Alarm A while running and a wake timer after shutdown.
-The new model produces 20 Alarm A matches and 74 wake expiries by 36.006 virtual
+The new model produces 20 Alarm A matches and 74 wake expiries by 36.045 virtual
 seconds in the finite replay; its 210 harness checks pass with a clean stop.
-MAIN still remains in terminal SRAM wait loops. EX enables the wake interrupt
-and EXTI mask but leaves the relevant rising/falling edge selections clear in
-this run, so generating RTC flags alone does not qualify native wake or restart.
+The strengthened locked-handler fixture rejects the previous binary after its
+first wake interrupt and passes on the corrected build. Original EX now clears
+repeated Alarm A flags, with 422 MAIN / 409 EX frames and zero bad frames.
+MAIN still remains in terminal SRAM wait loops. After shutdown, EX has the wake interrupt and EXTI mask enabled but the
+sampled rising/falling edge selections are clear. A read-only store trace
+confirms earlier rising-edge configuration followed by later GPIO configuration
+writes. Generating RTC flags alone does not qualify native wake or restart.
 
 Calendar time retains the existing one-virtual-second fixture; arbitrary
 prescaler/oscillator accuracy, non-LSE clocks, calibration, timestamp/tamper,

@@ -88,5 +88,7 @@ python3 tests/check_mcu_rtc.py --qemu /path/to/qemu-system-aarch64 \
 ```
 
 Its sixteen checks execute synthetic M4 handlers through RTC, EXTI and NVIC,
-including timing and retention across a guest-requested MCU-only reset. Native
+including timing, flag clearing with WPR locked and retention across a
+guest-requested MCU-only reset. The locked-handler fixture rejects the earlier
+binary that retained the event flag after its first interrupt. Native
 power-on recovery remains a separate original-firmware acceptance gate.
