@@ -7,8 +7,11 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'tools'))
+from package_runtime import copy_runtime
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--output', type=Path, default=ROOT/'.local/desktop/Z8.app')
 a = p.parse_args()
@@ -22,7 +25,7 @@ cache=ROOT/'.local/swift-module-cache';cache.mkdir(parents=True,exist_ok=True)
 architecture={'arm64':'arm64','x86_64':'x86_64'}[platform.machine()]
 subprocess.run(['xcrun', 'swiftc', '-target', architecture+'-apple-macosx13.0', '-module-cache-path', str(cache), '-swift-version', '5', '-O', str(ROOT/'desktop/Z8.swift'),
                 '-o', str(executable), '-framework', 'AppKit', '-framework', 'WebKit'], check=True)
-shutil.copytree(ROOT/'tools', resources/'runtime/tools', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+copy_runtime(ROOT, resources/'runtime/tools')
 shutil.copy2(ROOT/'source-manifest.json', resources/'runtime/source-manifest.json')
 styles = re.findall(r'<style>(.*?)</style>', (ROOT/'tools/control.html').read_text(), re.S)
 assert len(styles) == 1

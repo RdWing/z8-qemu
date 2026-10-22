@@ -18,7 +18,9 @@ python3 desktop/build.py
 This creates `.local/desktop/Z8.app`, ad-hoc signed for the build host's CPU,
 with a macOS 13 deployment target. QEMU, Python and Nikon inputs are not bundled.
 Python 3.11 or newer and the built QEMU executable must already be available.
-Only public Python/HTML/JSON runtime source is copied into the bundle.
+Only runtime source listed in `source-manifest.json` is copied into the bundle,
+after fingerprint and privacy-pattern checks. Unlisted local files are excluded;
+symlinks and non-source payloads are rejected.
 
 Copy `desktop/example-config.json` to a private location and set absolute paths.
 `desktop/example-native-config.json` shows the explicit original-EX Movie/card

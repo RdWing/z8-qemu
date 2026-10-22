@@ -3,6 +3,7 @@
 ```sh
 python tests/run.py
 python tools/audit_source.py
+python tools/audit_privacy.py --history
 ```
 
 The source suite checks Python syntax, CLI entry points, local imports,
@@ -44,3 +45,11 @@ The [Z63 backport validation](z63-backport.md#validation-on-20-october-2026)
 separates host contracts, actual-board MMIO and original Z8 guest acceptance.
 The production timed-single test supersedes the older copied C timing model.
 Run the complete host suite with `python -m unittest discover -s tests -p 'test_*.py' -v`.
+
+Privacy tests check redacted pattern findings, removed historical content,
+historical payload names, and manifest-only runtime packaging. The packager
+excludes unlisted files, verifies source hashes before copying, and rejects
+symlinks, path traversal and non-source payloads. These controls supplement
+manual review of documentation, PR text, logs and published artifacts; they do
+not guarantee that every private fact matches a pattern. History checking needs
+a full clone; the source CI job fetches complete history for that check.
