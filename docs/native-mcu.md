@@ -469,6 +469,32 @@ milliseconds; ordinary half-second host snapshots missed some of them, so the
 acceptance uses separate read-only higher-frequency report observations.
 
 Browser 640px layout, live queue feedback and disconnected disabling are checked.
-The native menu bridge has host checks and a signed macOS build. Exposure/ISO
-button-plus-dial chords, lens-dependent settings, rapid continuous turns and
+The native menu bridge has host checks and a signed macOS build. ISO/exposure-compensation
+chords, lens-dependent settings, rapid continuous turns and
 physical dial timing remain separate work.
+
+### Exposure-mode chord
+
+Exposure mode minus/plus holds the independently qualified MODE contact
+(expander `0x22`, bit 5) around one Main dial turn. Original EX supplies MODE
+at report byte `0x0E` and the signed Main count at `0x0B`; the host neither
+writes a setting nor constructs a switch packet. Each finite chord settles
+for 250 virtual milliseconds before turning and holds for another 250 after
+its last phase, then releases. Stop cancels either phase and releases MODE;
+later inputs wait for the entire chord and its cooldown.
+
+The shared browser and Camera-menu commands use the existing dial capability,
+readiness, bounded queue and capture guard. No modifier toggle or keyboard
+shortcut is introduced. The original-firmware no-electronic-lens fixture
+advances through the mode selection and retains M after release. P/S selection
+highlights can return to A in the shooting display; this is not evidence of
+a lost dial count. The exact lens/effective-setting gate remains untraced,
+and lens-supported P/S exposure is not qualified.
+
+The finite production run passes all 281 harness checks, with 724 MAIN / 674
+EX frames, zero checksum failures and clean shutdown at 31.035 virtual seconds.
+It returns from M to A, then accepts a live browser mode-plus input and retains
+M again. The host suite runs 89 tests (88 pass, one optional skip); source and
+renderer contracts, strict UI audit, signed macOS build and signature checks
+pass. Exact shutter-step consumption, restart persistence and new AppKit-menu
+runtime clicks remain separate acceptance gates.

@@ -70,10 +70,10 @@ class ControlAdmission(unittest.TestCase):
             owner.ready=True;owner.last_publish=time.monotonic()
             for path in ('/dial/main/0','/dial/sub/127','/dial/main/1/extra','/dial/other/1'):
                 self.assertEqual(post(path),400)
-            for axis in ('main','sub'):
+            for axis in ('main','sub','mode'):
                 for sign in (-1,1):
                     self.assertEqual(post(f'/dial/{axis}/{sign}'),202)
-                    self.assertEqual(owner.next_input(),('dial',(axis,sign)))
+                    self.assertEqual(owner.next_input(),('mode-dial',sign) if axis=='mode' else ('dial',(axis,sign)))
             owner.capture_busy=True;self.assertEqual(post('/dial/main/1'),409)
             owner.capture_busy=False;owner.last_publish-=6;self.assertEqual(post('/dial/main/1'),503)
             owner.native_dials=False;self.assertEqual(post('/dial/main/1'),409)

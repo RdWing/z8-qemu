@@ -406,5 +406,15 @@ after disconnection. No keyboard shortcuts are assigned.
 
 Original-firmware checks cover both signs on both axes, menu movement, submenu
 entry/return, a live browser turn and half-shutter recovery. The 80-millisecond
-phase cadence is a functional input choice, not physical timing. Button-held
-exposure/ISO adjustments and lens-dependent behavior remain unqualified.
+phase cadence is a functional input choice, not physical timing. ISO/exposure-compensation chords and lens-dependent behavior remain unqualified.
+
+Exposure mode minus/plus uses the same controls and Camera menu. Each action
+holds MODE around one Main turn and releases both inputs before another camera
+action can run. Stop also releases a cancelled chord. Original firmware retains
+Manual mode in the no-electronic-lens fixture; P/S highlights may return to A
+on the shooting display. Watch the firmware display for the effective result.
+
+Native browser acceptance covers M → A → M, an actual browser chord, narrow
+layout and disabled controls after clean shutdown. The updated host suite has
+88 passes and one optional skip; the signed macOS build and signature verify.
+New Camera-menu runtime clicks and exact shutter-step consumption remain separate.

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Z8 external contacts qualified through original EX 124-byte switch reports."""
 from control import BUTTONS
-from native_dials import Dial
+from native_dials import Dial, ModeDial
 
 CONTACTS={'menu':('mcu-contacts','23.6'),'down':('mcu-contacts','23.13'),
           'ok':('mcu-contacts','23.11'),'left':('mcu-contacts','23.12'),
@@ -59,6 +59,10 @@ class Inputs:
             self.dial=Dial(self.qmp,*value,virtual_seconds)
             event=self.dial.tick(virtual_seconds);control.mark_sent()
             return event
+        if kind=='mode-dial':
+            self.dial=ModeDial(self.qmp,value,virtual_seconds)
+            control.mark_sent()
+            return dict(kind='mode-dial-hold',virtual_seconds=virtual_seconds)
         if kind=='capture':
             if not self.allow_capture:raise ValueError('Native capture profile is not enabled')
             self.capture={'at':virtual_seconds,'phase':0,'before':control.capture_completed_jobs,'control':control}

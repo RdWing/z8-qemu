@@ -270,3 +270,9 @@ external pin phases. The backend serializes turns, buttons, modes and capture.
 A delayed tick preserves minimum phase spacing; it never catches up by emitting
 multiple edges at once. Shutdown returns an unfinished turn to its starting pin
 levels without replaying it. Input delivery and firmware acceptance stay distinct.
+
+Exposure mode minus/plus extends the same dial group, guarded queue and AppKit
+Camera bridge. It holds MODE around one Main turn, then releases both inputs;
+there is no persistent modifier toggle or keyboard shortcut. The label distinguishes
+exposure mode from the separate Photo/Movie selector. Firmware owns the resulting
+P/S/A/M choice; queue feedback does not claim the mode changed.

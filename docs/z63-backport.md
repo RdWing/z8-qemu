@@ -490,6 +490,18 @@ count; the existing queue serializes turns with camera input. No donor exposure
 mode ladder or firmware write supplies these controls. A native run observes all
 four signed report pulses, menu/submenu navigation, an actual browser turn and
 Photo recovery; all 300 checks pass with zero checksum failures. The host suite
-passes 87 tests (86 passed, one optional skip). Exposure/ISO chords, sustained
+passes 87 tests (86 passed, one optional skip). ISO/exposure-compensation chords, sustained
 fast turns, lens/power, complete stock logging/console/USB and combined HE/Movie
 preview remain open. See [command-dial limits](native-mcu.md#native-mainsub-command-dials).
+
+The MODE continuation adds one finite held-button/Main-dial chord through the
+same queue, browser controls and AppKit Camera bridge. Original EX reports
+MODE and the signed count; original MAIN retains Manual mode after release.
+This is separate from lens-supported P/S exposure and from physical controls.
+
+The MODE run passes 281 harness checks, 724 MAIN / 674 EX frames and zero bad
+frames, with clean shutdown. The updated host suite has 88 passes and one
+optional skip. Native browser acceptance includes M → A → M and a live chord;
+new AppKit-menu runtime clicks, shutter-step consumption and settings across
+restart remain unqualified. The [native control owner](native-mcu.md#exposure-mode-chord)
+retains the detailed scope and acceptance.

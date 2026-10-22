@@ -44,3 +44,35 @@ class Dial:
         if not self.finished:
             self.drive(self.origin)
             self.finished = True
+
+
+class ModeDial:
+    """One Main turn inside a finite MODE hold, sharing the dial lease."""
+    def __init__(self, qmp, direction, virtual_seconds):
+        self.qmp = qmp
+        self.dial = Dial(qmp, 'main', direction, virtual_seconds + .25)
+        self.finished = False; self.release_at = None
+        qmp.command('qom-set', path='/machine', property='mcu-contacts', value='22.5=0')
+
+    def tick(self, virtual_seconds):
+        if self.finished:
+            return None
+        if self.release_at is not None:
+            if virtual_seconds < self.release_at:
+                return None
+            self.release()
+            return dict(kind='mode-dial-release', virtual_seconds=virtual_seconds)
+        event = self.dial.tick(virtual_seconds)
+        if event:
+            event['modifier'] = 'mode'
+        if self.dial.finished:
+            self.release_at = virtual_seconds + .25
+        return event
+
+    def release(self):
+        if not self.finished:
+            try:
+                self.dial.release()
+            finally:
+                self.qmp.command('qom-set', path='/machine', property='mcu-contacts', value='22.5=1')
+                self.finished = True

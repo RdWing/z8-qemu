@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','display-help','ex-panel','panel-screen','panel-status','dial-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
 const buttons=['menu','half','play','i','disp','protect','delete'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
-const dials=['main','sub'].flatMap(dial=>[-1,1].map(direction=>({dataset:{dial,direction:String(direction)},disabled:true})));
+const dials=['main','sub','mode'].flatMap(dial=>[-1,1].map(direction=>({dataset:{dial,direction:String(direction)},disabled:true})));
 let respond=async()=>({ok:true,status:202});
 const context=vm.createContext({console,AbortSignal,setTimeout:()=>{},Date,
  document:{querySelector:s=>nodes[s.slice(1)],querySelectorAll:s=>s==='[data-dial]'?dials:buttons,activeElement:null},
@@ -45,7 +45,7 @@ const run=code=>vm.runInContext(code,context);
  assert.equal(await run("window.z8Workbench.turnDial('main',1)"),false);
  run('dialsAvailable=true;available(true)');
  assert.equal(notifications.at(-1).dialsReady,true);assert.equal(dials.every(b=>!b.disabled),true);
- for(const axis of ['main','sub'])for(const sign of [-1,1]) {
+ for(const axis of ['main','sub','mode'])for(const sign of [-1,1]) {
   assert.equal(await run(`window.z8Workbench.turnDial('${axis}',${sign})`),true);
   assert.equal(calls.at(-1).path,`/dial/${axis}/${sign}`);
  }

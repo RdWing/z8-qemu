@@ -184,6 +184,8 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Main dial +", #selector(mainDialPlus), ""),
             ("Sub dial −", #selector(subDialMinus), ""),
             ("Sub dial +", #selector(subDialPlus), ""),
+            ("Exposure mode −", #selector(exposureModeMinus), ""),
+            ("Exposure mode +", #selector(exposureModePlus), ""),
             ("Protect key", #selector(cameraProtectButton), ""),
             ("Delete key", #selector(cameraDeleteButton), ""),
             ("Up", #selector(cameraUpButton), ""),
@@ -441,17 +443,20 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     var dialActions: [Selector: (String, Int)] {
         [#selector(mainDialMinus): ("main", -1), #selector(mainDialPlus): ("main", 1),
-         #selector(subDialMinus): ("sub", -1), #selector(subDialPlus): ("sub", 1)]
+         #selector(subDialMinus): ("sub", -1), #selector(subDialPlus): ("sub", 1),
+         #selector(exposureModeMinus): ("mode", -1), #selector(exposureModePlus): ("mode", 1)]
     }
     func turnDial(_ axis: String, _ direction: Int) {
         guard dialsReady, child?.isRunning == true, baseURL != nil,
-              ["main", "sub"].contains(axis), [-1, 1].contains(direction) else { return }
+              ["main", "sub", "mode"].contains(axis), [-1, 1].contains(direction) else { return }
         view.evaluateJavaScript("window.z8Workbench?.turnDial('\(axis)',\(direction))")
     }
     @objc func mainDialMinus() { turnDial("main", -1) }
     @objc func mainDialPlus() { turnDial("main", 1) }
     @objc func subDialMinus() { turnDial("sub", -1) }
     @objc func subDialPlus() { turnDial("sub", 1) }
+    @objc func exposureModeMinus() { turnDial("mode", -1) }
+    @objc func exposureModePlus() { turnDial("mode", 1) }
     var cameraButtonActions: [Selector: String] {
         [#selector(cameraMenuButton): "menu", #selector(cameraHalfButton): "half",
          #selector(cameraPlayButton): "play", #selector(cameraIButton): "i", #selector(cameraDispButton): "disp",
