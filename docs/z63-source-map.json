@@ -384,5 +384,7 @@
       ],
       "adaptation": "Explicit addresses only; QEMU 11 API7 callbacks, descriptor-presence register reads, bounded collision-safe per-CPU sites and no-replace output. Optional AArch64 application-ring register schema; no object/guest-memory reads, inherited firmware hooks or stack scan."
     }
-  }
+  },
+  "source_repository_visibility": "private",
+  "source_access_note": "The RdWing integration requires repository access; the pinned commit and file hashes record provenance, not public availability."
 }

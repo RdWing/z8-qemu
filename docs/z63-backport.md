@@ -1,6 +1,7 @@
 # Z63 shared-device backport
 
-Source: [RdWing/z63-qemu 5c3b47c](https://github.com/RdWing/z63-qemu/commit/5c3b47c6428310e923520d81df74eff86fe1451c),
+Source: the private `RdWing/z63-qemu` integration at commit
+`5c3b47c6428310e923520d81df74eff86fe1451c` (repository access required),
 including its pinned shared221 donor
 [WonderLantern/zr-qemu 8a00ceda](https://github.com/WonderLantern/zr-qemu/commit/8a00ceda6a7111e5e08220f9cc3889f57fce9d0f).
 Target: Z8 C3.11, QEMU 11.1.1, starting from `c24e334`.

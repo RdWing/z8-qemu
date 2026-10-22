@@ -27,8 +27,9 @@ The model is incomplete. Synthetic ROM, MCU, sensor and timing inputs are
 experiments, not recovered factory data or physical specifications.
 No updater, flashing tool or physical-camera access is included.
 
-The shared-device backport is adapted from
-[RdWing/z63-qemu 5c3b47c](https://github.com/RdWing/z63-qemu/commit/5c3b47c6428310e923520d81df74eff86fe1451c),
+The shared-device backport is adapted from the private `RdWing/z63-qemu`
+integration at commit `5c3b47c6428310e923520d81df74eff86fe1451c`
+(repository access required),
 including its pinned WonderLantern/zr-qemu shared221 donor
 `8a00ceda6a7111e5e08220f9cc3889f57fce9d0f`. The Z63 integration credits
 WonderLantern/LiBr and its upstream coauthors. This reuse does not establish
