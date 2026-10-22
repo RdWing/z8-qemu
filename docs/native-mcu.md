@@ -427,8 +427,8 @@ confirms with a second Delete press. The screen shows the protection icon,
 then the confirmation, then `DSC_0002.NEF` as `2/2`. A stopped-card catalog
 independently confirms `DSC_0003.NEF` is absent and the two other NEFs remain;
 the original card still has all three. Play returns to Photo and RAW frames
-advance to 332. All 300 harness checks pass, with 683 MAIN / 641 EX frames,
-zero checksum failures and clean owned shutdown at 30.012 virtual seconds.
+advance to 332. All 300 harness checks pass, with 682 MAIN / 641 EX frames,
+zero checksum failures and clean owned shutdown at 30.003 virtual seconds.
 This is a bounded emulator workflow, not physical control qualification.
 
 Browser Protect key / Delete key and the matching AppKit Camera commands use
