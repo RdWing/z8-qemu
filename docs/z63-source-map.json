@@ -343,7 +343,7 @@
     "qemu/nikon-z8-stm32.h": {
       "source_path": "nikon-z63-stm32.h",
       "source_sha256": "1286bfad92089dad118f12a0eeab15c700d96b55dd7c86af72139592885b2492",
-      "adapted_sha256": "0ce5770d0fbe30ec86b14a1cf27432273fedbb5bd1b6958f07110c8d03acadf0"
+      "adapted_sha256": "41e4cf2115f151a7fa7207e1b4b237857340bff550e81fad3f5b4666a0f11509"
     },
     "qemu/nikon-z8-toplcd.h": {
       "source_path": "nikon-z63-toplcd.h",
@@ -366,7 +366,7 @@
       "source_path": "../../hw/misc/stm32f4xx_exti.c",
       "source_sha256": "114e420f8e10a1d9e1821be396529d65035793a6e73ae07ae74433eeee542da2",
       "qemu_11_upstream_sha256": "d759f72edec32ba2878e3d47de670ebf64e717955858ab516468ff0be2d05b3c",
-      "adapted_sha256": "6d63234abfd8194bb25e6b5e9c4a19b32bde772de268f84c60e224ca44ffe41e"
+      "adapted_sha256": "3c053b9ad3a5ec397e5486c6eabcca1b8ac396e3df49ffb4878702b973f9aed2"
     },
     "plugins/z8trace.c": {
       "adapted_sha256": "672b3353496403990ea9dda8fd2128c833edfcda9860c34f90c76fc3d1c9b65a",

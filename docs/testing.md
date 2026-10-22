@@ -79,3 +79,14 @@ partial/invalid/unselected negatives. Host PNG/HTTP and production-JavaScript
 checks cover display blanking, bounds, capability, image versions and retained
 pixels on disconnection. Original EX drawing and native UI remain separate
 runtime acceptance.
+
+RTC alarm/wake delivery has a separate firmware-free runtime check:
+
+```sh
+python3 tests/check_mcu_rtc.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-rtc-check
+```
+
+Its sixteen checks execute synthetic M4 handlers through RTC, EXTI and NVIC,
+including timing and retention across a guest-requested MCU-only reset. Native
+power-on recovery remains a separate original-firmware acceptance gate.

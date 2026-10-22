@@ -167,7 +167,7 @@ struct Z8Stm32 {
     STM32F2XXTimerState tim_more[10];   /* TIM1, 8, 9-14, 6, 7 */
     OrIRQState tim_or[2];               /* vectors 25 and 44 are shared */
     STM32F2XXUsartState usart[6];       /* USART1-3, UART4-5, USART6 */
-    STM32F4xxExtiState exti;            /* QEMU's model, lines 0..15 */
+    STM32F4xxExtiState exti;            /* GPIO 0..15 and internal 16..22 */
     struct {                            /* z8_stm32_shutter_tick */
         QEMUTimer *timer;
         uint8_t pos;                    /* 0..3, the table at 0x8058670 */
@@ -249,6 +249,10 @@ struct Z8Stm32 {
     int64_t rtc_epoch_ns;
     unsigned rtc_wpr;               /* 0, 1 (0xca seen), 2 (unlocked) */
     bool rtc_named_timer;
+    QEMUTimer *rtc_alarm_timer, *rtc_wake_timer;
+    bool rtc_alarm_level, rtc_wake_level;
+    uint64_t rtc_alarm_events[2], rtc_wake_events;
+    int64_t rtc_wake_deadline;
     bool rtc_running;               /* mcu-rtc=: the calendar kept time */
     int64_t rtc_start_s;            /* ... and read this at power-on */
 };
@@ -420,6 +424,8 @@ static uint64_t z8_stm32_rcc_read(void *opaque, hwaddr off, unsigned size)
     return v;
 }
 
+static void z8_stm32_rtc_reclock(Z8Stm32 *m);
+
 static void z8_stm32_rcc_write(void *opaque, hwaddr off, uint64_t value,
                               unsigned size)
 {
@@ -443,6 +449,9 @@ static void z8_stm32_rcc_write(void *opaque, hwaddr off, uint64_t value,
         return;
     }
     m->rcc[off / 4] = value;
+    if (off == Z8_RCC_BDCR && m->rtc_alarm_timer) {
+        z8_stm32_rtc_reclock(m);
+    }
 }
 
 static const MemoryRegionOps z8_stm32_rcc_ops = {
@@ -891,8 +900,9 @@ static void z8_stm32_gpio_reset(Z8Stm32Gpio *g)
  * The calendar runs on QEMU's virtual clock from the value the firmware
  * last wrote in initialisation mode (RM0386 25.3.5: set INIT, wait INITF,
  * write TR/DR, clear INIT). Shadow registers are always synchronised (RSF
- * reads 1). Alarms, wake-up timer, time stamp, tamper and calibration are
- * stored but do nothing; enabling one is reported once. Backup registers
+ * reads 1). LSE-backed alarm comparisons and periodic wakeup now raise
+ * their original flags/EXTI inputs. Timestamp, tamper and calibration remain
+ * storage without events. Backup registers
  * BKP0R..BKP19R are storage.
  */
 #define Z8_STM32_RTC_BASE 0x40002800ULL
@@ -944,6 +954,162 @@ static int64_t z8_stm32_rtc_now_s(Z8Stm32 *m)
                             m->rtc_epoch_ns) / NANOSECONDS_PER_SECOND;
 }
 
+/* Calendar fixture: one second of virtual time, LSE 32768 Hz. Alarm
+ * comparisons follow PREDIV_S within that second. Other RTC clock sources
+ * remain unsupported for event generation rather than inventing a rate. */
+static bool z8_stm32_rtc_clocked(Z8Stm32 *m)
+{
+    uint32_t bdcr = m->rcc[Z8_RCC_BDCR / 4];
+    return (bdcr & 0x8301) == 0x8101 &&
+           !(m->rtc[Z8_RTC_ISR / 4] & (1u << 7));
+}
+
+static unsigned z8_stm32_rtc_ss(Z8Stm32 *m)
+{
+    unsigned prediv = m->rtc[0x10 / 4] & 0x7fff;
+    if (m->rtc[Z8_RTC_ISR / 4] & (1u << 7)) {
+        return prediv;
+    }
+    int64_t elapsed = MAX(0, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - m->rtc_epoch_ns);
+    return prediv - (elapsed % NANOSECONDS_PER_SECOND) * (prediv + 1) /
+                     NANOSECONDS_PER_SECOND;
+}
+
+static void z8_stm32_rtc_irq(Z8Stm32 *m)
+{
+    uint32_t cr = m->rtc[Z8_RTC_CR / 4], isr = m->rtc[Z8_RTC_ISR / 4];
+    bool alarm = (isr & ((cr >> 4) & 0x300)) != 0;
+    bool wake = (isr & ((cr >> 4) & 0x400)) != 0;
+    if (alarm != m->rtc_alarm_level) {
+        m->rtc_alarm_level = alarm;
+        qemu_set_irq(qdev_get_gpio_in(DEVICE(&m->exti), 17), alarm);
+    }
+    if (wake != m->rtc_wake_level) {
+        m->rtc_wake_level = wake;
+        qemu_set_irq(qdev_get_gpio_in(DEVICE(&m->exti), 22), wake);
+    }
+}
+
+static int64_t z8_stm32_rtc_wake_period(Z8Stm32 *m)
+{
+    unsigned select = m->rtc[Z8_RTC_CR / 4] & 7;
+    uint64_t ticks = (m->rtc[0x14 / 4] & 0xffff) + 1;
+    if (select < 4) {
+        ticks *= 16 >> select;
+    } else {
+        ticks += select & 2 ? 65536 : 0;
+        ticks *= (((m->rtc[0x10 / 4] >> 16) & 127) + 1) *
+                 ((m->rtc[0x10 / 4] & 32767) + 1);
+    }
+    /* Round only the fractional nanosecond upward, without overflowing. */
+    return ticks / 32768 * NANOSECONDS_PER_SECOND +
+           ((ticks % 32768) * NANOSECONDS_PER_SECOND + 32767) / 32768;
+}
+
+static void z8_stm32_rtc_alarm_schedule(Z8Stm32 *m)
+{
+    timer_del(m->rtc_alarm_timer);
+    if (z8_stm32_rtc_clocked(m) && (m->rtc[Z8_RTC_CR / 4] & 0x300)) {
+        int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int64_t elapsed = MAX(0, now - m->rtc_epoch_ns);
+        unsigned n = (m->rtc[0x10 / 4] & 32767) + 1;
+        int64_t phase = elapsed % NANOSECONDS_PER_SECOND;
+        uint64_t next = phase * n / NANOSECONDS_PER_SECOND + 1;
+        timer_mod(m->rtc_alarm_timer, m->rtc_epoch_ns +
+                  elapsed / NANOSECONDS_PER_SECOND * NANOSECONDS_PER_SECOND +
+                  (next * NANOSECONDS_PER_SECOND + n - 1) / n);
+    }
+}
+
+static void z8_stm32_rtc_wake_arm(Z8Stm32 *m, int64_t deadline)
+{
+    m->rtc_wake_deadline = deadline;
+    timer_mod(m->rtc_wake_timer, deadline);
+}
+
+static void z8_stm32_rtc_reclock(Z8Stm32 *m)
+{
+    z8_stm32_rtc_alarm_schedule(m);
+    if (!z8_stm32_rtc_clocked(m)) {
+        timer_del(m->rtc_wake_timer);
+    } else if ((m->rtc[Z8_RTC_CR / 4] & 0x400) &&
+               !timer_pending(m->rtc_wake_timer)) {
+        z8_stm32_rtc_wake_arm(m, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                  z8_stm32_rtc_wake_period(m));
+    }
+}
+
+static bool z8_stm32_rtc_alarm_match(Z8Stm32 *m, unsigned i,
+                                    uint32_t tr, uint32_t dr, unsigned ss)
+{
+    uint32_t alarm = m->rtc[(0x1c + i * 4) / 4];
+    uint32_t sub = m->rtc[(0x44 + i * 4) / 4];
+    unsigned compared = (sub >> 24) & 15;
+    if (compared ? ((ss ^ sub) & ((1u << compared) - 1)) != 0 :
+                   ss != (m->rtc[0x10 / 4] & 32767)) {
+        return false;
+    }
+    if (!(alarm & (1u << 7)) && (alarm & 0x7f) != (tr & 0x7f)) {
+        return false;
+    }
+    if (!(alarm & (1u << 15)) && (alarm & 0x7f00) != (tr & 0x7f00)) {
+        return false;
+    }
+    if (!(alarm & (1u << 23))) {
+        unsigned hour = z8_unbcd((alarm >> 16) & 0x3f);
+        if (m->rtc[Z8_RTC_CR / 4] & (1u << 6)) {
+            hour = hour % 12 + ((alarm & (1u << 22)) ? 12 : 0);
+        }
+        if (hour != z8_unbcd((tr >> 16) & 0x3f)) {
+            return false;
+        }
+    }
+    if (!(alarm & (1u << 31))) {
+        unsigned day = alarm & (1u << 30) ? (dr >> 13) & 7 : dr & 0x3f;
+        unsigned want = (alarm >> 24) & ((alarm & (1u << 30)) ? 7 : 0x3f);
+        if (want != day) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void z8_stm32_rtc_alarm_tick(void *opaque)
+{
+    Z8Stm32 *m = opaque;
+    uint32_t tr, dr;
+    if (!z8_stm32_rtc_clocked(m)) {
+        return;
+    }
+    z8_stm32_rtc_from_s(z8_stm32_rtc_now_s(m), &tr, &dr);
+    unsigned ss = z8_stm32_rtc_ss(m);
+    for (unsigned i = 0; i < 2; i++) {
+        if ((m->rtc[Z8_RTC_CR / 4] & (0x100u << i)) &&
+            z8_stm32_rtc_alarm_match(m, i, tr, dr, ss)) {
+            m->rtc[Z8_RTC_ISR / 4] |= 0x100u << i;
+            m->rtc_alarm_events[i]++;
+        }
+    }
+    z8_stm32_rtc_irq(m);
+    z8_stm32_rtc_alarm_schedule(m);
+}
+
+static void z8_stm32_rtc_wake_tick(void *opaque)
+{
+    Z8Stm32 *m = opaque;
+    if (!z8_stm32_rtc_clocked(m) || !(m->rtc[Z8_RTC_CR / 4] & 0x400)) {
+        return;
+    }
+    int64_t period = z8_stm32_rtc_wake_period(m);
+    int64_t deadline = m->rtc_wake_deadline;
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t count = 1 + MAX(0, now - deadline) / period;
+    m->rtc_wake_events += count;
+    m->rtc[Z8_RTC_ISR / 4] |= 0x400;
+    z8_stm32_rtc_irq(m);
+    z8_stm32_rtc_wake_arm(m, deadline + count * period);
+}
+
 static bool z8_stm32_rtc_valid(hwaddr off)
 {
     return off <= 0x48 || (off >= 0x50 && off <= 0x9c);
@@ -988,7 +1154,7 @@ static uint64_t z8_stm32_rtc_read(void *opaque, hwaddr off, unsigned size)
     case Z8_RTC_WPR:
         return 0;
     case Z8_RTC_SSR:
-        return m->rtc[0x10 / 4] & 0x7fff;       /* sub-second: PREDIV_S */
+        return z8_stm32_rtc_ss(m);
     }
     return m->rtc[off / 4];
 }
@@ -1027,6 +1193,8 @@ static void z8_stm32_rtc_write(void *opaque, hwaddr off, uint64_t value,
                                                m->rtc[Z8_RTC_DR / 4]);
             m->rtc_epoch_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         }
+        z8_stm32_rtc_irq(m);
+        z8_stm32_rtc_reclock(m);
         return;
     }
     case Z8_RTC_TR:
@@ -1037,15 +1205,37 @@ static void z8_stm32_rtc_write(void *opaque, hwaddr off, uint64_t value,
         }
         break;
     case Z8_RTC_CR:
-        if ((value & 0xff00) && !m->rtc_named_timer) {
-            m->rtc_named_timer = true;
-            error_report("Z8_STM32: RTC alarm/wake-up enabled (CR=0x%" PRIx64
-                         ", pc=0x%08x) -- stored, no interrupt modelled yet",
-                         value, z8_stm32_pc());
+        if (m->rtc[off / 4] & 0x400) {
+            value = (value & ~7u) | (m->rtc[off / 4] & 7);
+        }
+        if (!(value & 0x400)) {
+            timer_del(m->rtc_wake_timer);
+        } else if (!(m->rtc[off / 4] & 0x400) && z8_stm32_rtc_clocked(m)) {
+            m->rtc[off / 4] = value;
+            z8_stm32_rtc_wake_arm(m, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                      z8_stm32_rtc_wake_period(m));
+        }
+        break;
+    case 0x14:                          /* WUTR: writable only when disabled */
+        if (m->rtc[Z8_RTC_CR / 4] & 0x400) {
+            return;
+        }
+        value &= 0xffff;
+        break;
+    case 0x1c:
+    case 0x20:
+    case 0x44:
+    case 0x48: {
+        unsigned i = off == 0x20 || off == 0x48;
+        if (m->rtc[Z8_RTC_CR / 4] & (0x100u << i)) {
+            return;
         }
         break;
     }
+    }
     m->rtc[off / 4] = value;
+    z8_stm32_rtc_irq(m);
+    z8_stm32_rtc_reclock(m);
 }
 
 static const MemoryRegionOps z8_stm32_rtc_ops = {
@@ -1100,6 +1290,18 @@ static bool z8_stm32_rtc_option(Z8Stm32 *m, const char *value,
 
 static void z8_stm32_rtc_reset(Z8Stm32 *m)
 {
+    if (m->rtc_alarm_timer) {
+        timer_del(m->rtc_alarm_timer);
+        timer_del(m->rtc_wake_timer);
+    }
+    if (m->rtc_alarm_level) {
+        qemu_set_irq(qdev_get_gpio_in(DEVICE(&m->exti), 17), 0);
+    }
+    if (m->rtc_wake_level) {
+        qemu_set_irq(qdev_get_gpio_in(DEVICE(&m->exti), 22), 0);
+    }
+    m->rtc_alarm_level = m->rtc_wake_level = false;
+    m->rtc_alarm_events[0] = m->rtc_alarm_events[1] = m->rtc_wake_events = 0;
     /* The backup domain survives a system reset on the part; here a cold
      * start is all there is. Without mcu-rtc the calendar starts at
      * 2000-01-01 00:00 and INITS stays clear until the firmware sets a date
@@ -2060,9 +2262,10 @@ static const hwaddr z8_stm32_usart_base[6] = {
 };
 static const int z8_stm32_usart_irq[6] = { 37, 38, 39, 52, 53, 71 };
 
-/* EXTI lines 0..15 to the NVIC (lines 5-9 and 10-15 share a vector). */
-static const int z8_stm32_exti_irq[16] = {
+/* RM0386 EXTI 0..22 to the NVIC, including RTC alarm 17 / wakeup 22. */
+static const int z8_stm32_exti_irq[23] = {
     6, 7, 8, 9, 10, 23, 23, 23, 23, 23, 40, 40, 40, 40, 40, 40,
+    1, 41, 42, 62, 76, 2, 3,
 };
 
 /* ------------------------------------------------------------------ */
@@ -2962,7 +3165,7 @@ static void z8_stm32_init(Z8Stm32 *m, Object *owner, const char *image,
     }
     memory_region_add_subregion(&m->mem, 0x40013c00,
         sysbus_mmio_get_region(SYS_BUS_DEVICE(&m->exti), 0));
-    for (unsigned i = 0; i < 16; i++) {
+    for (unsigned i = 0; i < 23; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(&m->exti), i,
                            qdev_get_gpio_in(armv7m, z8_stm32_exti_irq[i]));
     }
@@ -2994,6 +3197,9 @@ static void z8_stm32_init(Z8Stm32 *m, Object *owner, const char *image,
     m->fmpi2c.er_irq = qdev_get_gpio_in(armv7m, 96);
     z8_stm32_map(m, &m->fmpi2c.mr, owner, &z8_stm32_fmpi2c_ops, m,
                   "z8-mcu-fmpi2c1", Z8_STM32_FMPI2C_BASE, 0x400);
+
+    m->rtc_alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, z8_stm32_rtc_alarm_tick, m);
+    m->rtc_wake_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, z8_stm32_rtc_wake_tick, m);
 
     z8_stm32_reset(m);
     qemu_register_reset(z8_stm32_reset, m);

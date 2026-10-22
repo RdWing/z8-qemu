@@ -539,3 +539,33 @@ is still under investigation. No Power-on action or inferred reset wire is
 advertised. Use the separately qualified cold Session restart to start another
 workbench session. Electrical wake, fastboot and retained-memory behavior remain
 unqualified.
+
+## RTC alarm and wake events
+
+The RTC model now generates Alarm A/B and periodic wake flags from the declared
+32768 Hz LSE input. Calendar field masks and subsecond comparisons select alarm
+matches; WUTR and WUCKSEL select the wake interval. Enabled flags drive EXTI17
+(shared Alarm A/B, NVIC41) and EXTI22 (wake, NVIC3). Delivery still requires the
+guest's EXTI edge, mask and NVIC configuration. Clearing a flag lowers its RTC
+source; disabling a timer cancels future events. MCU-only reset retains the
+backup-domain calendar, controls and active timer, while resetting EXTI/NVIC.
+The read-only `native-mcu-io-state` RTC fields expose stored flags, configuration,
+match/expiry counters and source levels without acknowledging an event.
+
+Sixteen firmware-free actual-board checks cover periodic timing, pending-flag
+interrupt enable, masked/unmasked EXTI delivery, repeated alarms, calendar/date
+and weekday matches across a year boundary, flag clearing, timer cancellation,
+MCU-reset retention and independent A53 progress. The test uses an explicit
+instruction-count clock so host scheduling does not determine its timing check.
+
+Original MAIN/EX enables Alarm A while running and a wake timer after shutdown.
+The new model produces 20 Alarm A matches and 74 wake expiries by 36.006 virtual
+seconds in the finite replay; its 210 harness checks pass with a clean stop.
+MAIN still remains in terminal SRAM wait loops. EX enables the wake interrupt
+and EXTI mask but leaves the relevant rising/falling edge selections clear in
+this run, so generating RTC flags alone does not qualify native wake or restart.
+
+Calendar time retains the existing one-virtual-second fixture; arbitrary
+prescaler/oscillator accuracy, non-LSE clocks, calibration, timestamp/tamper,
+backup-domain reset and physical wake wiring remain separate gaps. The model
+does not infer a board reset wire or force firmware to resume.

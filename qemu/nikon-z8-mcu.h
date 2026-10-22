@@ -241,7 +241,12 @@ static char *get_z8_mcu_io(Object *obj,Error **errp)
             i ? "," : "",i,p->active ? "true" : "false",p->tx_queued,p->rx_queued,p->pending,
             m->chip.spi[i ? 3 : 0].r[0],m->chip.spi[i ? 3 : 0].r[1]);
     }
-    g_string_append(out,"]}");return g_string_free(out,false);
+    g_string_append_printf(out,"],\"rtc\":{\"control\":%u,\"stored_status\":%u,\"prescaler\":%u,\"wakeup_reload\":%u,\"alarm_a\":%u,\"alarm_b\":%u,\"alarm_subseconds_a\":%u,\"alarm_subseconds_b\":%u,\"backup_clock\":%u,\"alarm_matches\":[%"PRIu64",%"PRIu64"],\"wakeup_expiries\":%"PRIu64",\"alarm_irq_level\":%s,\"wakeup_irq_level\":%s}}",
+        m->chip.rtc[2],m->chip.rtc[3],m->chip.rtc[4],m->chip.rtc[5],
+        m->chip.rtc[7],m->chip.rtc[8],m->chip.rtc[17],m->chip.rtc[18],
+        m->chip.rcc[Z8_RCC_BDCR/4],m->chip.rtc_alarm_events[0],m->chip.rtc_alarm_events[1],m->chip.rtc_wake_events,
+        m->chip.rtc_alarm_level ? "true" : "false",m->chip.rtc_wake_level ? "true" : "false");
+    return g_string_free(out,false);
 }
 static char *get_z8_mcu_toplcd(Object *obj,Error **errp)
 {

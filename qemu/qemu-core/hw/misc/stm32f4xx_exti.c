@@ -115,9 +115,16 @@ static void stm32f4xx_exti_write(void *opaque, hwaddr addr,
     trace_stm32f4xx_exti_write(addr, value);
 
     switch (addr) {
-    case EXTI_IMR:
+    case EXTI_IMR: {
+        uint32_t newly_enabled = value & ~s->exti_imr & s->exti_pr;
         s->exti_imr = value;
+        for (unsigned i = 0; i < NUM_INTERRUPT_OUT_LINES; i++) {
+            if (newly_enabled & (1u << i)) {
+                qemu_irq_pulse(s->irq[i]);
+            }
+        }
         return;
+    }
     case EXTI_EMR:
         s->exti_emr = value;
         return;
