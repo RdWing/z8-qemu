@@ -187,7 +187,9 @@ static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
     z8_stm32_init(&m->chip,OBJECT(s),s->mcu_image,serial,&error_fatal);
     if (s->mcu_adc_inputs && !z8_adc_inputs(m->chip.adc.input,s->mcu_adc_inputs)) { error_report("Invalid retained MCU ADC inputs");exit(1); }
     z8_stm32_rtc_option(&m->chip,"2026-01-02T03:04:05",&error_fatal);
-    z8_toplcd_init(&m->panel,NULL,&m->chip.gpio[3],1);
+    /* Z8 EX03.00 panel initializer requests pin ID 1 (PA1), not
+     * the Z63 reference ID 49 (PD1). Ready timing is still declared. */
+    z8_toplcd_init(&m->panel,NULL,&m->chip.gpio[0],1);
     m->chip.pin_out=z8_mcu_pin_out;m->chip.pin_out_opaque=m;
     m->chip.link_kick=z8_mcu_kick;m->chip.link_kick_opaque=m;
     for (unsigned i=0;i<2;i++) {
@@ -368,4 +370,17 @@ static char *get_z8_mcu_adc_state(Object *obj, Error **errp)
             m->chip.adc.r[i][0x3c/4],m->chip.adc.r[i][0x40/4],m->chip.adc.r[i][0x44/4],m->chip.adc.r[i][0x48/4]);
     }
     g_string_append(out,"]}");return g_string_free(out,false);
+}
+
+/* Panel observations read model memory, never status-clearing MMIO. */
+static char *get_z8_mcu_panel_state(Object *obj, Error **errp)
+{
+    Z8McuBridge *m=NIKON_Z8_LAB(obj)->native_mcu;
+    if (!m) { return g_strdup("{\"enabled\":false}"); }
+    Z8TopLcd *t=&m->panel;
+    return g_strdup_printf("{\"enabled\":true,\"width\":144,\"height\":168,\"scs\":%s,\"display_on\":%s,"
+        "\"packets\":%"PRIu64",\"lines\":%"PRIu64",\"clears\":%"PRIu64",\"ready_port\":%u,\"ready_pin\":%u,"
+        "\"ready_level\":%u,\"ready_pending\":%s,\"ready_delay_ns\":%u,\"physical_timing_verified\":false}",
+        t->scs ? "true" : "false",t->disp ? "true" : "false",t->packets,t->lines,t->clears,t->ready_gpio->port,t->ready_pin,
+        !!(z8_stm32_gpio_idr(t->ready_gpio)&(1u<<t->ready_pin)),timer_pending(t->ready_timer) ? "true" : "false",(unsigned)Z8_TOPLCD_READY_NS);
 }

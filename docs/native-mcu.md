@@ -43,11 +43,11 @@ is still tested without a native MCU image.
 
 The compatible MCU clock is 180 MHz, timer clocks 90 MHz, RTC starts at
 2026-01-02T03:04:05, and PD13 is a virtual battery-idle contact. ADC/I2C samples,
-128×128 top-panel behavior and its ready delay remain functional fixtures. The
+144×168 top-panel behavior and its ready delay remain functional fixtures. The
 panel received one clear packet and zero line packets in the native run.
 The donor mechanical shutter is unarmed and its position pins are not driven.
 Exact physical chip identity/clock, remaining Z8 key/lens/power mappings, native
-continuous shooting, encoded recording, idle wake and top-panel drawing remain unqualified.
+continuous shooting, encoded recording, idle wake and physical top-panel timing remain unqualified.
 Movie live view, normal Photo recovery and card-backed review have separate
 native acceptance below; the explicit HE profile also qualifies bounded full
 capture and recovery.
@@ -342,3 +342,29 @@ All 19 actual-board checks pass with synthetic A53/M4 programs: three regular
 conversions, injected channel order, runtime sample updates, read-only state,
 eight atomic rejection controls, input retention through MCU reset and independent
 A53 progress. These checks qualify model input plumbing, not a physical MCU pin map.
+
+## Z8 top-panel binding
+
+The original EX panel uses 144×168 one-bit pixels: 168 rows of 18 bytes,
+not the donor's 128×128 geometry. PA4 supplies active-high SCS, PE8 DISP and
+PD11 the start pulse. The Z8 ready descriptor is PA1; driving donor PD1 left
+the actual interrupt input unchanged. The ready substitute still waits a
+declared five virtual milliseconds after the start pulse. This is not a
+measurement of physical panel power-up.
+
+The model accepts complete SPI2 row packets, including gates 1 and 168, and
+retains memory across DISP-off observation. Invalid gates, partial rows and
+unselected bytes cannot replace pixels. `native-mcu-panel-state` exposes
+dimensions, counters, display/chip-select and ready state; `mcu-toplcd-bits`
+returns exactly 3024 bytes as hex, without status-clearing reads.
+
+The shared browser/native workbench shows the EX control panel below the camera
+controls for a native attachment. The PNG preserves model memory order; the view rotates it clockwise for
+readable text, without asserting physical panel mounting. Display-off and disconnected states are explicit; the last
+received frame remains inspectable. Host-peer sessions have no panel view.
+The native launcher also saves `toplcd.png` and the original `toplcd-bits.hex`
+after stopping. These remain private runtime outputs.
+
+Run `tests/check_mcu_panel.py` with `--qemu` and a fresh `--output` directory
+for thirteen firmware-free actual-board routing/packet checks. Those tests
+qualify model integration, not panel electronics or physical-camera behavior.

@@ -348,7 +348,7 @@
     "qemu/nikon-z8-toplcd.h": {
       "source_path": "nikon-z63-toplcd.h",
       "source_sha256": "4503561ee5658c530283ae22ae20c845b9ba2a212c8706b108191a85c3fae3cc",
-      "adapted_sha256": "c144244576f385b3924745a3139b563bfd3881d701be2f2637ac3260771e8a55"
+      "adapted_sha256": "96ce618f27fbcb2938e6609c053ecfd9edcd7104922084dd55d3c3aa995f9a3c"
     },
     "qemu/qemu-core/hw/timer/stm32f2xx_timer.c": {
       "source_path": "../../hw/timer/stm32f2xx_timer.c",

@@ -1,69 +1,31 @@
-/* Copyright (C) 2026 RdWing: Z8/QEMU 11 adaptation.
- * STM32F4-compatible functional model; exact Z8 part/physical clock and
- * board-specific button/lens/shutter wiring require independent qualification. */
-/*
- * Nikon Z 6III reference -- the top LCD (the control panel on the right shoulder),
- * as the body MCU drives it.
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (C) 2026 RdWing: Z8/QEMU 11 adaptation.
+ * Panel mechanism adapted from the pinned Z63 donor; see source-map receipts.
  *
- * SPDX-License-Identifier: GPL-2.0-or-later
+ * Original Z8 EX03.00 builds 168 rows of 18 bytes (144 one-bit pixels).
+ * The gate byte for renderer row y is bit_reverse8(168-y). The model stores
+ * panel line 1 first and the first shifted bit at the left; it does not infer
+ * the panel's physical rotation or appearance from the Z63 reference.
  *
- * What the panel shows is decided on the EXPEED, which sends it to the MCU
- * as state, not pixels: family 8 kind 4, 192 bytes, with family 8 kind 1
- * (20 bytes of flags) beside it. The MCU draws that itself: its display
- * task (sub_8032870) keeps the 192 bytes plus two (0x2001A9FA, the last
- * ones at +194), renders a 2048-byte frame from them (sub_8030E0C, into
- * +388) and hands the frame to sub_8032554, which compares it line by line
- * with the frame last sent (0x2001BC94) and sends only the lines that
- * changed. The bytes it sends are the write protocol of a Sharp memory-in-
- * pixel LCD:
+ * SPI2 packets are framed by active-high SCS (PA4). Mode 0x80 updates lines:
+ * gate address, 18 data bytes, one dummy, repeated, then a zero trailer.
+ * Mode 0x20 clears memory to white. PE8 is DISP; PD11 starts the panel supply
+ * substitute. Z8's initializer selects ready descriptor ID 1 (PA1), whereas
+ * the donor selects ID 49 (PD1). A memory LCD has no ready output of its own;
+ * the external supply/peer identity remains unqualified. DECLARED: pull ready
+ * low during the start pulse and release it 5 ms after that pulse ends.
  *
- *   0x80                      mode: M0 (data update), MSB first on the wire
- *   addr, 16 bytes, 0x00      a line: gate address, 128 pixels, dummy
- *   ...                       up to 16 lines a packet
- *   0x00                      the trailing dummy
- *
- * and at power-on (sub_8032058) 0x20 0x00 -- M2, all clear. The frame is
- * 128 lines of 16 bytes and the address of line i is table 0x8058A10[i]:
- * 0x01, 0xfe, 0x7e, ... -- 128, 127, 126, ... with the bits reversed, as
- * the panel takes its address LSB first while this SPI sends MSB first.
- * So the panel is 128 x 128, and the MCU's row 0 is the panel's line 128.
- *
- * The bytes go out on SPI2 by DMA (HAL_SPI_Transmit_DMA = sub_804D580,
- * called from sub_8032704; DMA1 stream 4). The packet is framed by the
- * chip select, which on this panel is active high (SCS): the begin hook
- * sub_8032350 raises it and the end hook sub_8032360, run from the
- * stream's TC, drops it. DISP is the panel's display-on input, raised by
- * sub_8031FA8 once the clear has gone out. Both are pins the MCU looks up
- * through its pin tables (sub_80321C8, ids 4 and 72); the board says which
- * GPIOs they are (nikon-z8.c, Z8_TOPLCD_SCS / _DISP).
- *
- * One more line, and it is not the panel's. At power-on sub_8032058 pulses
- * PD11 high for 1 ms (id 59), sends the clear, and arms PD1 (id 49) as an
- * input with a pull-up, interrupting on a rising edge (sub_8032690:
- * HAL_GPIO_Init(GPIOD, pin 1, IT_RISING, PULLUP)). That edge (sub_8032908,
- * event 0x80) is waited out for 1 ms and then sets 0x2001BB84 (sub_8032264),
- * and until it is set the packets sub_8032554 builds are queued but never
- * sent -- after which the display task, its queue full, draws nothing more.
- * A memory LCD has no output, so what drives PD1 is not known; a pull-up
- * and a rising edge read like an open-drain "ready" or power-good from the
- * panel's supply. DECLARED: PD11's pulse pulls PD1 low, and it is let go
- * Z8_TOPLCD_READY_NS after the pulse ends.
- *
- * Modelled: SCS, DISP, the three modes and the panel's memory; what the
- * panel shows is published to -machine toplcd-live=<file>, in the same
- * format as scanout-live (nikon-z8-scanout.h): 128 x 128, 0x00ffffff for
- * a white pixel (a 1 bit, which is what all clear writes) and 0 for black,
- * in the panel's own order -- line 1 first, the first pixel shifted in at
- * the left. How the panel sits in the body is the viewer's business.
- * Not modelled: VCOM (M1 or EXTCOMIN; a DC-balanced liquid crystal has no
- * picture to show for it), timing limits, and the reflective look.
+ * Only complete lines commit. Invalid addresses, partial rows and bytes with
+ * SCS low cannot replace pixels. QOM exposes retained memory and read-only
+ * counters. DISP low blanks the viewer without erasing retained memory.
+ * VCOM, electrical limits, physical response and optical color are not modeled.
  */
 
 #ifndef HW_ARM_NIKON_Z8_TOPLCD_H
 #define HW_ARM_NIKON_Z8_TOPLCD_H
 
-#define Z8_TOPLCD_W        128
-#define Z8_TOPLCD_H        128
+#define Z8_TOPLCD_W        144
+#define Z8_TOPLCD_H        168
 #define Z8_TOPLCD_STRIDE   (Z8_TOPLCD_W / 8)
 #define Z8_TOPLCD_READY_NS (5 * SCALE_MS)      /* declared, see above */
 
@@ -204,7 +166,7 @@ static void z8_toplcd_disp(Z8TopLcd *t, bool level)
     z8_toplcd_publish(t);
 }
 
-/* PD11, the start pulse: the ready line goes low with it and comes back
+/* The board-selected start pulse: ready goes low with it and comes back
  * up a little after it (declared, see above). */
 static void z8_toplcd_start(Z8TopLcd *t, bool level)
 {

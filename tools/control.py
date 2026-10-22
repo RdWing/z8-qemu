@@ -4,6 +4,7 @@
 import json,queue,secrets,struct,threading,time,zlib
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
+import panel
 
 BUTTONS={'menu':67,'up':36,'down':37,'left':35,'right':34,'ok':74,'half':7,'i':72,'play':68}
 
@@ -36,7 +37,7 @@ class Control:
   self.capture_serial=0;self.capture_finished=0;self.capture_error=None;self.capture_completed_jobs=0
   self.input_lock=threading.RLock()
   self.stop=threading.Event();self.queue=queue.Queue(maxsize=8);self.png=None;self.info={'state':'Booting original Z8 MAIN…'};self.token=secrets.token_hex(24)
-  self.session=secrets.token_hex(12);self.ready=False;self.last_publish=None;self.submitted=0;self.sent=0;self.frame_version=0;self.shooting_mode="photo"
+  self.session=secrets.token_hex(12);self.ready=False;self.last_publish=None;self.submitted=0;self.sent=0;self.frame_version=0;self.shooting_mode="photo";self.panel_png=None;self.panel_info={};self.panel_version=0
   owner=self
   class Handler(BaseHTTPRequestHandler):
    def log_message(self,*args):pass
@@ -53,6 +54,7 @@ class Control:
       html=html.replace('Selector input; watch the camera display for the result.',mode_help)
      self.send(200,html.encode(),'text/html; charset=utf-8')
     elif route=='/frame.png' and owner.png:self.send(200,owner.png,'image/png')
+    elif route=='/panel.png' and owner.native_mcu and owner.panel_png:self.send(200,owner.panel_png,'image/png')
     elif route=='/state':self.send(200,json.dumps(owner.status()).encode(),'application/json')
     elif route=='/control-session':self.send(200,json.dumps({'session':owner.session,'token':owner.token}).encode(),'application/json')
     else:self.send(404,b'Not ready','text/plain')
@@ -106,6 +108,8 @@ class Control:
   stale=self.last_publish is not None and time.monotonic()-self.last_publish>5
   ready=self.ready and (not self.native_mcu or bool(self.allowed_buttons)) and not stale and not self.stop.is_set()
   info=dict(self.info,powered_down=self.powered_down,cancelled_inputs=self.cancelled,allowed_buttons=sorted(self.allowed_buttons),mode_available=not self.native_mcu or bool(self.native_modes and self.allowed_buttons),controller='native_ex' if self.native_mcu else 'host_peer',playback_available=self.playback,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
+  info.update(panel_available=bool(self.native_mcu and self.panel_png),panel_version=self.panel_version,
+              panel_display_on=self.panel_info.get('display_on',False),panel_lines=self.panel_info.get('lines',0),panel_packets=self.panel_info.get('packets',0))
   info.update(capture_available=self.native_capture,capture_busy=self.capture_busy,
               capture_ready=bool(self.native_capture and ready and self.capture_ready and not self.capture_busy and not self.queue.qsize() and self.shooting_mode=='photo'),
               capture_serial=self.capture_serial,capture_finished=self.capture_finished,capture_error=self.capture_error)
@@ -114,6 +118,13 @@ class Control:
   if self.stop.is_set():info['state']='Stopping emulator…'
   elif stale:info['state']='Emulator is not advancing. Controls paused.'
   return info
+ def publish_panel(self,bits,metadata):
+  if not self.native_mcu:raise ValueError('Panel observation requires native EX')
+  if metadata.get('enabled') is not True or metadata.get('width')!=panel.WIDTH or metadata.get('height')!=panel.HEIGHT:
+   raise ValueError('Expected the bounded native panel model')
+  image=panel.png(bits,metadata.get('display_on'))
+  if image!=self.panel_png:self.panel_png=image;self.panel_version+=1
+  self.panel_info=dict(metadata)
  def publish(self,path,row,ready=False):
   png=png_from_ppm(path)
   if png!=self.png:self.png=png;self.frame_version+=1

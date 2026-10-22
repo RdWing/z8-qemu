@@ -71,3 +71,11 @@ trace selection, restart, stopped-log retention and the unconfigured disabled st
 actual board. Diagnostic ZIP host tests cover exact binary log copies, fixed
 allowlist exclusion, limits, nonregular inputs, source changes, cancellation and
 no-replace publication. Native Save-dialog/completion checks remain separate.
+
+`tests/check_mcu_panel.py` executes synthetic PA1/EXTI1 and SPI2 transfers through
+the actual board. Its 13 checks distinguish Z8's 144×168 geometry from the
+reference model, including gates 1/168 and the eighteenth data byte, with
+partial/invalid/unselected negatives. Host PNG/HTTP and production-JavaScript
+checks cover display blanking, bounds, capability, image versions and retained
+pixels on disconnection. Original EX drawing and native UI remain separate
+runtime acceptance.

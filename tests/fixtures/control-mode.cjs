@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
+const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','ex-panel','panel-screen','panel-status'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
 const buttons=['menu','half','play','i'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
 let respond=async()=>({ok:true,status:202});
 const context=vm.createContext({console,AbortSignal,setTimeout:()=>{},Date,
@@ -65,9 +65,18 @@ const run=code=>vm.runInContext(code,context);
  respond=async()=>({ok:true,json:async()=>({session:'SESSION_HERE',capture_available:true,
   capture_ready:true,capture_finished:7,ready:true,allowed_buttons:['menu','half','play'],
   mode_available:false,playback_available:false})});
- await run('poll()');assert.equal(nodes.capture.disabled,false);
+ await run('poll()');assert.equal(nodes.capture.disabled,false);assert.equal(nodes['ex-panel'].hidden,true);
  assert.equal(notifications.at(-1).captureReady,true);
  assert.equal(notifications.at(-1).modeReady,false);assert.equal(nodes['shooting-mode'].disabled,true);
+ respond=async()=>({ok:true,json:async()=>({session:'SESSION_HERE',panel_available:true,
+  panel_version:2,panel_display_on:true,panel_lines:128,panel_packets:9})});
+ await run('poll()');assert.equal(nodes['ex-panel'].hidden,false);
+ assert.equal(nodes['panel-screen'].src,'/panel.png?v=2');
+ assert.match(nodes['panel-status'].textContent,/128 lines/);
+ respond=async()=>({ok:true,json:async()=>({session:'SESSION_HERE',panel_available:true,
+  panel_version:3,panel_display_on:false,panel_lines:128,panel_packets:9})});
+ await run('poll()');assert.match(nodes['panel-status'].textContent,/Display off/);
+ run('disconnected()');assert.equal(nodes['panel-screen'].src,'/panel.png?v=3');
  respond=async()=>({ok:false,status:403,text:async()=> 'Session changed'});
  assert.equal(await run('window.z8Workbench.capturePhoto()'),false);
  assert.equal(nodes.capture.disabled,true);assert.equal(notifications.at(-1).captureReady,false);

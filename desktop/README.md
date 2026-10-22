@@ -96,7 +96,7 @@ The native commands avoid depending on popup automation; both use the same
 shared selector queue.
 
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
-top-panel drawing, recording, playback idle wake/zoom, USB, format-aware firmware logging, interactive firmware commands
+physical top-panel timing, recording, playback idle wake/zoom, USB, format-aware firmware logging, interactive firmware commands
 and Linux/Windows desktop bundles remain open. Read-only UART/device diagnostics are available below.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
 Z8 controls. The experimental native HE profile below adds shared browser,
@@ -342,3 +342,14 @@ single launcher-log export and stopped-card photo export remain available.
 Optional native configuration `"mcu_adc_inputs": "1.1=2048:3.18=4095"` supplies
 declared numeric MCU ADC samples. It requires `mcu`; no exposure dial, battery
 voltage or physical control name is implied. See [MCU inputs](../docs/native-mcu.md#explicit-adc-inputs).
+
+## EX control panel
+
+Native-EX sessions now show the original controller's 144×168 panel memory
+below the camera controls. The model uses Z8's PA1 ready input and eighteen-byte
+rows; no Z63 geometry is assumed. The view rotates controller glyphs for reading;
+the stored PNG preserves model memory order. The secondary view reports
+Display on/off and transferred lines and keeps its last received frame after
+disconnection. Host-peer sessions omit it. The main display, input queue, Stop
+placement and native Camera commands retain their existing behavior.
+See [panel binding and limits](../docs/native-mcu.md#z8-top-panel-binding).

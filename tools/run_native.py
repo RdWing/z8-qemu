@@ -128,7 +128,7 @@ try:
    spi8.clock_if_ready(channels[8]);spi9.clock_if_ready(channels[9])
    now=time.monotonic()
    if now>=next_sample:
-    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-adc-state','native-mcu-io-state','capture-gpio-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
+    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-panel-state','native-mcu-adc-state','native-mcu-io-state','capture-gpio-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
     row['ui_control_hex']=g.read_bytes(0xa03228fa4,32).hex()
     row['main_switch_cache_hex']=g.read_bytes(0xa0320169c,44).hex()
     native_he.sample(g)
@@ -142,7 +142,10 @@ try:
     g.data['native_powered_down']=g.data.get('native_powered_down',False) or row['powered_down']
     g.data.setdefault('native_samples',[]).append(row)
     if control:
-     g.qmp.command('stop');frame=g.out/'current.ppm';g.qmp.command('screendump',filename=str(frame))
+     g.qmp.command('stop')
+     row['native-mcu-panel-state']=json.loads(g.qmp.command('qom-get',path='/machine',property='native-mcu-panel-state'))
+     control.publish_panel(g.qmp.command('qom-get',path='/machine',property='mcu-toplcd-bits'),row['native-mcu-panel-state'])
+     frame=g.out/'current.ppm';g.qmp.command('screendump',filename=str(frame))
      control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9,powered_down=row['powered_down'],preparing_capture=row['preparing_capture'],capture_ready=row.get('capture_ready',False),capture_completed_jobs=row.get('capture_completed_jobs',0)),ready=a.native_controls and (row['raw-pipeline-state']['frames']>=8 or (native_capture and int.from_bytes(g.read_bytes(0xa03bc2b24,4),'little')==3)) and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
      g.qmp.command('cont')
     (g.out/'native-live.json').write_text(json.dumps(row)+'\n');next_sample=now+.5
@@ -159,7 +162,12 @@ try:
   g.data['final_native_mcu']=json.loads(g.qmp.command('qom-get',path='/machine',property='native-mcu-state'))
   g.qmp.command('screendump',filename=str(g.out/'final.ppm'))
   (g.out/'final.png').write_bytes(png_from_ppm(g.out/'final.ppm'))
-  (g.out/'toplcd-bits.hex').write_text(g.qmp.command('qom-get',path='/machine',property='mcu-toplcd-bits')+'\n')
+  panel_bits=g.qmp.command('qom-get',path='/machine',property='mcu-toplcd-bits')
+  (g.out/'toplcd-bits.hex').write_text(panel_bits+'\n')
+  panel_state=json.loads(g.qmp.command('qom-get',path='/machine',property='native-mcu-panel-state'))
+  g.data['final_native_panel']=panel_state
+  import panel
+  (g.out/'toplcd.png').write_bytes(panel.png(panel_bits,panel_state['display_on']))
   g.check('native run has no unmodeled MMIO', 'Z8_UNKNOWN' not in g.log())
   g.check('native run has no unexpected stop',not g.data.get('unexpected_native_stop',False))
 finally:

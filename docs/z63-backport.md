@@ -27,7 +27,7 @@ Z63 firmware on the Z8 machine.
 | Photo/Movie selector | Browser control sends external MCU byte `0x57`, retained across every later button press/release. Input delivery and native mode acceptance stay distinct. | Browser popup/keyboard, queue, readback and shutdown checks. An explicit experimental profile now produces Movie frames and recovers to Photo; standard-profile and recording acceptance remain separate. |
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
 | STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Original-EX HE files now have separate source/decoder acceptance; three consecutive HE★ captures recover normally with explicit sync wiring; remaining controls stay open. |
-| Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | No physical or native Z8 qualification. |
+| Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top panel now uses source-confirmed Z8 geometry and ready routing with separate native rendering checks; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | Native panel drawing is checked separately; physical timing/appearance and remaining contacts are unqualified. |
 | Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench has native session lifecycle, screenshot/photo export, card-gated Playback, UART/device diagnostics and optional explicit-address call/store tracing. Native EX contacts have separate acceptance. Z63 assets/maps and stock firmware hooks are not copied as Z8 bindings. | Read-only trace integration has 48 real-plugin synthetic checks; interactive console, stock log decoding and USB remain open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
@@ -437,3 +437,14 @@ The native workbench also exports the complete known diagnostic logs into a
 bounded private ZIP, with shared cancellable export lifecycle and no-replace
 publication. Physical control labels, stock logger/console/USB and top-panel
 drawing remain independent gaps; combined HE/Movie preview remains deferred.
+
+## Target control-panel geometry and ready route
+
+The native EX control-panel path now uses the original Z8 144×168 geometry and
+PA1 ready descriptor. The inherited 128×128/PD1 assumptions admitted no valid
+complete panel view. Thirteen synthetic actual-board checks cover the ready
+interrupt, SPI2 clear/first/last rows, complete eighteen-byte rows and rejection
+controls. Browser and native workbench share the bounded panel decoder and
+capability/display/disconnection behavior. Model memory order and declared
+ready delay remain separate from physical rotation and timing. See the
+[Z8 panel contract](native-mcu.md#z8-top-panel-binding).

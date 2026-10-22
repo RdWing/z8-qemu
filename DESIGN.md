@@ -210,3 +210,18 @@ The helper uses a fixed diagnostic filename list, byte/receipt bounds, regular
 no-follow inputs and atomic no-replace publication; inputs, results, captures
 and arbitrary session files never join this bundle. Existing single launcher-log
 export remains distinct. Platform controls and visual tokens remain unchanged.
+
+
+## EX control panel observation
+
+The shared workbench owns the secondary 144×168 panel image, status and native
+capability gate. Place it after the complete main-display/control layout so
+Stop and camera controls keep their narrow-screen order and location. Use the
+existing palette/border, a 16px heading and pixelated image at its logical size;
+AppKit embeds this same view without a second renderer. The PNG preserves model
+line/shift order; a clockwise CSS rotation makes the observed glyphs readable.
+This view transform does not assert the physical panel mounting. Status names
+Display on/off and line count. Host-peer and pre-sample states hide it.
+Disconnect preserves the last pixels under the existing disconnected status;
+new-session pages start without inherited panel state. No new controls, queues,
+menu entries, visual tokens or locale ownership are introduced.

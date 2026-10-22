@@ -22948,6 +22948,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc,"native-mcu-switch-state",get_z8_mcu_switches,NULL);
     object_class_property_add_str(oc,"native-mcu-wire-state",get_z8_mcu_wire,NULL);
     object_class_property_add_str(oc,"mcu-toplcd-bits",get_z8_mcu_toplcd,NULL);
+    object_class_property_add_str(oc,"native-mcu-panel-state",get_z8_mcu_panel_state,NULL);
     object_class_property_add_bool(oc, "z8-jpeg-decode", get_z8_jdec_on, set_z8_jdec_on);
     object_class_property_add_bool(oc, "z8-liveview-jpeg", get_z8_lv_jpeg, set_z8_lv_jpeg);
     object_class_property_add_bool(oc, "z8-still-capture", get_z8_still, set_z8_still);
