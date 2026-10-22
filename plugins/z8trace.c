@@ -30,6 +30,8 @@ static uint64_t calls[MAX_CALLS], lo, hi, pclo, pchi, limit = 10000, per_site = 
 static unsigned n_calls, options;
 static int selected_cpu = -1;
 static bool watch;
+static enum qemu_plugin_mem_rw access_mode = QEMU_PLUGIN_MEM_W;
+static const char *access_name = "write";
 static bool app_log;
 static uint64_t app_log_pc;
 static FILE *out;
@@ -164,13 +166,14 @@ static void app_log_hit(unsigned idx, void *unused)
     }
     g_mutex_unlock(&lock);
 }
-static void store(unsigned idx, qemu_plugin_meminfo_t info, uint64_t address, void *opaque)
+static void memory_access(unsigned idx, qemu_plugin_meminfo_t info, uint64_t address, void *opaque)
 {
-    if (!cpu_allowed(idx) || !qemu_plugin_mem_is_store(info)) { return; }
+    if (!cpu_allowed(idx)) { return; }
+    bool write = qemu_plugin_mem_is_store(info);
     unsigned shift = qemu_plugin_mem_size_shift(info);
     if (shift > 4) { return; }
     unsigned size = 1u << shift;
-    /* Include overlapping writes, without overflowing address+size. */
+    /* Include overlapping accesses, without overflowing address+size. */
     if (address >= hi || (address < lo && lo - address >= size)) { return; }
     qemu_plugin_mem_value value = qemu_plugin_mem_get_value(info);
     uint64_t low = 0, high = 0;
@@ -184,9 +187,9 @@ static void store(unsigned idx, qemu_plugin_meminfo_t info, uint64_t address, vo
     }
     uint64_t pc = (uintptr_t)opaque;
     g_mutex_lock(&lock);
-    if (admit(idx, 1, pc, address)) {
-        fprintf(out, "{\"event\":\"store\",\"host_us\":%" PRId64 ",\"cpu\":%u,\"pc\":\"0x%" PRIx64 "\",\"address\":\"0x%" PRIx64 "\",\"size\":%u,\"value\":\"0x",
-                g_get_monotonic_time() - started, idx, pc, address, size);
+    if (admit(idx, write ? 1 : 3, pc, address)) {
+        fprintf(out, "{\"event\":\"%s\",\"host_us\":%" PRId64 ",\"cpu\":%u,\"pc\":\"0x%" PRIx64 "\",\"address\":\"0x%" PRIx64 "\",\"size\":%u,\"value\":\"0x",
+                write ? "store" : "read", g_get_monotonic_time() - started, idx, pc, address, size);
         if (value.type == QEMU_PLUGIN_MEM_VALUE_U128) { fprintf(out, "%" PRIx64 "%016" PRIx64, high, low); }
         else { fprintf(out, "%" PRIx64, low); }
         fputs("\"}\n", out);
@@ -208,8 +211,8 @@ static void translated(struct qemu_plugin_tb *tb, void *unused)
             qemu_plugin_register_vcpu_insn_exec_cb(insn, app_log_hit, QEMU_PLUGIN_CB_R_REGS, NULL);
         }
         if (watch && pc >= pclo && pc < pchi) {
-            qemu_plugin_register_vcpu_mem_cb(insn, store, QEMU_PLUGIN_CB_NO_REGS,
-                                            QEMU_PLUGIN_MEM_W, (void *)(uintptr_t)pc);
+            qemu_plugin_register_vcpu_mem_cb(insn, memory_access, QEMU_PLUGIN_CB_NO_REGS,
+                                            access_mode, (void *)(uintptr_t)pc);
         }
     }
 }
@@ -230,7 +233,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
 {
     const char *path = NULL;
     if (!info->system_emulation || strcmp(info->target_name, "aarch64")) { return -1; }
-    const char *names[] = { "out", "cpu", "calls", "lo", "hi", "pclo", "pchi", "limit", "per_site", "app_log" };
+    const char *names[] = { "out", "cpu", "calls", "lo", "hi", "pclo", "pchi", "limit", "per_site", "app_log", "access" };
     for (int i = 0; i < argc; i++) {
         g_auto(GStrv) kv = g_strsplit(argv[i], "=", 2);
         unsigned key;
@@ -247,6 +250,11 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
                 for (unsigned k = 0; k < n_calls; k++) { if (calls[k] == n) { return -1; } }
                 calls[n_calls++] = n;
             }
+        } else if (key == 10) {
+            if (!strcmp(kv[1], "read")) { access_mode = QEMU_PLUGIN_MEM_R; access_name = "read"; }
+            else if (!strcmp(kv[1], "write")) { access_mode = QEMU_PLUGIN_MEM_W; access_name = "write"; }
+            else if (!strcmp(kv[1], "both")) { access_mode = QEMU_PLUGIN_MEM_RW; access_name = "both"; }
+            else { return -1; }
         } else {
             if (!number(kv[1], &n)) { return -1; }
             switch (key) {
@@ -263,7 +271,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
     unsigned watch_options = options & 0x78;
     watch = watch_options == 0x78;
     if (!path || (!n_calls && !watch && !app_log) || (watch_options && !watch) ||
-        (watch && (lo >= hi || pclo >= pchi))) { return -1; }
+        (watch && (lo >= hi || pclo >= pchi)) || ((options & (1u << 10)) && !watch)) { return -1; }
     int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0600);
     if (fd < 0) { return -1; }
     out = fdopen(fd, "w");
@@ -271,8 +279,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
     setvbuf(out, NULL, _IOLBF, 0);
     sites = g_hash_table_new_full(site_hash, site_equal, g_free, g_free);
     started = g_get_monotonic_time();
-    fprintf(out, "{\"event\":\"start\",\"clock\":\"host_monotonic_us\",\"calls\":%u,\"watch\":%s,\"app_log\":%s,\"limit\":%" PRIu64 ",\"per_site\":%" PRIu64 "}\n",
-            n_calls, watch ? "true" : "false", app_log ? "true" : "false", limit, per_site);
+    fprintf(out, "{\"event\":\"start\",\"clock\":\"host_monotonic_us\",\"calls\":%u,\"watch\":%s,\"access\":\"%s\",\"app_log\":%s,\"limit\":%" PRIu64 ",\"per_site\":%" PRIu64 "}\n",
+            n_calls, watch ? "true" : "false", access_name, app_log ? "true" : "false", limit, per_site);
     qemu_plugin_register_vcpu_init_cb(id, vcpu_init, NULL);
     qemu_plugin_register_vcpu_tb_trans_cb(id, translated, NULL);
     qemu_plugin_register_atexit_cb(id, finished, NULL);

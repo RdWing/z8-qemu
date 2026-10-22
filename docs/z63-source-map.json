@@ -369,7 +369,7 @@
       "adapted_sha256": "1f58b31f2e9f320186a5722fa8cdd6b8321b0978da4a6e642e3debcec1daea2e"
     },
     "plugins/z8trace.c": {
-      "adapted_sha256": "672b3353496403990ea9dda8fd2128c833edfcda9860c34f90c76fc3d1c9b65a",
+      "adapted_sha256": "43a49428f88c912dad0fd3c0c5c6deb2c3f83ba94aea4809720f46b2cfaf3825",
       "source_path": "z63-tools/plugins/z63watch.c",
       "source_sha256": "2779e5bdef453ab000937b5f4fbbf455451409d70f367cb7f1136d93b294e5b1",
       "related_sources": [
@@ -382,7 +382,7 @@
           "source_sha256": "7318e92bae308971b68b9169fb4fd576397623c605124157122009f095769a62"
         }
       ],
-      "adaptation": "Explicit addresses only; QEMU 11 API7 callbacks, descriptor-presence register reads, bounded collision-safe per-CPU sites and no-replace output. Optional AArch64 application-ring register schema; no object/guest-memory reads, inherited firmware hooks or stack scan."
+      "adaptation": "Explicit addresses only; QEMU 11 API7 guest load/store callbacks, descriptor-presence register reads, bounded collision-safe per-CPU/access sites and no-replace output. Optional AArch64 application-ring register schema with no object dereferences, inherited firmware hooks or stack scan."
     }
   },
   "source_repository_visibility": "private",

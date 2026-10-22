@@ -144,3 +144,15 @@ the older `he_snapshots` alias. For another saved file, pass
 `--capture-index 2` to `audit_he_pixels.py` to select that actual producer and
 receiver rather than reusing the first snapshot. A harness pass or saved
 preview alone does not establish RAW decoding or normal capture recovery.
+
+## Preparation and preview boundary
+
+The preparation fixture is a global ROM input, not a per-shot switch. A
+read-only trace observes the original bank-8 reader consuming byte
+`0x45a403e7`. In an accelerated diagnostic with that byte left at zero, Photo
+produces 814 continuous frames, but the normal preparation branch submits a
+packed12 descriptor and produces no finite input frame, HE job or NEF by
+66.065 virtual seconds. Removing the fixture therefore does not qualify a
+combined capture/live-view profile. Keep the existing explicit HE recipe and
+its separate Movie-session boundary. Accelerated timing controls do not
+replace production-timing recovery checks.

@@ -21,6 +21,7 @@ add x1, x1, #1
 b 1b
 .org 0x40
 sample: str x1, [x0]
+ldr x2, [x0]
 ret
 .ltorg
 '''
@@ -62,6 +63,7 @@ b 1b
 .org 0x80
 .thumb_func
 sample: str r1, [r0]
+ldr r2, [r0]
 bx lr
 .ltorg
 '''
@@ -94,6 +96,11 @@ def main():
         ('overlap','cpu=0,lo=0xa00010004,hi=0xa00010005,pclo=0x40160040,pchi=0x40160044,per_site=1'),
         ('outside-range','cpu=0,lo=0xa0000fff8,hi=0xa00010000,pclo=0x40160040,pchi=0x40160044'),
         ('outside-code','cpu=0,lo=0xa00010000,hi=0xa00010008,pclo=0x40160044,pchi=0x40160048'),
+        ('a53-read','cpu=0,access=read,lo=0xa00010000,hi=0xa00010008,pclo=0x40160040,pchi=0x40160048,per_site=2'),
+        ('m4-read','cpu=4,access=read,lo=0x20000000,hi=0x20000004,pclo=0x8000080,pchi=0x8000084,per_site=2'),
+        ('both','cpu=0,access=both,lo=0xa00010000,hi=0xa00010008,pclo=0x40160040,pchi=0x40160048,per_site=2'),
+        ('read-overlap','cpu=0,access=read,lo=0xa00010004,hi=0xa00010005,pclo=0x40160044,pchi=0x40160048,per_site=1'),
+        ('read-excludes-store','cpu=0,access=read,lo=0xa00010000,hi=0xa00010008,pclo=0x40160040,pchi=0x40160044'),
         ('app-log','cpu=0,app_log=0x40160080,per_site=4,limit=12'),
         ('app-coexist','cpu=0,app_log=0x40160080,calls=0x40160080,lo=0xa00010000,hi=0xa00010008,pclo=0x40160018,pchi=0x4016001c,per_site=4,limit=16'),
         ('app-unsupported','cpu=4,app_log=0x8000080,per_site=2,limit=8'),
@@ -138,6 +145,19 @@ def main():
                         check(name+' actual memory values',[int(x['value'],0) for x in stores]==[initial,initial+1] and all(int(x['address'],0)==address and x['size']==(8 if cpu==0 else 4) for x in stores))
                     elif name=='global-limit':check(name+' enforced',len(events)==3 and summary['suppressed']>0)
                     elif name=='overlap':check(name+' includes crossing store',len(events)==1 and events[0]['address']=='0xa00010000' and events[0]['size']==8)
+                    elif name in ('a53-read','m4-read','both','read-overlap'):
+                        cpu=4 if name=='m4-read' else 0
+                        initial=0x56 if cpu==4 else 0x1234
+                        address=0x20000000 if cpu==4 else 0xa00010000
+                        pc=0x8000082 if cpu==4 else 0x40160044
+                        reads=[x for x in events if x['event']=='read']
+                        stores=[x for x in events if x['event']=='store']
+                        count=1 if name=='read-overlap' else 2
+                        check(name+' selected direction declared',rows[0]['access']==('both' if name=='both' else 'read'))
+                        check(name+' exact read bounds and values',len(reads)==count and [int(x['value'],0) for x in reads]==list(range(initial,initial+count)))
+                        check(name+' guest load location and width',all(x['cpu']==cpu and int(x['pc'],0)==pc and int(x['address'],0)==address and x['size']==(4 if cpu==4 else 8) for x in reads))
+                        check(name+' write filtering',len(stores)==(2 if name=='both' else 0) and len(events)==len(reads)+len(stores))
+                        if name=='both':check(name+' independent access caps',[int(x['value'],0) for x in stores]==[initial,initial+1] and summary['suppressed']>0)
                     elif name in ('app-log','app-coexist'):
                         decoded=[x for x in events if x['event']=='app_log']
                         check(name+' explicit schema and per-site bounds',len(decoded)==4 and summary['suppressed']>0 and rows[0]['app_log'])
@@ -160,7 +180,9 @@ def main():
         for index,options in enumerate(('calls=0x40160041','calls=0x40160040,limit=0',
             'calls=0x40160040,unknown=1','calls=0x40160040,cpu=0,cpu=1','lo=1,hi=2',
             'calls=0x40160040:0x40160040','app_log=0','app_log=0x40160081','app_log=0x40160082',
-            'app_log=0x40160080,app_log=0x40160080','app_log=not-a-number')):
+            'app_log=0x40160080,app_log=0x40160080','app_log=not-a-number',
+            'calls=0x40160040,access=read','lo=1,hi=2,pclo=1,pchi=2,access=invalid',
+            'lo=1,hi=2,pclo=1,pchi=2,access=read,access=both')):
             trace=out/f'invalid-{index}.log'
             command=[str(a.qemu.resolve()),'-M','virt','-display','none','-serial','none','-monitor','none','-S',
                      '-plugin',f'{a.plugin.resolve()},out={trace},{options}']
