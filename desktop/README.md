@@ -321,3 +321,24 @@ sources. Startup checks access to the configured plugin; unsupported QEMU/plugin
 API combinations fail explicitly. Stop retains the exclusively created private
 trace file. This adds read-only diagnostic integration; stock firmware log
 decoding, monitor/UART command input, USB and wider MCU bindings remain open.
+
+## Export diagnostic logs
+
+After stopping a session, choose Session → Export diagnostics… to save a new
+local ZIP containing the complete available MAIN UART, six EX USART, QEMU,
+launcher and plugin logs. The view's 128 KiB limit does not truncate this export.
+A manifest lists byte counts, SHA-256 fingerprints and missing optional streams.
+The input limit is 512 MiB. Files are copied unchanged, so review the ZIP before
+sharing: logs can contain private paths, register values and other local data.
+Firmware, cards, captures, result receipts and arbitrary session files are excluded.
+
+The action stays disabled while starting/running; Open/Restart and duplicate
+exports wait while it runs. Cancel or Quit unwinds staging. The helper requires
+a stopped-session receipt, rejects nonregular/symlink log inputs and changed
+files, and publishes a mode-0600 ZIP without replacing an existing destination.
+Native destination Cancel and a ten-log export have been checked. Existing
+single launcher-log export and stopped-card photo export remain available.
+
+Optional native configuration `"mcu_adc_inputs": "1.1=2048:3.18=4095"` supplies
+declared numeric MCU ADC samples. It requires `mcu`; no exposure dial, battery
+voltage or physical control name is implied. See [MCU inputs](../docs/native-mcu.md#explicit-adc-inputs).

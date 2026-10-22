@@ -261,7 +261,7 @@ typedef struct Ex7CaptureSurface {
 
 struct NikonZ8State {
     MachineState parent;
-    char *mcu_image, *mcu_pins, *mcu_contacts;
+    char *mcu_image, *mcu_pins, *mcu_contacts, *mcu_adc_inputs;
     struct Z8McuBridge *native_mcu;
     bool mcu_capture_sync_wires;
 
@@ -22942,6 +22942,8 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc,"native-mcu-state",get_z8_mcu_state,NULL);
     object_class_property_add_str(oc,"native-mcu-io-state",get_z8_mcu_io,NULL);
     object_class_property_add_str(oc,"mcu-pins",get_z8_mcu_pins,set_z8_mcu_pins);
+    object_class_property_add_str(oc,"mcu-adc-inputs",get_z8_mcu_adc_inputs,set_z8_mcu_adc_inputs);
+    object_class_property_add_str(oc,"native-mcu-adc-state",get_z8_mcu_adc_state,NULL);
     object_class_property_add_str(oc,"mcu-contacts",get_z8_mcu_contacts,set_z8_mcu_contacts);
     object_class_property_add_str(oc,"native-mcu-switch-state",get_z8_mcu_switches,NULL);
     object_class_property_add_str(oc,"native-mcu-wire-state",get_z8_mcu_wire,NULL);
@@ -23344,6 +23346,7 @@ static void nikon_z8_finalize(Object *obj)
     if (s->audio_register_map) { g_hash_table_destroy(s->audio_register_map); }
     if (s->serial_write_peer_source_hash) { g_checksum_free(s->serial_write_peer_source_hash); }
     if (s->serial_write_peer_wire_hash) { g_checksum_free(s->serial_write_peer_wire_hash); }
+    g_free(s->mcu_adc_inputs);
     g_free(s->statistics_raw_path);
     nikon_raw_pixels_free(s->raw_pixels);
     g_free(s->z8_playback_pixels);

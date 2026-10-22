@@ -4,6 +4,7 @@
  * and DMA. Pin bindings here are Z8 C3.11/EX03.00 static/probe bindings;
  * clocks, battery and top-panel ready timing remain functional fixtures. */
 #include "chardev/char.h"
+#include "nikon-z8-mcu-adc.h"
 typedef struct Z8McuBridge Z8McuBridge;
 typedef struct Z8McuLink {
     Z8McuBridge *bridge;
@@ -165,6 +166,7 @@ static bool z8_mcu_apply_contacts(Z8McuBridge *m,const char *value,Error **errp)
 static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
 {
     if (!s->mcu_image || !*s->mcu_image) {
+        if (s->mcu_adc_inputs) { error_report("mcu-adc-inputs requires native MCU attachment");exit(1); }
         if (s->mcu_capture_sync_wires) { error_report("mcu-capture-sync-wires requires original EX attachment");exit(1); }
         return;
     }
@@ -183,6 +185,7 @@ static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
         serial[i]=qemu_chr_find(name);
     }
     z8_stm32_init(&m->chip,OBJECT(s),s->mcu_image,serial,&error_fatal);
+    if (s->mcu_adc_inputs && !z8_adc_inputs(m->chip.adc.input,s->mcu_adc_inputs)) { error_report("Invalid retained MCU ADC inputs");exit(1); }
     z8_stm32_rtc_option(&m->chip,"2026-01-02T03:04:05",&error_fatal);
     z8_toplcd_init(&m->panel,NULL,&m->chip.gpio[3],1);
     m->chip.pin_out=z8_mcu_pin_out;m->chip.pin_out_opaque=m;
@@ -334,4 +337,35 @@ static void set_z8_mcu_capture_sync_wires(Object *obj, bool value, Error **errp)
     NikonZ8State *s=NIKON_Z8_LAB(obj);
     if (s->native_mcu || s->image_ram.ram || s->image_ram.rom_device) { error_setg(errp,"mcu-capture-sync-wires is immutable after realization");return; }
     s->mcu_capture_sync_wires=value;
+}
+
+/* Explicit external analog samples. Input updates do not convert or set IRQs. */
+static char *get_z8_mcu_adc_inputs(Object *obj, Error **errp)
+{
+    return g_strdup(NIKON_Z8_LAB(obj)->mcu_adc_inputs ?: "");
+}
+static void set_z8_mcu_adc_inputs(Object *obj, const char *value, Error **errp)
+{
+    NikonZ8State *s = NIKON_Z8_LAB(obj);
+    uint16_t next[3][19] = { { 0 } };
+    if (s->native_mcu) { memcpy(next,s->native_mcu->chip.adc.input,sizeof(next)); }
+    if (!z8_adc_inputs(next, value) ||
+        (!s->native_mcu && (s->image_ram.ram || s->image_ram.rom_device))) {
+        error_setg(errp,"mcu-adc-inputs requires native MCU and ADC.CH=VALUE batches; ADC 1..3, CH 0..18, VALUE 0..4095, no duplicates");return;
+    }
+    if (s->native_mcu) { memcpy(s->native_mcu->chip.adc.input,next,sizeof(next)); }
+    char *copy=g_strdup(value);g_free(s->mcu_adc_inputs);s->mcu_adc_inputs=copy;
+}
+static char *get_z8_mcu_adc_state(Object *obj, Error **errp)
+{
+    Z8McuBridge *m = NIKON_Z8_LAB(obj)->native_mcu;
+    if (!m) { return g_strdup("{\"enabled\":false}"); }
+    GString *out=g_string_new("{\"enabled\":true,\"physical_units_verified\":false,\"adcs\":[");
+    for (unsigned i=0;i<3;i++) {
+        g_string_append_printf(out,"%s{\"adc\":%u,\"inputs\":[",i ? "," : "",i+1);
+        for (unsigned ch=0;ch<19;ch++) { g_string_append_printf(out,"%s%u",ch ? "," : "",m->chip.adc.input[i][ch]); }
+        g_string_append_printf(out,"],\"status\":%u,\"data\":%u,\"injected\":[%u,%u,%u,%u]}",m->chip.adc.r[i][0],m->chip.adc.r[i][Z8_ADC_DR/4],
+            m->chip.adc.r[i][0x3c/4],m->chip.adc.r[i][0x40/4],m->chip.adc.r[i][0x44/4],m->chip.adc.r[i][0x48/4]);
+    }
+    g_string_append(out,"]}");return g_string_free(out,false);
 }

@@ -157,8 +157,9 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Save display…", #selector(saveDisplay), "s"),
             ("Save session log…", #selector(saveSessionLog), ""),
             ("Show diagnostics", #selector(showDiagnostics), "d"),
+            ("Export diagnostics…", #selector(exportDiagnostics), ""),
             ("Export photos…", #selector(exportPhotos), ""),
-            ("Cancel photo export", #selector(cancelPhotoExport), ""),
+            ("Cancel export", #selector(cancelPhotoExport), ""),
             ("Show session files", #selector(showOutput), ""),
             ("Restart session", #selector(restartSession), "r"),
             ("Stop emulator", #selector(stopSession), ".")
@@ -473,7 +474,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         }.resume()
     }
     @objc func saveSessionLog() {
-        guard let output, child == nil, !starting else { return }
+        guard let output, child == nil, !starting, !exporting else { return }
         let source = output.deletingLastPathComponent().appendingPathComponent(output.lastPathComponent + ".desktop.log")
         let panel = NSSavePanel(); panel.nameFieldStringValue = "Z8-session.log"
         guard panel.runModal() == .OK, let destination = panel.url else { return }
@@ -503,21 +504,33 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         guard panel.runModal() == .OK, let destination = panel.url else { return }
         // Native dialogs own destination selection; the helper verifies stopped
         // ownership, holds QEMU-compatible card locks and publishes atomically.
+        runExport(python: python, script: "desktop_photo_export.py", arguments: ["--card", card, "--session", output.path, "--output", destination.path], destination: destination, diagnostics: false)
+    }
+    @objc func exportDiagnostics() {
+        guard child == nil, !starting, !exporting, let output,
+              let python = activeConfiguration?["python"] as? String else { return }
+        let panel = NSSavePanel(); panel.title = "Export diagnostics"; panel.prompt = "Export"
+        panel.allowedContentTypes = [.zip]; panel.nameFieldStringValue = "Z8-diagnostics.zip"
+        panel.message = "Save UART, QEMU, launcher and plugin logs. Logs may contain private paths or memory values; review before sharing."
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        runExport(python: python, script: "desktop_log_export.py", arguments: ["--session", output.path, "--output", destination.path], destination: destination, diagnostics: true)
+    }
+    func runExport(python: String, script: String, arguments: [String], destination: URL, diagnostics: Bool) {
         let process = Process(), pipe = Pipe()
         configurePython(process)
         process.executableURL = URL(fileURLWithPath: python)
-        let script = Bundle.main.resourceURL!.appendingPathComponent("runtime/tools/desktop_photo_export.py")
-        process.arguments = [script.path, "--card", card, "--session", output.path, "--output", destination.path]
+        process.arguments = [Bundle.main.resourceURL!.appendingPathComponent("runtime/tools/" + script).path] + arguments
         process.standardOutput = pipe; process.standardError = pipe
+        let operation = diagnostics ? "diagnostics" : "photos"
         exporting = true; exportCancelled = false; exportProcess = process
         do {
             try process.run()
-            let progress = NSAlert(); progress.messageText = "Exporting photos"
-            progress.informativeText = "Copying photos into “" + destination.lastPathComponent + "”."
+            let progress = NSAlert(); progress.messageText = "Exporting " + operation
+            progress.informativeText = "Saving to “" + destination.lastPathComponent + "”."
             progress.addButton(withTitle: "Cancel export").keyEquivalent = "\u{1b}"
             let spinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 32, height: 32))
             spinner.style = .spinning; spinner.startAnimation(nil)
-            spinner.setAccessibilityLabel("Exporting photos")
+            spinner.setAccessibilityLabel("Exporting " + operation)
             progress.accessoryView = spinner; exportProgress = progress
             progress.beginSheetModal(for: window) { [weak self] response in
                 if response == .alertFirstButtonReturn { self?.cancelPhotoExport() }
@@ -534,28 +547,31 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                     if self.terminating { NSApp.reply(toApplicationShouldTerminate: true); return }
                     let alert = NSAlert()
                     if self.exportCancelled {
-                        alert.messageText = "Photo export cancelled"
-                        alert.informativeText = "Check the destination folder before trying again. Existing files were not replaced."
+                        alert.messageText = diagnostics ? "Diagnostic export cancelled" : "Photo export cancelled"
+                        alert.informativeText = "Check the destination before trying again. Existing files were not replaced."
                     } else if process.terminationStatus == 0, result?["ok"] as? Bool == true,
                               let count = result?["count"] as? Int {
-                        alert.messageText = count == 1 ? "Exported 1 photo" : "Exported \(count) photos"
+                        alert.messageText = diagnostics ? "Exported \(count) diagnostic logs" : (count == 1 ? "Exported 1 photo" : "Exported \(count) photos")
                         alert.informativeText = destination.path
                         alert.addButton(withTitle: "Done")
                         alert.addButton(withTitle: "Show in Finder")
                         alert.beginSheetModal(for: self.window) { response in
-                            if response == .alertSecondButtonReturn { NSWorkspace.shared.open(destination) }
+                            if response == .alertSecondButtonReturn {
+                                if diagnostics { NSWorkspace.shared.activateFileViewerSelecting([destination]) }
+                                else { NSWorkspace.shared.open(destination) }
+                            }
                         }
                         return
                     } else {
-                        alert.messageText = "Could not export photos"
-                        alert.informativeText = result?["message"] as? String ?? "Check the destination and card, then try again."
+                        alert.messageText = "Could not export " + operation
+                        alert.informativeText = result?["message"] as? String ?? (diagnostics ? "Check the stopped session and destination, then try again." : "Check the destination and card, then try again.")
                     }
                     alert.beginSheetModal(for: self.window)
                 }
             }
         } catch {
             exporting = false; exportProcess = nil
-            let alert = NSAlert(); alert.messageText = "Could not export photos"; alert.informativeText = error.localizedDescription
+            let alert = NSAlert(); alert.messageText = "Could not export " + operation; alert.informativeText = error.localizedDescription
             alert.beginSheetModal(for: window)
         }
     }
@@ -603,13 +619,14 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         if let action = item.action, let key = cameraButtonActions[action] { return buttonsReady.contains(key) && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(capturePhoto) { return captureReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(selectPhoto) || item.action == #selector(selectMovie) { return modeReady && child?.isRunning == true && baseURL != nil }
+        if item.action == #selector(exportDiagnostics) { return activeConfiguration?["python"] is String && output != nil && child == nil && !starting && !exporting }
         if item.action == #selector(exportPhotos) { return activeConfiguration?["card"] is String && output != nil && child == nil && !starting && !exporting }
         if item.action == #selector(cancelPhotoExport) { return exporting && !exportCancelled }
         if item.action == #selector(openConfiguration) { return child == nil && !starting && !exporting && restartURL == nil }
         if item.action == #selector(restartSession) { return activeConfiguration != nil && !terminating && !starting && !exporting && restartURL == nil }
         if item.action == #selector(allowInputAccess) { return starting && checkingPath != nil && !accessPanelOpen }
         if item.action == #selector(saveDisplay) { return child != nil && baseURL != nil }
-        if item.action == #selector(saveSessionLog) { return output != nil && child == nil && !starting }
+        if item.action == #selector(saveSessionLog) { return output != nil && child == nil && !starting && !exporting }
         if item.action == #selector(stopSession) { return child != nil || starting }
         return output != nil
     }

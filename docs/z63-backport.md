@@ -426,3 +426,14 @@ compiled plugin or firmware hook map is bundled. All 48 real-plugin checks pass
 with synthetic A53/M4 programs and independent continued guest execution.
 See [plugin operation and limits](../plugins/README.md). This does not claim
 format-aware stock logging, interactive console or USB parity.
+
+## Further MCU and desktop input/export parity
+
+The native MCU now accepts explicit numeric per-channel ADC inputs and timed
+replay, with atomic validation and side-effect-free snapshots. No Z63 physical
+selector preset is applied. The 19 synthetic actual-board ADC checks qualify
+regular/injected conversion, updated samples and controller-reset retention.
+The native workbench also exports the complete known diagnostic logs into a
+bounded private ZIP, with shared cancellable export lifecycle and no-replace
+publication. Physical control labels, stock logger/console/USB and top-panel
+drawing remain independent gaps; combined HE/Movie preview remains deferred.

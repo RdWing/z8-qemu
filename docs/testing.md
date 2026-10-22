@@ -66,3 +66,8 @@ Its 48 checks cover synthetic A53/M4 execution, argument/store values, filtering
 bounds and rejected configurations. Host tests validate launcher profiles; source
 CI does not load an external plugin binary. Native macOS checks separately cover
 trace selection, restart, stopped-log retention and the unconfigured disabled state.
+
+`tests/check_mcu_adc.py` separately executes synthetic M4 ADC conversions on the
+actual board. Diagnostic ZIP host tests cover exact binary log copies, fixed
+allowlist exclusion, limits, nonregular inputs, source changes, cancellation and
+no-replace publication. Native Save-dialog/completion checks remain separate.

@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Timed external GPIO/expander inputs; no firmware memory or message writes."""
+"""Timed external GPIO/expander/ADC inputs; no firmware memory or message writes."""
 import json
 import math
 from pathlib import Path
 import re
+import native_adc
 
-PATTERNS={'mcu-pins':r'[A-K](?:[0-9]|1[0-5])=[01]',
+PATTERNS={'mcu-adc-inputs':r'[0-9]+\.[0-9]+=[0-9]+','mcu-pins':r'[A-K](?:[0-9]|1[0-5])=[01]',
           'mcu-contacts':r'(?:22|23)\.(?:[0-9]|1[0-9]|2[0-3])=[01]',
           'capture-gpio-input':r'[0-3]'}
 
@@ -23,7 +24,8 @@ class ContactReplay:
                 raise ValueError('Contact times must be finite, ordered and within 0..3600')
             if prop not in PATTERNS or not isinstance(value,str) or not 1<=len(value)<=1024 or not all(
                 re.fullmatch(PATTERNS[prop],item) for item in ([value] if prop=='capture-gpio-input' else value.split(':'))):
-                raise ValueError('Expected explicit MCU/MAIN GPIO or expander contacts only')
+                raise ValueError('Expected explicit MCU GPIO/expander/ADC or MAIN GPIO inputs')
+            if prop=='mcu-adc-inputs':native_adc.validate(value)
             previous=at
     def dispatch(self,qmp,virtual_seconds):
         sent=[]

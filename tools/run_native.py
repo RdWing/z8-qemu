@@ -24,6 +24,7 @@ import native_he
 import virtual_card
 from native_power import powered_down
 import trace_plugin
+import native_adc
 
 p=arguments(__doc__)
 p.add_argument('--port',type=int,help='Loopback native-MCU display and optional qualified contacts')
@@ -31,6 +32,7 @@ p.add_argument('--check-only',action='store_true')
 p.add_argument('--mcu',type=Path,required=True)
 p.add_argument('--native-controls',action='store_true',help='Qualified EX Menu/navigation/half contacts; requires loopback view')
 p.add_argument('--contact-replay',type=Path,help='Ordered original-MCU external contact actions at virtual times')
+p.add_argument('--mcu-adc-inputs',help='Declared numeric ADC.CH=VALUE samples; no physical control names')
 p.add_argument('--mcu-pins',default='',help='Explicit external contacts, e.g. G1=1:G13=1; no inherited Z63 key names')
 p.add_argument('--seconds',type=int,default=180)
 p.add_argument('--experimental-shared221',action='store_true')
@@ -43,6 +45,7 @@ p.add_argument('--virtual-seconds',type=float,help='Optional finite virtual-time
 a=p.parse_args()
 try:
  trace_profile=trace_plugin.validate(a)
+ if a.mcu_adc_inputs is not None:native_adc.validate(a.mcu_adc_inputs)
  movie_inputs.validate(a)
  native_capture=native_he.validate(a)
 except ValueError as error:p.error(str(error))
@@ -71,6 +74,9 @@ g=Guest(firmware,a.qemu,a.raw,a.output)
 trace_plugin.attach(g,trace_profile)
 index=g.command.index('-M')+1
 g.command[index]=g.command[index].replace('nikon-z8-lab,','nikon-z8-full-lab,zr-sd-empty-fixture=on,')+',mcu-image='+str(mcu)+',mcu-pins='+a.mcu_pins
+if a.mcu_adc_inputs:
+ g.command[index]+=',mcu-adc-inputs='+a.mcu_adc_inputs
+ g.data['declared_mcu_adc_inputs']=a.mcu_adc_inputs
 if a.experimental_shared221:
  profile=json.loads(Path(__file__).with_name('experimental-shared221-profile.json').read_text())
  properties=dict(profile['properties']);properties['ccomp-gpio-model']='off'
@@ -122,7 +128,7 @@ try:
    spi8.clock_if_ready(channels[8]);spi9.clock_if_ready(channels[9])
    now=time.monotonic()
    if now>=next_sample:
-    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-io-state','capture-gpio-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
+    row={name:json.loads(g.qmp.command('qom-get',path='/machine',property=name)) for name in ['native-mcu-state','native-mcu-adc-state','native-mcu-io-state','capture-gpio-state','native-mcu-switch-state','native-mcu-wire-state','raw-pipeline-state','engine1548-scanout-state','runtime-clock-state']}
     row['ui_control_hex']=g.read_bytes(0xa03228fa4,32).hex()
     row['main_switch_cache_hex']=g.read_bytes(0xa0320169c,44).hex()
     native_he.sample(g)

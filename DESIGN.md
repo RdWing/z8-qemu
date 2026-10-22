@@ -196,3 +196,17 @@ Keep the existing read-only text, bounds, Pause/Resume, stopped inspection and
 generation-guarded restart behavior. The configured plugin path joins the
 existing exact-input access checks. No new command-input control or visual
 token system is introduced.
+
+
+## Diagnostic ZIP export
+
+Session → Export diagnostics… uses the same AppKit destination, cancellable
+progress and completion owner as photo export. It is available only while
+stopped. Open/Restart and other exports stay disabled during the operation;
+Quit cancels and waits. The ZIP variant selects its file in Finder, while the
+photo variant opens its folder. Destination Cancel leaves no export. The Save
+dialog explains that exact logs can contain private paths or memory values.
+The helper uses a fixed diagnostic filename list, byte/receipt bounds, regular
+no-follow inputs and atomic no-replace publication; inputs, results, captures
+and arbitrary session files never join this bundle. Existing single launcher-log
+export remains distinct. Platform controls and visual tokens remain unchanged.

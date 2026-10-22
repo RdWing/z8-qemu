@@ -310,3 +310,35 @@ The native inspected boot emits a single NUL on USART1; no interactive EX
 console is qualified. The [desktop diagnostics window](../desktop/README.md#live-diagnostics)
 keeps these streams separate from MAIN UART TX, QEMU diagnostics and launcher
 messages. Native Camera navigation uses the same existing EX contact map.
+
+## Explicit ADC inputs
+
+The inherited functional model has three ADC instances with 19 declared 12-bit
+samples each. `--mcu-adc-inputs 1.1=2048:3.18=4095` supplies decimal
+`ADC.CH=VALUE` batches at startup. ADC numbers are 1..3, channels 0..18 and
+values 0..4095; unspecified samples retain the 2048 default. This is a numeric
+external input, with no recovered voltage, dial position or battery meaning.
+It requires a native MCU attachment.
+
+At runtime, set machine property `mcu-adc-inputs` with the same syntax. The
+whole batch validates before any sample changes; duplicates, malformed values
+and out-of-range values are rejected. Changing a sample does not run a
+conversion, change completion flags or create an IRQ. The guest's existing
+software-started regular/injected conversions consume the next samples. Inputs
+survive a controller-only reset. DMA and longer regular scan sequences remain
+unmodeled. The read-only `native-mcu-adc-state` snapshot reports all samples,
+status, DR and four JDR values directly, without clearing EOC through an MMIO read.
+
+Finite contact replay also accepts `mcu-adc-inputs` actions with the same strict
+validation. Desktop configuration uses the `mcu_adc_inputs` string. No named
+Z63 mode-dial preset is transferred.
+
+```sh
+python3 tests/check_mcu_adc.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-adc-check
+```
+
+All 19 actual-board checks pass with synthetic A53/M4 programs: three regular
+conversions, injected channel order, runtime sample updates, read-only state,
+eight atomic rejection controls, input retention through MCU reset and independent
+A53 progress. These checks qualify model input plumbing, not a physical MCU pin map.
