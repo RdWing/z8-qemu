@@ -16,6 +16,25 @@ spec=importlib.util.spec_from_file_location('desktop_session',ROOT/'tools/deskto
 desktop=importlib.util.module_from_spec(spec);spec.loader.exec_module(desktop)
 
 class DesktopSession(unittest.TestCase):
+    @unittest.skipUnless(sys.platform=='darwin', 'Native bounded diagnostics reader')
+    def test_native_log_snapshots_are_bounded_and_reject_nonregular_inputs(self):
+        source=(ROOT/'desktop/Z8.swift').read_text()
+        function=source[source.index('func readDiagnosticLog('):source.index('final class Diagnostics:')]
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);log=root/'log';link=root/'link';fifo=root/'fifo'
+            log.write_bytes(b'old'*100000+b'UART\x00\xff\r\n');link.symlink_to(log);os.mkfifo(fifo)
+            swift=root/'main.swift';binary=root/'reader'
+            swift.write_text('import Foundation\nimport Darwin\n'+function+
+                'for path in CommandLine.arguments.dropFirst() { print(readDiagnosticLog(URL(fileURLWithPath:path),limit:8)) }\n')
+            subprocess.run(['xcrun','swiftc','-module-cache-path',str(root/'cache'),str(swift),'-o',str(binary)],check=True,capture_output=True)
+            def read(path):return subprocess.run([str(binary),str(path)],check=True,capture_output=True,timeout=3).stdout.decode()
+            self.assertEqual(read(log),'UART\\x00\ufffd\r\n\n')
+            self.assertIn('Log unavailable',read(link))
+            self.assertIn('regular file',read(fifo))
+            self.assertIn('Log unavailable',read(root/'missing'))
+            log.write_bytes(b'new\n');self.assertEqual(read(log),'new\n\n')
+            log.write_bytes(b'');self.assertEqual(read(log),'No output yet.\n')
+
     def test_explicit_paths_flags_and_rejections(self):
         with tempfile.TemporaryDirectory(prefix='z8 desktop ') as temp:
             root=Path(temp);source=root/'input $(literal).bi';source.touch()

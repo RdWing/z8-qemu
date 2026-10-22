@@ -157,7 +157,7 @@ existing workbench; there is no new palette or screen hierarchy.
 Camera → MENU, Half shutter, Playback and i menu call the shared
 `z8Workbench.press` function. The page publishes the exact enabled button keys
 alongside mode/capture readiness through the existing same-origin main-frame
-message. AppKit intersects that set with the four known commands and also
+message. AppKit intersects that set with the known commands and also
 requires its owned child and endpoint. Playback keeps its card/model gate;
 boot, disconnection and capture admission disable these commands. Button-set
 changes must notify AppKit even when mode/capture readiness stays unchanged.
@@ -170,3 +170,20 @@ process environments, preserving other environment values. Every spawned
 Python descendant inherits this policy. Bundled runtime imports must never
 modify signed resources; verify the bundle signature after running sessions
 and export, not just immediately after building.
+
+
+## Read-only native diagnostics
+
+AppKit owns a separate Session → Show diagnostics window, source popup,
+Pause/Resume and selectable monospaced text. Use platform colors and controls;
+the camera webview retains its canonical stylesheet. The popup distinguishes
+MAIN UART TX, QEMU diagnostics, Launcher and the six EX USART instances. Disable
+EX choices without a native attachment. Plain-text snapshots read the last
+128 KiB off-thread every half second; missing or nonregular files report an
+explicit error. Escape nonprinting control bytes and replace invalid UTF-8 only
+in the view; full disk logs remain intact. Pause invalidates pending reads.
+Source changes/restarts resume following, and generation checks discard stale
+results. Closing diagnostics leaves the camera running; stopping keeps its
+logs inspectable. This is output inspection, with no command-input control.
+Camera navigation adds Up/Down/Left/Right/OK through the existing shared bridge,
+per-button capability and capture-busy gates. Do not introduce a second queue.

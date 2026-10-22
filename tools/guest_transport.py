@@ -9,8 +9,13 @@ class Transport:
     def __enter__(self):
         startup_at = time.monotonic()
         try:
-            with self.log_path.open('wb') as log:
-                self.proc = subprocess.Popen(self.command, stdout=subprocess.DEVNULL, stderr=log)
+            # The board emits original MAIN UART TX on stdout. Keep these
+            # bytes separate from modeled-device diagnostics on stderr.
+            self.uart_path = self.log_path.with_name('uart-tx.log')
+            with self.uart_path.open('xb') as uart, self.log_path.open('xb') as log:
+                self.proc = subprocess.Popen(self.command, stdout=uart, stderr=log)
+            self.data['uart_tx'] = dict(path=str(self.uart_path),
+                source='MAIN UART TX, combined channels', receive_supported=False)
             deadline = startup_at+10
             while not (self.runtime/'qtest.sock').exists():
                 cancelled = getattr(self, 'startup_cancelled', None)

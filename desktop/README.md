@@ -94,8 +94,8 @@ The native commands avoid depending on popup automation; both use the same
 shared selector queue.
 
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
-top-panel drawing, recording, playback idle wake/zoom, USB/plugins, a firmware console/debug
-dock and Linux/Windows desktop bundles remain open.
+top-panel drawing, recording, playback idle wake/zoom, USB/plugins, interactive firmware commands
+and Linux/Windows desktop bundles remain open. Read-only UART/device diagnostics are available below.
 The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
 Z8 controls. The experimental native HE profile below adds shared browser,
 keyboard and native Camera-menu capture using the qualified paired contacts.
@@ -207,11 +207,12 @@ acceptance.
 
 ### macOS startup location workaround
 
-The current app disables bytecode writes inside its signed runtime and starts
-the original repository-path QEMU in the checked native runs below. Rebuild into
+The current app disables bytecode writes inside its signed runtime. Rebuild into
 a new app directory to repair an older bundle whose resources already changed.
-The location control below records the earlier failure and remains a fallback
-for a separately diagnosed host-path problem.
+Repository-path QEMU starts in some checked native runs, but two later attempts
+still time out before initialization despite a valid, immutable bundle. The
+signature fix does not resolve that intermittent host-path failure. The location
+control below remains a tested workaround; the underlying macOS cause is open.
 
 If the app times out waiting for QEMU's control socket while the same inputs
 work from the CLI, try a QEMU build in a runtime directory outside Documents,
@@ -234,7 +235,7 @@ are diagnostic only; use a stable runtime path for a saved configuration.
 
 ## Native Camera button commands
 
-Camera → MENU, Half shutter, Playback and i menu use the same qualified EX
+Camera → MENU, Half shutter, Playback, i menu, Up, Down, Left, Right and OK use the same qualified EX
 contacts as the page buttons. They work through the native menu without
 requiring keyboard focus in the embedded page. Their enabled state follows the
 page's actual per-button readiness; Playback still requires a card and model.
@@ -265,3 +266,41 @@ After both sessions and export, the app has zero pyc files and its strict code
 signature check passes. This qualifies these native commands and bounded
 recovery; physical display fidelity, idle wake/zoom and HE/Movie preview remain
 separate.
+
+
+## Live diagnostics
+
+Session → Show diagnostics (Cmd-D) opens an independent, read-only window.
+Choose MAIN UART TX, QEMU diagnostics, Launcher, or one of the six EX USART
+register instances. Pause freezes the visible snapshot while the emulator
+continues; Resume follows the latest output. Changing source or restarting
+resumes following. Closing this window leaves the camera session running.
+Stop retains its logs for inspection; restart changes the diagnostics source
+to the new output directory. EX choices are disabled for host-peer sessions.
+
+The view reads at most the latest 128 KiB per half second, off the UI thread,
+without changing the complete disk logs. Control bytes are shown as hex escapes;
+invalid UTF-8 is replaced in the view only. Missing logs report an explicit
+error; FIFOs, directories and symlinks are rejected. This window sends no UART,
+monitor or firmware commands. A complete log export still uses the stopped
+launcher log action; Show session files exposes the other private logs.
+
+`uart-tx.log` retains the existing MAIN model's stdout TX bytes, combining the
+four UART banks at `0x0F000000 + 0x10*n`, data byte `+4`. `stderr.log` contains
+modeled-device diagnostics. These are separate streams. Native EX sessions also
+create `ex-usart1-tx.log` through `ex-usart6-tx.log` using file-only QEMU character
+backends named `z8-ex-usart1` through `z8-ex-usart6`. They attach the existing
+STM32 USART1/2/3, UART4/5 and USART6 instances; no physical connector or firmware
+console role is assigned. CLI board users can attach those optional names;
+absent backends preserve the previous unconnected behavior. No RX input is
+created by the desktop file backends.
+
+All 21 actual-board MMIO checks pass, including exact combined MAIN TX bytes,
+separation from stderr and unchanged empty/no-RX status. All 95 synthetic MCU
+checks pass, including six separate TX streams across zero/one/two resets and
+independent A53 execution. A native menu run delivers all five navigation
+contacts, drains its queue and passes 300 runtime checks before clean Stop.
+These contacts were already qualified through the browser; this closes native
+menu access, without adding a new physical input map. The native EX boot emits
+one NUL on USART1 and no text on the other streams in the inspected interval;
+retaining TX does not establish an interactive command console.

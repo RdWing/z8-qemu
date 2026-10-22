@@ -53,6 +53,7 @@ if not 1<=a.seconds<=3600:p.error('Duration must be 1..3600 seconds')
 if a.virtual_seconds is not None and not 1<=a.virtual_seconds<=3600:p.error('Virtual duration must be finite within 1..3600 seconds')
 if ',' in a.mcu_pins:p.error('Use colon-separated MCU contacts')
 if a.native_controls and (a.port is None or a.contact_replay):p.error('--native-controls requires --port and excludes contact replay')
+if ',' in str(a.output.resolve()):p.error('Output path cannot contain a comma for EX USART file backends')
 if a.port is not None and not (a.port==0 or 1024<=a.port<=65535):p.error('Invalid loopback port')
 firmware,_=verify(a.firmware);mcu=a.mcu.resolve()
 if ',' in str(mcu) or mcu.stat().st_size!=524288 or hashlib.sha256(mcu.read_bytes()).hexdigest()!='8ce129fa3689d1d619f25ba1c44a3a9f1964c76fe77b95adeb4ea912463c8c63':
@@ -72,6 +73,13 @@ if a.experimental_shared221:
  g.data['experimental_shared221']=dict(profile,effective_properties=properties)
  g.command[index]+=','+','.join(k+'='+v for k,v in properties.items())
 g.command[g.command.index('-smp')+1]='4,maxcpus=5'
+uart_logs=[]
+for channel in range(1,7):
+ path=g.out/f'ex-usart{channel}-tx.log'
+ g.command+=['-chardev',f'file,id=z8-ex-usart{channel},path={path}']
+ uart_logs.append(str(path))
+g.data['ex_uart_tx']=dict(paths=uart_logs,receive_supported=False,
+ classification='STM32 register-instance output; physical connector and console roles unqualified')
 g.command+=['-device',f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-num=0']
 attach(g);movie_inputs.attach(g,a)
 if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_mcu=True)

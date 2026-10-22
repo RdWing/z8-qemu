@@ -43,7 +43,8 @@ def main():
                  '-cpu','cortex-a53','-smp','4','-m','512M','-kernel',str(bios),'-accel','qtest',
                  '-display','none','-serial','none','-monitor','none','-nic','none',
                  '-qmp',f'unix:{endpoint},server=on,wait=off','-qtest',f'unix:{qt},server=on,wait=off']
-            with (out/'qemu.log').open('wb') as log:proc=subprocess.Popen(cmd,stdout=log,stderr=log)
+            with (out/'qemu.log').open('wb') as log, (out/'uart-tx.log').open('xb') as uart:
+                proc=subprocess.Popen(cmd,stdout=uart,stderr=log)
             wait_for_sockets(proc,endpoint,qt);q=QMP(endpoint)
             sock=socket.socket(socket.AF_UNIX);sock.settimeout(3);sock.connect(str(qt));stream=sock.makefile('rwb',buffering=0)
             def mmio(cmd):
@@ -59,6 +60,15 @@ def main():
             def verify(name,value):
                 report['checks'].append({'name':name,'pass':bool(value)})
                 assert value,name
+            # The production board already emits byte TX on stdout. Exercise
+            # all four retained banks without loading firmware or fabricating RX.
+            for channel, byte in enumerate(b'Z8!\n'):
+                write(0x0f000004+16*channel,byte)
+            verify('MAIN UART TX preserves combined channel bytes',
+                   (out/'uart-tx.log').read_bytes()==b'Z8!\n')
+            verify('UART TX is not mixed into QEMU diagnostics',b'Z8!\n' not in (out/'qemu.log').read_bytes())
+            verify('UART remains TX empty with no RX producer',
+                   all(int(mmio(f'readb {0x0f000003+16*c:#x}')[0],0)==2 for c in range(4)))
             verify('functional HE switch present',q.command('qom-get',path='/machine',property='video-raw-he-codec-model') is True)
             verify('empty capture pool',state('capture-frame-pool-state')['productions']==0)
             write(0x15000304,0xff)

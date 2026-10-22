@@ -12,6 +12,18 @@
 .org 0x40
 .thumb_func
 start:
+    /* Each reset emits a distinct byte through every actual USART register
+     * instance. File-only host backends must keep all six streams isolated. */
+    adr.w r6, uart_bases
+    movs r5, #65
+uart_next:
+    ldr r4, [r6], #4
+    ldr r0, =0x2008
+    str r0, [r4, #12]
+    str r5, [r4, #4]
+    adds r5, #1
+    cmp r5, #71
+    bne uart_next
     ldr r7, =0x20000000
     ldr r0, [r7]
     ldr r1, =0x4d435552
@@ -163,6 +175,10 @@ done:
 2:  adds r0, #1
     str r0, [r7, #0x5c]
     b 2b
+.balign 4
+uart_bases:
+    .word 0x40011000, 0x40004400, 0x40004800
+    .word 0x40004c00, 0x40005000, 0x40011400
 .ltorg
 .org 0x1000
 .word 0xffffffff

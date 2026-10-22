@@ -28,7 +28,7 @@ Z63 firmware on the Z8 machine.
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
 | STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Original-EX HE files now have separate source/decoder acceptance; three consecutive HE★ captures recover normally with explicit sync wiring; remaining controls stay open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top-panel model is connected as a declared fixture; Z8 lens/motor, power and card hot-plug still need their own bindings; the native Photo/Movie lever now has separate acceptance. | No physical or native Z8 qualification. |
-| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; session-log and photo export dialogs are native and checked; debug/USB/plugin parity remain open. |
+| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench now has a native macOS window with session lifecycle, screenshot saving and card-gated Playback. Native EX contact controls have separate acceptance from the host peer. Z63 assets/maps and USB/plugin routes are not copied as Z8 bindings. | Initial desktop integration is checked; session-log and photo export dialogs are native and checked; read-only UART/device diagnostics are integrated; interactive debug/USB/plugin parity remain open. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
 ## Preserve Z8 timed-single ownership
@@ -392,3 +392,25 @@ one 1,396,736-byte review job and returns to fresh Photo frames (920→974 RAW
 frames). The app remains signature-valid with zero bytecode cache files after
 both native sessions and three exact NEF exports. Original repository-path
 QEMU cold restart publishes its socket in 0.049345 seconds.
+
+
+## Controller UART and desktop diagnostics
+
+The workbench retains MAIN UART TX separately from QEMU stderr and exposes
+read-only native diagnostics for those streams, the launcher and all six EX
+USART instances. Optional named character backends attach the existing STM32
+peripherals; the desktop uses output-only files, leaving absent backends
+unconnected. No donor physical console/pin map or RX command route is assumed.
+The bounded background reader and Pause/Resume keep camera controls responsive.
+Native Camera navigation now includes all five already-qualified D-pad/OK
+contacts through the same readiness and queue gates.
+
+The actual-board suite passes 21 checks, and controller reset/contact/TX checks
+pass all 95 checks. A native navigation session passes 300 runtime checks with
+all requested contacts drained and clean shutdown. The signed-runtime policy
+remains valid, but two additional repository-path launches time out before
+QEMU initialization; an identical temporary-location binary starts in 0.376 s.
+Host-path startup remains unresolved. See [desktop diagnostics](../desktop/README.md#live-diagnostics)
+for stream identities and acceptance limits. Remaining physical MCU mappings,
+interactive console/USB/plugins and cross-platform bundles stay open; HE/Movie
+preview remains deferred behind those items.

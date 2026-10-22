@@ -2,8 +2,119 @@
 // Copyright (C) 2026 RdWing
 import AppKit
 import WebKit
+import Darwin
+
+// Bounded plain-text snapshots; never follow a replaced log into another file
+// type or block the UI on a FIFO. The full private disk log remains untouched.
+func readDiagnosticLog(_ url: URL, limit: Int = 131072) -> String {
+    let fd = Darwin.open(url.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+    guard fd >= 0 else { return "Log unavailable: " + String(cString: strerror(errno)) }
+    defer { Darwin.close(fd) }
+    var info = stat()
+    guard fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { return "Log unavailable: expected a regular file." }
+    let count = Int(min(Int64(max(0, limit)), max(0, info.st_size)))
+    guard count > 0 else { return "No output yet." }
+    var bytes = [UInt8](repeating: 0, count: count)
+    let read = bytes.withUnsafeMutableBytes { buffer in
+        pread(fd, buffer.baseAddress, count, max(0, info.st_size - Int64(count)))
+    }
+    guard read >= 0 else { return "Log unavailable: " + String(cString: strerror(errno)) }
+    let text = String(decoding: bytes.prefix(read), as: UTF8.self)
+    return text.unicodeScalars.map { scalar in
+        (scalar.value < 32 && ![9, 10, 13].contains(scalar.value)) || scalar.value == 127
+            ? String(format: "\\x%02X", scalar.value) : String(scalar)
+    }.joined()
+}
+
+final class Diagnostics: NSObject {
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 840, height: 520),
+        styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+    let source = NSPopUpButton(frame: .zero, pullsDown: false)
+    let pause = NSButton(title: "Pause", target: nil, action: nil)
+    let text = NSTextView()
+    var timer: Timer?
+    var output: URL?
+    var revision = UUID()
+    var paused = false
+    var reading = false
+
+    override init() {
+        super.init()
+        window.title = "Z8 diagnostics"; window.isReleasedWhenClosed = false
+        window.minSize = NSSize(width: 640, height: 320); window.center()
+        source.addItems(withTitles: ["MAIN UART TX", "QEMU diagnostics", "Launcher",
+            "EX USART1 TX", "EX USART2 TX", "EX USART3 TX", "EX UART4 TX", "EX UART5 TX", "EX USART6 TX"])
+        source.menu?.autoenablesItems = false
+        source.selectItem(at: 0); source.target = self; source.action = #selector(changeSource)
+        source.setAccessibilityLabel("Diagnostic source")
+        pause.target = self; pause.action = #selector(togglePause)
+        let label = NSTextField(wrappingLabelWithString: "Read only · latest 128 KiB · full logs stay in the session folder. MAIN channels are combined; EX streams are separate. Command input is unavailable.")
+        label.textColor = .secondaryLabelColor
+        let controls = NSStackView(views: [source, pause]); controls.spacing = 12
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
+        text.isEditable = false; text.isSelectable = true; text.isRichText = false
+        text.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        text.autoresizingMask = [.width]; text.isVerticallyResizable = true
+        text.textContainer?.widthTracksTextView = true
+        text.setAccessibilityLabel("Diagnostic output"); scroll.documentView = text
+        let stack = NSStackView(views: [controls, label, scroll]); stack.orientation = .vertical
+        stack.alignment = .leading; stack.spacing = 12; stack.translatesAutoresizingMaskIntoConstraints = false
+        window.contentView!.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -16),
+            stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 16),
+            stack.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor, constant: -16),
+            scroll.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            label.widthAnchor.constraint(equalTo: stack.widthAnchor)
+        ])
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.refresh() }
+    }
+    deinit { timer?.invalidate() }
+    func setOutput(_ output: URL?, nativeEX: Bool) {
+        self.output = output; revision = UUID(); paused = false; pause.title = "Pause"
+        for item in source.itemArray.dropFirst(3) { item.isEnabled = nativeEX }
+        if !nativeEX && source.indexOfSelectedItem >= 3 { source.selectItem(at: 0) }
+        text.string = "Waiting for session logs…"
+        refresh(force: true)
+    }
+    func show() { window.makeKeyAndOrderFront(nil); refresh(force: true) }
+    @objc func changeSource() {
+        revision = UUID(); paused = false; pause.title = "Pause"
+        text.string = "Loading…"; refresh(force: true)
+    }
+    @objc func togglePause() {
+        paused.toggle(); pause.title = paused ? "Resume" : "Pause"
+        // Invalidate an in-flight read so Pause really freezes the visible text.
+        revision = UUID(); if !paused { refresh(force: true) }
+    }
+    func refresh(force: Bool = false) {
+        guard window.isVisible, !reading, force || !paused, let output else { return }
+        let url: URL
+        switch source.indexOfSelectedItem {
+        case 0: url = output.appendingPathComponent("uart-tx.log")
+        case 1: url = output.appendingPathComponent("stderr.log")
+        case 2: url = output.deletingLastPathComponent().appendingPathComponent(output.lastPathComponent + ".desktop.log")
+        default: url = output.appendingPathComponent("ex-usart\(source.indexOfSelectedItem - 2)-tx.log")
+        }
+        reading = true; let expected = revision
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let snapshot = readDiagnosticLog(url)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.reading = false
+                guard self.revision == expected else { self.refresh(); return }
+                if self.text.string != snapshot {
+                    self.text.string = snapshot
+                    self.text.scrollToEndOfDocument(nil)
+                }
+            }
+        }
+    }
+}
 
 final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKScriptMessageHandler, NSMenuItemValidation {
+    var diagnostics: Diagnostics?
     var window: NSWindow!
     var view: WKWebView!
     var child: Process?
@@ -43,6 +154,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Allow input access…", #selector(allowInputAccess), ""),
             ("Save display…", #selector(saveDisplay), "s"),
             ("Save session log…", #selector(saveSessionLog), ""),
+            ("Show diagnostics", #selector(showDiagnostics), "d"),
             ("Export photos…", #selector(exportPhotos), ""),
             ("Cancel photo export", #selector(cancelPhotoExport), ""),
             ("Show session files", #selector(showOutput), ""),
@@ -62,7 +174,12 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("MENU", #selector(cameraMenuButton), ""),
             ("Half shutter", #selector(cameraHalfButton), ""),
             ("Playback", #selector(cameraPlayButton), ""),
-            ("i menu", #selector(cameraIButton), "")
+            ("i menu", #selector(cameraIButton), ""),
+            ("Up", #selector(cameraUpButton), ""),
+            ("Down", #selector(cameraDownButton), ""),
+            ("Left", #selector(cameraLeftButton), ""),
+            ("Right", #selector(cameraRightButton), ""),
+            ("OK", #selector(cameraOKButton), "")
         ] {
             let item = cameraMenu.addItem(withTitle: title, action: selector, keyEquivalent: key)
             item.target = self
@@ -227,6 +344,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     func launch(_ config: [String: Any], python: String, out: String, restoring: Bool) throws {
         output = URL(fileURLWithPath: out); baseURL = nil; lineBuffer = Data()
+        diagnostics?.setOutput(output, nativeEX: config["mcu"] is String)
         let process = Process(); let pipe = Pipe()
         configurePython(process)
         process.executableURL = URL(fileURLWithPath: python)
@@ -298,7 +416,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
               let value = message.body as? [String: Any], let ready = value["modeReady"] as? Bool else { return }
         modeReady = ready
         captureReady = value["captureReady"] as? Bool ?? false
-        buttonsReady = Set((value["buttonsReady"] as? [String] ?? []).filter { ["menu", "half", "play", "i"].contains($0) })
+        buttonsReady = Set((value["buttonsReady"] as? [String] ?? []).filter { cameraButtonActions.values.contains($0) })
     }
     func selectMode(_ mode: String) {
         guard modeReady, child?.isRunning == true, baseURL != nil,
@@ -311,7 +429,9 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     var cameraButtonActions: [Selector: String] {
         [#selector(cameraMenuButton): "menu", #selector(cameraHalfButton): "half",
-         #selector(cameraPlayButton): "play", #selector(cameraIButton): "i"]
+         #selector(cameraPlayButton): "play", #selector(cameraIButton): "i",
+         #selector(cameraUpButton): "up", #selector(cameraDownButton): "down",
+         #selector(cameraLeftButton): "left", #selector(cameraRightButton): "right", #selector(cameraOKButton): "ok"]
     }
     func pressCameraButton(_ key: String) {
         guard buttonsReady.contains(key), child?.isRunning == true, baseURL != nil else { return }
@@ -321,6 +441,15 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     @objc func cameraHalfButton() { pressCameraButton("half") }
     @objc func cameraPlayButton() { pressCameraButton("play") }
     @objc func cameraIButton() { pressCameraButton("i") }
+    @objc func cameraUpButton() { pressCameraButton("up") }
+    @objc func cameraDownButton() { pressCameraButton("down") }
+    @objc func cameraLeftButton() { pressCameraButton("left") }
+    @objc func cameraRightButton() { pressCameraButton("right") }
+    @objc func cameraOKButton() { pressCameraButton("ok") }
+    @objc func showDiagnostics() {
+        if diagnostics == nil { diagnostics = Diagnostics(); diagnostics?.setOutput(output, nativeEX: activeConfiguration?["mcu"] is String) }
+        diagnostics?.show()
+    }
     @objc func selectPhoto() { selectMode("photo") }
     @objc func selectMovie() { selectMode("movie") }
     @objc func saveDisplay() {

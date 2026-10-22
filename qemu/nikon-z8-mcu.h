@@ -3,6 +3,7 @@
 /* Original EX firmware owns messages. The board only connects GPIO, SPI
  * and DMA. Pin bindings here are Z8 C3.11/EX03.00 static/probe bindings;
  * clocks, battery and top-panel ready timing remain functional fixtures. */
+#include "chardev/char.h"
 typedef struct Z8McuBridge Z8McuBridge;
 typedef struct Z8McuLink {
     Z8McuBridge *bridge;
@@ -174,7 +175,14 @@ static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
     for (unsigned i=0;i<2;i++) { m->irq[i]=qdev_get_gpio_in(gic,25+i); }
     m->irq[2]=qdev_get_gpio_in(gic,30);
     m->timer=timer_new_ns(QEMU_CLOCK_VIRTUAL,z8_mcu_tick,m);
-    z8_stm32_init(&m->chip,OBJECT(s),s->mcu_image,NULL,&error_fatal);
+    /* Optional named character backends expose the six existing STM32
+     * register instances separately. No Z63 pin/console role is assigned. */
+    Chardev *serial[6];
+    for (unsigned i=0;i<ARRAY_SIZE(serial);i++) {
+        g_autofree char *name=g_strdup_printf("z8-ex-usart%u",i+1);
+        serial[i]=qemu_chr_find(name);
+    }
+    z8_stm32_init(&m->chip,OBJECT(s),s->mcu_image,serial,&error_fatal);
     z8_stm32_rtc_option(&m->chip,"2026-01-02T03:04:05",&error_fatal);
     z8_toplcd_init(&m->panel,NULL,&m->chip.gpio[3],1);
     m->chip.pin_out=z8_mcu_pin_out;m->chip.pin_out_opaque=m;

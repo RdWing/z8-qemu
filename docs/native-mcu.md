@@ -296,3 +296,17 @@ previously restricted to ZR. Z8 now accepts that exact pair with resident
 paint/program and matched-end ownership; nonempty inline geometry remains
 unsupported. Sanitizer controls and a native regression preserve the existing
 `5E5/A8/5EC/A8` family and later draw completion. See the [desktop checkpoint](z63-backport.md#native-command-and-signed-runtime-checkpoint).
+
+
+## Separate EX USART output
+
+Native sessions connect optional QEMU character backends `z8-ex-usart1` through
+`z8-ex-usart6` to the existing controller USART1/2/3, UART4/5 and USART6 register
+instances. Desktop/CLI native runs use separate output-only files; no incoming
+bytes or physical console role is synthesized. Without a named backend the
+instance remains unconnected. The 95 synthetic controller checks include exact
+per-instance TX across zero, one and two resets, with independent A53 progress.
+The native inspected boot emits a single NUL on USART1; no interactive EX
+console is qualified. The [desktop diagnostics window](../desktop/README.md#live-diagnostics)
+keeps these streams separate from MAIN UART TX, QEMU diagnostics and launcher
+messages. Native Camera navigation uses the same existing EX contact map.

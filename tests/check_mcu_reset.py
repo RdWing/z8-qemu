@@ -93,6 +93,8 @@ def main():
                     '-accel', 'tcg,thread=single', '-display', 'none', '-serial', 'none',
                     '-monitor', 'none', '-nic', 'none', '-S', '-no-reboot',
                     '-action', 'shutdown=pause', '-qmp', f'unix:{endpoint},server=on,wait=off']
+                for channel in range(1,7):
+                    command += ['-chardev',f'file,id=z8-ex-usart{channel},path={case / ("usart"+str(channel)+".log")}']
                 record['command'] = command
                 with (case / 'stderr.log').open('wb') as log:
                     process = subprocess.Popen(command, stdout=log, stderr=log)
@@ -109,8 +111,16 @@ def main():
                     qmp.command('memsave', val=0x20000000, size=0x80,
                                 filename=str(case / 'mcu-result.bin'), **{'cpu-index': 4})
                     words = struct.unpack('<32I', (case / 'mcu-result.bin').read_bytes())
-                    if words[3] == 0x600d600d or not status['running']:
+                    if not status['running']:
                         break
+                    if words[3] == 0x600d600d:
+                        # M4 completion can precede the first A53 timeslice on
+                        # a busy host. Wait for both independent guest markers.
+                        qmp.command('pmemsave', val=0xA00010000, size=16,
+                                    filename=str(case / 'a53-ready.bin'))
+                        ready = struct.unpack('<2Q', (case / 'a53-ready.bin').read_bytes())
+                        if ready[0] == 0x4135334845415254 and ready[1] > 0:
+                            break
                     if time.monotonic() > deadline:
                         raise TimeoutError('M4 did not complete the synthetic reset program')
                     qmp.command('cont')
@@ -144,6 +154,9 @@ def main():
                     check('A53 heartbeat continues after MCU control', after[1] > before[1])
                     check('M4 completed expected reset count',
                           words[1] == resets + 1 and words[3] == 0x600d600d)
+                    for channel in range(1,7):
+                        check(f'EX USART {channel} isolated TX survives controller resets',
+                              (case/f'usart{channel}.log').read_bytes()==bytes([64+channel])*(resets+1))
                     check('M4 ordinary and backup SRAM retained',
                           words[4] == words[0x60//4] == 0xcafebabe)
                     check('Programmed MCU flash survives without image reload',
