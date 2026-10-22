@@ -1,0 +1,172 @@
+[
+  {
+    "at": 15.492792556,
+    "property": "mcu-contacts",
+    "value": "23.6=0"
+  },
+  {
+    "at": 15.742792556,
+    "property": "mcu-contacts",
+    "value": "23.6=1"
+  },
+  {
+    "at": 19.520357001,
+    "property": "mcu-contacts",
+    "value": "23.12=0"
+  },
+  {
+    "at": 19.770357001,
+    "property": "mcu-contacts",
+    "value": "23.12=1"
+  },
+  {
+    "at": 20.278621454,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 20.528621454,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 20.779935222,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 21.029935222,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 21.281153654,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 21.531153654,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 21.78221948,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 22.03221948,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 24.750585485,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 25.000585485,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 25.251234706,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 25.501234706,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 25.752419209,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 26.002419209,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 26.253011873,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 26.503011873,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 28.703791694,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 28.953791694,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 29.204634778,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 29.454634778,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 31.627439975,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 31.877439975,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 32.128312338,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 32.378312338,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 32.628910334,
+    "property": "mcu-contacts",
+    "value": "23.15=0"
+  },
+  {
+    "at": 32.878910334,
+    "property": "mcu-contacts",
+    "value": "23.15=1"
+  },
+  {
+    "at": 33.129871495,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 33.379871495,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 37.058014311,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 37.308014311,
+    "property": "mcu-pins",
+    "value": "G1=1"
+  }
+]

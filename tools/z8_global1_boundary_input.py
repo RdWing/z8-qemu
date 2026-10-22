@@ -13,7 +13,7 @@ from probe import sha
 
 
 class Peer:
-    def __init__(self, guest, period_ms, *, auxiliary_masked=False):
+    def __init__(self, guest, period_ms, *, auxiliary_masked=False, auxiliary1_masked=False, global0_bit26=False):
         if not 10 <= period_ms <= 1000:
             raise ValueError('bounded virtual diagnostic input period required')
         self.g = guest
@@ -21,6 +21,8 @@ class Peer:
         self.started = None
         self.next_at = None
         self.auxiliary_masked = auxiliary_masked
+        self.auxiliary1_masked = auxiliary1_masked
+        self.global0_bit26 = global0_bit26
         self.host_started = time.monotonic()
         self.record = dict(classification='diagnostic_periodic_external_status',
             source_sha256=sha(Path(__file__)), period_ms=period_ms, clock='QEMU_CLOCK_VIRTUAL',
@@ -29,6 +31,10 @@ class Peer:
             scheduled_at_guest_wait=False, uses_guest_PC=False, pixel_bytes=0,
             physical_timing_verified=False, camera_acceptance=False)
         self.record['auxiliary_masked'] = auxiliary_masked
+        self.record['auxiliary1_masked'] = auxiliary1_masked
+        self.record['global0_bit26'] = global0_bit26
+        self.record['auxiliary1_deliveries'] = 0
+        self.record['global0_bit26_deliveries'] = 0
         self.record['auxiliary_deliveries'] = 0
         self.record['auxiliary_bit0'] = 0
         self.record['auxiliary_bit1'] = 0
@@ -54,6 +60,15 @@ class Peer:
                 self.record['auxiliary_deliveries']+=1
                 self.record['auxiliary_bit0']+=bool(mask & 1)
                 self.record['auxiliary_bit1']+=bool(mask & 2)
+        if self.auxiliary1_masked:
+            state=json.loads(self.g.qmp.command('qom-get',path='/machine',property='event1508-aux1-state'))
+            mask=state['mask'] & 3
+            if state['enabled'] and mask:
+                self.g.qmp.command('qom-set',path='/machine',property='event1508-aux1-input',value=str(mask))
+                self.record['auxiliary1_deliveries']+=1
+        if self.global0_bit26:
+            self.g.qmp.command('qom-set',path='/machine',property='event1508-global0-input',value=str(1<<26))
+            self.record['global0_bit26_deliveries']+=1
         if len(self.record['deliveries']) < self.record['limit']:
             self.record['deliveries'].append(dict(index=self.record['total_deliveries'],
                 elapsed_host_seconds=time.monotonic()-self.host_started,

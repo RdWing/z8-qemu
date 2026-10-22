@@ -10,12 +10,17 @@ from boot_z8 import key_body
 P=Path(__file__).resolve().parent
 
 def run(g,seconds=60,control=None):
- peer=Peer(g,limit_frames=1024,config_reply=True,all_mode_replies=True,bindings=json.loads((P/'peer-bindings.json').read_text()))
- clock=BoundaryPeer(g,33,auxiliary_masked=True);spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
+ if getattr(g,'trace_transitions',False):
+  from transition_peer import Peer as ActivePeer
+ else:ActivePeer=Peer
+ peer=ActivePeer(g,limit_frames=1024,config_reply=True,all_mode_replies=True,bindings=json.loads((P/'peer-bindings.json').read_text()))
+ clock=BoundaryPeer(g,33,auxiliary_masked=True,auxiliary1_masked=getattr(g,'extra_boundary_inputs',False),global0_bit26=getattr(g,'extra_boundary_inputs',False));spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
  def state(name):return json.loads(g.qmp.command('qom-get',path='/machine',property=name))
  def send_running(body):
   # GDB breakpoint changes require a stopped guest; preserve any peer stop first.
   g.qmp.command('stop');peer.handle();peer.enqueue_external(body,2);g.qmp.command('cont')
+ shooting_mode="photo"
+ def input_body(**kwargs):return key_body(shooting_mode=shooting_mode,**kwargs)
  explicit=False;deadline=time.monotonic()+seconds;next_capture=0;phase=0;phase_at=0;nav_index=0;nav_at=None;release_at=None;input_ready=0
  g.qmp.command('cont')
  try:
@@ -28,17 +33,21 @@ def run(g,seconds=60,control=None):
    clock.tick();now=time.monotonic()
    vt=state('runtime-clock-state')['virtual_ns']/1e9
    if release_at is not None and vt>=release_at:
-    send_running(key_body());release_at=None;input_ready=vt+.5
+    send_running(input_body());release_at=None;input_ready=vt+.5
    if control and phase>=3 and release_at is None and vt>=input_ready:
-    offset=control.next_button()
-    if offset is not None:
-     body=bytearray(key_body());body[offset]=1;send_running(bytes(body));release_at=vt+.10
+    action=control.next_input()
+    if action is not None:
+     kind,value=action
+     if kind=="mode":
+      shooting_mode=value;send_running(input_body());control.shooting_mode=value;input_ready=vt+2
+     else:
+      body=bytearray(input_body());body[value]=1;send_running(bytes(body));release_at=vt+.10
      control.mark_sent()
-     g.data.setdefault('interactive_inputs',[]).append(dict(offset=offset,virtual_seconds=vt))
+     g.data.setdefault('interactive_inputs',[]).append(dict(kind=kind,value=value,shooting_mode=shooting_mode,virtual_seconds=vt))
    if not control and phase==6 and vt>=nav_at and release_at is None:
     sequence=[('ok-bank',74),('back-bank',35),('down-one',37),('ok-extended',74),('back-extended',35),('half-shutter',7)]
     if nav_index<len(sequence):
-     label,offset=sequence[nav_index];body=bytearray(key_body());body[offset]=1
+     label,offset=sequence[nav_index];body=bytearray(input_body());body[offset]=1
      send_running(bytes(body));release_at=vt+.10
      g.data.setdefault('navigation_inputs',[]).append(dict(label=label,offset=offset,pressed=True,virtual_seconds=vt,before_frame=len(g.data.get('pipeline_samples',[]))))
      print('Navigation input: '+label,flush=True);nav_index+=1;nav_at=vt+3
@@ -52,21 +61,26 @@ def run(g,seconds=60,control=None):
     g.qmp.command('screendump',filename=str(frame))
     if control:
      control.publish(frame,row,ready=phase>=3 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==1)
+     if hasattr(control,'captured') and len(control.captured)>len(g.data.get('parity_snapshots',[])):
+      g.data.setdefault('parity_snapshots',[]).append(dict(control.captured[-1],raw=raw,
+       models={name:state(name) for name in ['engine150c-state','engine151-control-state','engine1543-control-state','engine1518-state','z8-playback-state','engine1542-state','event1508-channel-state','event1508-group-state','raw-source-boundary-state','task1500-global-pulse-state']}))
      if control.ready:phase=5  # Startup MENU retry must never undo a user's later MENU/half-shutter.
      (g.out/'live-status.json').write_text(json.dumps(dict(control.status(),interactive_inputs=g.data.get('interactive_inputs',[])))+'\n')
-    if phase==0 and raw['frames']>=8 and lcd.get('frames',0)>=8:
-     peer.enqueue_external(key_body(),2);phase=1;phase_at=vt;print('Native frame acknowledgements and LCD scanout observed; releasing half shutter',flush=True)
+    preparation_ready=(bool(g.data.get('experimental_preparation_profile')) and
+        int.from_bytes(g.read_bytes(0xa03bc2b24,4),'little')==3 and g.read_bytes(0xa032e78a0,1)==b'\0')
+    if phase==0 and (raw['frames']>=8 or preparation_ready) and lcd.get('frames',0)>=8:
+     peer.enqueue_external(input_body(),2);phase=1;phase_at=vt;print('Native frame acknowledgements and LCD scanout observed; releasing half shutter',flush=True)
     elif phase==1 and vt-phase_at>=2:
-     peer.enqueue_external(key_body(menu=True),2);phase=2;phase_at=vt;print('Sending MENU',flush=True)
+     peer.enqueue_external(input_body(menu=True),2);phase=2;phase_at=vt;print('Sending MENU',flush=True)
     elif phase==2 and vt-phase_at>=.4:
-     peer.enqueue_external(key_body(),2);phase=3;phase_at=vt
+     peer.enqueue_external(input_body(),2);phase=3;phase_at=vt
     elif not control and phase==3 and vt-phase_at>=3 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==1:
      phase=6;nav_at=vt
      print('Native menu mode confirmed; starting button navigation test',flush=True)
     elif phase==3 and vt-phase_at>=10 and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')==6:
-     peer.enqueue_external(key_body(menu=True),2);phase=4;phase_at=vt;print('Sending second MENU after native transition wait',flush=True)
+     peer.enqueue_external(input_body(menu=True),2);phase=4;phase_at=vt;print('Sending second MENU after native transition wait',flush=True)
     elif phase==4 and vt-phase_at>=.4:
-     peer.enqueue_external(key_body(),2);phase=5;phase_at=vt
+     peer.enqueue_external(input_body(),2);phase=5;phase_at=vt
     next_capture=now+(.2 if control else .5);g.qmp.command('cont')
    channels=state('serial-state')
    if peer.clock_if_ready(channels):explicit=True;continue
@@ -74,4 +88,8 @@ def run(g,seconds=60,control=None):
  finally:
   g.qmp.command('stop')
   g.data['final_pipeline']={n:state(n) for n in ['graphics-state','raw-pipeline-state','engine1548-scanout-state','engine1518-state','engine151-control-state','engine1543-control-state','engine1548-source-state']}
+  g.data['parity_model_state']={}
+  for name in ['engine1542-state','event1508-channel-state','event1508-group-state','raw-source-boundary-state','task1500-global-pulse-state','engine152c-config-state','engine152c-he-still-state','video-raw-transport-state','video-backend-drain-state','primary-d980-state','engine150c-state','z8-playback-state','engine15e2-jpeg-state','raw-pipeline-state']:
+   try:g.data['parity_model_state'][name]=state(name)
+   except RuntimeError as error:g.data['parity_model_state'][name]={'unavailable':str(error)}
   g.qmp.command('screendump',filename=str(g.out/'final.ppm'));peer.close()

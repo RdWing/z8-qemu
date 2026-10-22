@@ -1,0 +1,32 @@
+[
+  {
+    "at": 12,
+    "property": "mcu-contacts",
+    "value": "23.6=0"
+  },
+  {
+    "at": 12.4,
+    "property": "mcu-contacts",
+    "value": "23.6=1"
+  },
+  {
+    "at": 16,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 18,
+    "property": "mcu-pins",
+    "value": "G13=0"
+  },
+  {
+    "at": 22,
+    "property": "mcu-pins",
+    "value": "G13=1"
+  },
+  {
+    "at": 23,
+    "property": "mcu-pins",
+    "value": "G1=1"
+  }
+]

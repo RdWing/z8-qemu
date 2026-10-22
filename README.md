@@ -1,6 +1,6 @@
 # RdWing Z8 QEMU
 
-[Build](docs/build.md) · [Firmware](docs/firmware.md) · [Usage](docs/usage.md) · [RAW capture](docs/capture.md) · [Architecture](docs/architecture.md) · [Testing](docs/testing.md)
+[Build](docs/build.md) · [Firmware](docs/firmware.md) · [Usage](docs/usage.md) · [RAW capture](docs/capture.md) · [Architecture](docs/architecture.md) · [Testing](docs/testing.md) · [Z63 backport](docs/z63-backport.md)
 
 An experimental **QEMU 11.1.1** machine for **Nikon Z8 C3.11**, adapted from
 [WonderLantern’s Z9 emulator](https://github.com/WonderLantern/z9-qemu) at
@@ -22,7 +22,7 @@ Compared with the upstream revision linked above, this adaptation adds:
 - **Boot and controls:** Z8 C3.11 [hardware mappings](qemu/nikon-z8-lab.c), [boot sequence](tools/boot_z8.py#L38) and [controller/menu bindings](tools/z8_navigation_input.py#L11).
 - **Display:** [framebuffer-bank switching](qemu/nikon-z8-lab.c#L4679), [active-bank acknowledgement](qemu/nikon-z8-lab.c#L15411) and [indexed palette overlays](qemu/nikon-z8-lab.c#L4628).
 - **Capture:** Z8 [preparation inputs](tools/capture.py#L36), [display-region](qemu/nikon-z8-lab.c#L4004)/[serial register retention](qemu/nikon-z8-lab.c#L7127) and [timed single-frame completion fixes](qemu/nikon-z8-d980.h#L179) enabling full NEF capture, with [Nikon lossless14 encoding](qemu/nikon-z8-lossless.h) of the guest-produced Bayer data.
-- **Movie mode:** additional [configuration-register retention and initialization handling](qemu/nikon-z8-lab.c#L6975); recording remains incomplete.
+- **Movie mode:** additional [configuration-register retention and initialization handling](qemu/nikon-z8-lab.c#L6975); recording remains incomplete; shared-device source ports and their remaining target gaps are listed in the backport scope.
 - **Tooling:** [QEMU 11 compatibility](qemu/prepare_source.py), [portable Z8 launchers](tools/run.py), [macOS builds](tools/build.py#L28)/[card creation](tools/virtual_recording_card.py#L65) and [adapted NEF auditing](tools/audit_nef.py).
 
 The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
@@ -33,22 +33,40 @@ The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
 | --- | --- |
 | Original menus, shooting HUD, controller input and four AArch64 CPU contexts | Synthetic boot and peripheral inputs; selected paths tested. |
 | Selected native graphics, four framebuffer banks and indexed palette overlays | Functional rendering; physical AF and display color accuracy remain open. |
-| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. |
+| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. Functional HE/HE★ single captures now have native Z8 synthetic-input acceptance; three consecutive original-EX HE★ captures pass, while physical codec equivalence remains open. |
 | Firmware-written 8280 × 5520, 14-bit NEFs on virtual NVMe/exFAT | LibRaw and Adobe decoding checked all 45,705,600 samples. Capture requires three explicit experimental options and the Lossless menu setting. |
 | Picture Control metadata and Camera Raw defaults | Metadata inspected for Auto and Standard; lossless decoding checked with Auto. |
-| Movie configuration registers and selector handling | Movie initialization remains incomplete; playable recording and physical AF/lens drive are unqualified. |
+| Movie configuration registers and selector handling | Explicit experimental Movie live view and two-cycle Photo recovery work; playable recording and physical AF/lens drive are unqualified. |
 
 A complete QEMU build, native menu navigation and single NEF capture have
 passed on macOS. LibRaw and Adobe DNG Converter independently decoded every
 RAW sample with zero mismatches; all three JPEG previews also decoded. Source
 and model-contract checks cover the display renderer and selected peripheral
-behavior. Repeated shooting and post-shot recovery
-remain open.
+behavior. Original-EX HE★ now also passes three consecutive captures and
+returns to Photo; host-peer repeated lossless capture remains unqualified.
+
+The cumulative Z63 C2.00/C2.01 shared-device changes are adapted through
+`5c3b47c`, including functional HE, JPEG provenance/cancellation, playback resize,
+capture ownership and video-domain models. This is a **partial feature backport**:
+Native HE/HE★ single captures and saved-preview playback are accepted in bounded
+virtual runs. Experimental Movie live view and Photo recovery now pass two cycles. Normal two-cycle playback/Photo recovery also passes. Native stopped-card photo export now copies initialized DCIM photos through an AppKit dialog with writer exclusion and cancellation. Playback idle-wake/zoom, remaining native MCU controls and full desktop parity remain incomplete.
+An initial [macOS desktop workbench](desktop/README.md) now supports the shared
+controls, display saving, saved-photo playback and qualified native EX Menu/navigation/half, Movie/Photo and card-backed Play contacts. Native Camera commands independently complete Movie/Photo recovery. Terminal
+firmware power-down now disables controls and retains the last display; native desktop
+cold restart reopens the same card and returns to Photo. An optional original EX attachment reaches the
+shooting display and writes audited functional HE/HE★ files through a declared
+[original-EX contact replay](docs/native-he-stills.md#reproduce-original-ex-capture).
+Its explicit HE profile now returns to Photo without the reset error and
+passes three consecutive HE★ captures. Shared browser/native capture controls
+use the same guarded contact queue; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
+preserved and freshly accepted by LibRaw and Adobe. See the
+[feature disposition and checks](docs/z63-backport.md) before enabling the
+experimental profile.
 
 ## Quick start
 
 Use macOS or Linux, Python 3.12+, a C toolchain, Ninja, pkg-config, GLib,
-Pixman, zlib, libfdt and libjpeg. Linux card creation needs exfatprogs; macOS uses native exFAT tools.
+Pixman, zlib, libfdt, libjpeg, x264, x265 and a C++17 compiler. Linux card creation needs exfatprogs; macOS uses native exFAT tools.
 Supply a separate **QEMU 11.1.1** source tree.
 
 ```sh

@@ -2,7 +2,7 @@
 
 Supply a separate QEMU **11.1.1** source checkout or extraction.
 Install a C toolchain, Python 3.12+, Ninja, pkg-config, GLib, Pixman, zlib,
-libfdt and libjpeg development files. Python requirements are separate from
+libfdt, libjpeg, x264 and x265 development files, plus a C++17 compiler. Python requirements are separate from
 QEMU’s build dependencies. On macOS the builder disables QEMU’s unrelated
 paravirtualized graphics device, whose APIs are unavailable in recent SDKs.
 
@@ -13,10 +13,10 @@ python tools/build.py --qemu-source /path/to/qemu-11.1.1 \
 ```
 
 The integration helper validates the version and plans all changes before
-writing. It installs nine Z8 source files, enables device dependencies and
-libjpeg, and applies the DesignWare DMA and SMP breakpoint fixes.
+writing. It installs the Z8 overlay and included HE runtime, enables device dependencies,
+libjpeg, x264/x265 and the C++ runtime, and applies the DesignWare DMA and SMP breakpoint fixes.
 Existing source inputs are preserved under `.z8-qemu-backup/` in the selected
-QEMU tree. Unexpected source context or divergent Z8 files stop preparation.
+QEMU tree. Unexpected source context or independently edited Z8 files stop preparation. An overlay can be upgraded only when the destination still matches its previous installation receipt.
 
 Use a fresh source tree and a dedicated build directory. Repeating preparation
 with unchanged inputs is supported. Build output and its receipt remain in
@@ -24,3 +24,14 @@ the supplied build directory. QEMU’s configure step may fetch its dependencies
 
 A complete QEMU 11.1.1 build has passed on macOS. Use the boot and capture
 workflows to qualify a new binary or host environment.
+
+
+For the native macOS app, a dedicated runtime build location such as
+`~/Library/Caches/z8-qemu` can avoid the observed repository-path startup wait.
+Pass that absolute location to `--build-dir` and the resulting binary path in
+the desktop configuration. See the [bounded location workaround](../desktop/README.md#macos-startup-location-workaround).
+
+The current desktop launcher prevents Python bytecode writes inside its signed
+resources and now starts the repository-path binary in the checked host runs.
+Build a fresh app directory after updating; the runtime-location workaround
+above records an earlier diagnostic rather than a required relocation.

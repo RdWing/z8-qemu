@@ -1,0 +1,189 @@
+{
+  "url": "https://github.com/LibRaw/LibRaw/pull/826",
+  "commit": "499bfd4cbf802c2fb5eac4c9a6f53bbeb776cad1",
+  "repository": "yogthos/LibRaw",
+  "files": [
+    {
+      "path": "src/decoders/nikon_he/nikon_he_bayer.cpp",
+      "bytes": 8831,
+      "sha256": "2fc1d76c8a31052806c67abfa3951fbdff19c1159b4d2107ad2b631cd37a006d"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_bayer.h",
+      "bytes": 3560,
+      "sha256": "8aaab2a8a3cb62e359debd7091f61938e6177607b529b8d64e7c4a18228f07c1"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_bit_reader.cpp",
+      "bytes": 3706,
+      "sha256": "045bd50e6803d9c6346aa3b67df230a083f951c6dd2cecef2773c4ff6fc2fc89"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_bit_reader.h",
+      "bytes": 2442,
+      "sha256": "5813de0198e0066f58230cb29bae580e6dba4969a180f574e37ab06b35eb50bc"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_coefficient_decode.cpp",
+      "bytes": 2555,
+      "sha256": "6f5fe4f32fc3a444b05e5b6f9edd30cd1cd68397205d2cdb58b554acb0c3d2ea"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_coefficient_decode.h",
+      "bytes": 2511,
+      "sha256": "861f54ee095fb5b04b7aa2ce6c84810c724c44e8246b6cd171daddd5d52dde72"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_decode.cpp",
+      "bytes": 7637,
+      "sha256": "56dd1a03ed7b976f411466788e2a0abdbe8b2935dfd7ef366ca77538877c5ca6"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_decode.h",
+      "bytes": 2078,
+      "sha256": "91fdba90b4705bff42b8d0db50bbbf8d7858c4e286582b463f18361ec86f88b9"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_dequantize.cpp",
+      "bytes": 2889,
+      "sha256": "022e6b736ea31a4239a21cbdb43be23f0f6e5de9437265a94e8e5c76d159fa7a"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_dequantize.h",
+      "bytes": 2678,
+      "sha256": "73e620841ef72dc020e7aca7cd530653aafffd8eb361c5603dafb748ea92bd75"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_gcli_decode.cpp",
+      "bytes": 3587,
+      "sha256": "d434efe7806a32dd0cdf1269b0de9ada416a56a6caff9f4f541f0118fc00da98"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_gcli_decode.h",
+      "bytes": 2522,
+      "sha256": "777b86dedce7e9a2daff8f3af05e1b084926f47ea925623ceecfe1cbaf82818b"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_gtli_table.cpp",
+      "bytes": 7483,
+      "sha256": "dde3482c250b9bf99e4ff1f0e6076777bc0ce9aff27ae7194926807e84b929dd"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_gtli_table.h",
+      "bytes": 1839,
+      "sha256": "760c715bc3abad4d875c899947889dc1e1e15b2eeeb76b96dbfc91a07ac238db"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_idwt_horizontal.cpp",
+      "bytes": 9774,
+      "sha256": "7d2579b0de2c545ddc9f636528a5e8dc610db49071ccf95505230a913dc30c2b"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_idwt_horizontal.h",
+      "bytes": 3487,
+      "sha256": "09e9620a4de347e605bbb636b21cbc992b84d7ec023750e75288b2c8d06901cb"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_idwt_vertical.cpp",
+      "bytes": 4969,
+      "sha256": "d0f719cff1d27b2dd30247c1655355c4abc9680797fa8b82c2ec8d741aa1fd9f"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_idwt_vertical.h",
+      "bytes": 3842,
+      "sha256": "cf1db7190691f06a4579bd77c5cf0b153865255cf8a1bf0b37c55455f577de04"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_iqx_iqp_lut_data.h",
+      "bytes": 6859,
+      "sha256": "ab04af0c6683fc7d3489c03919d1de7f2c266c96ac330a80d9370a37700f8d9c"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_picture_header.cpp",
+      "bytes": 4251,
+      "sha256": "294bfdf937c81959c8e9f6ec2606924adb028d7d54fef8f90cddbef4b2b4e9ee"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_picture_header.h",
+      "bytes": 1945,
+      "sha256": "d294f375d02ab9f058fcafd60e5a1186f9ae964e1351ef7ff5d602a95e3def33"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_precinct_decode.cpp",
+      "bytes": 7973,
+      "sha256": "b710b1c878da6c44d9cf0526df30002425c58122610706872c4e7236643a9c05"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_precinct_decode.h",
+      "bytes": 2033,
+      "sha256": "6aa7b5d088c585396ab80e5cc8529caca600a2423320d1c4e32c7c11d62c2e35"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_precinct_header.cpp",
+      "bytes": 3784,
+      "sha256": "51347306b848601daf20d877670863c9af599637d144e85fa0946e21b9848fc2"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_precinct_header.h",
+      "bytes": 3272,
+      "sha256": "b8b6e8ace50ec4866088e3b3d0d1d1acda576fd843988b169d4fa5fd975a47c2"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_predecessor.cpp",
+      "bytes": 6024,
+      "sha256": "f8ba0570e4aed2f5ec1e5ba508cffdebc637c8f4d0561bc40b5d2a100a29fa4f"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_predecessor.h",
+      "bytes": 4217,
+      "sha256": "61cec9eba67f6603264f7475f94f0d47cec5083c5c53d343be836d89794b242e"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_predict_lut.cpp",
+      "bytes": 2697,
+      "sha256": "f5e74be8ee35ae1fbcb55f68bc4ea156d16e41c6751973e7b8ae158a99a0be2f"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_predict_lut.h",
+      "bytes": 2028,
+      "sha256": "bbbb475c24bfd6f54511c3b51dc35cf3159d847bcbfae4a662c52701a02c0d3d"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_subband_config.cpp",
+      "bytes": 6671,
+      "sha256": "51ba4594910aea4b30e435318cd1807aea86aed1f258966f0aac258080048ddc"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_subband_config.h",
+      "bytes": 3572,
+      "sha256": "694bddc4dd749ff6451c8c6254a33fd57c80b277f5178ec8334a3e2ff47ec488"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_tile.cpp",
+      "bytes": 9431,
+      "sha256": "a380edbd9dc05b5fcf8119f1c83cfed13bd72f6432ebe1289719db64de590bbf"
+    },
+    {
+      "path": "src/decoders/nikon_he/nikon_he_tile.h",
+      "bytes": 3516,
+      "sha256": "27d84a0f547f0d65bd8a438baf88102af67949caa1ffa2581c3a2f20f9e1c4f7"
+    },
+    {
+      "path": "src/decoders/nikon_he_decoder.cpp",
+      "bytes": 3653,
+      "sha256": "0af84758c981645a62eff7e435b4edbf235562cd6d879cc52bf5e03ced885252"
+    },
+    {
+      "path": "LICENSE.LGPL",
+      "bytes": 24389,
+      "sha256": "eea173a556abac0370461e57e12aab266894ea6be3874c2be05fd87871f75449"
+    },
+    {
+      "path": "LICENSE.CDDL",
+      "bytes": 16906,
+      "sha256": "0e3098d2d54a12434715f6679ea408d57da5e8d613c385c58ecc6fe5d30cc81f"
+    }
+  ],
+  "source_only": true,
+  "native_camera_decoder_accepted": false
+}

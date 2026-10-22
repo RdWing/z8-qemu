@@ -326,8 +326,7 @@ static char *get_pcie_dbi_state(Object *obj, Error **errp)
         s->pcie_ram_dma_input ? MACHINE(s)->ram_size : UINT64_C(0),
         s->pcie_image_ram_dma_input ? "true" : "false",
         s->pcie_image_ram_dma_input ?
-            (image_bank_ranges[0].end - image_bank_ranges[0].base) +
-            (image_bank_ranges[1].end - image_bank_ranges[1].base) : UINT64_C(0),
+            image_bank_bytes(OBJECT(s)) : UINT64_C(0),
         s->pcie_intx_model ? "true" : "false", s->pcie_intx_levels,
         s->pcie_intx_pending, s->pcie_intx_assertions, s->pcie_intx_acks);
 }
@@ -370,16 +369,19 @@ static void z8_pcie_init(NikonZ8State *s, MemoryRegion *mem, DeviceState *gic)
     }
     if (s->pcie_image_ram_dma_input) {
         /* Same real RAM objects seen by CPU/ISP. Never copy pixels, expose
-         * the whole system address space or fill the 512-byte bank gap.
+         * the whole system address space. Preserve the selected machine's
+         * exact layout: Z8's observed gap is not a ZR hardware boundary.
          * Existing programmed inbound ATU and endpoint BARs retain priority. */
         DesignwarePCIEHost *host = DESIGNWARE_PCIE_HOST(dev);
-        for (unsigned i = 0; i < ARRAY_SIZE(image_bank_ranges); i++) {
+        unsigned count;
+        const ImageBankRange *ranges = image_bank_layout(OBJECT(s), &count);
+        for (unsigned i = 0; i < count; i++) {
             g_autofree char *name = g_strdup_printf("z8.pcie-image-ram-%u", i);
             memory_region_init_alias(&s->pcie_image_ram_dma[i], OBJECT(s), name,
                 &s->image_bank_ram[i], 0,
-                image_bank_ranges[i].end - image_bank_ranges[i].base);
+                ranges[i].end - ranges[i].base);
             memory_region_add_subregion_overlap(&host->pci.address_space_root,
-                image_bank_ranges[i].base, &s->pcie_image_ram_dma[i], -2);
+                ranges[i].base, &s->pcie_image_ram_dma[i], -2);
         }
     }
     memory_region_init_io(&s->pcie_dbi, OBJECT(s), &z8_pcie_dbi_ops, s,

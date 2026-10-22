@@ -5,7 +5,8 @@ from pathlib import Path
 import subprocess,tempfile
 p=Path(__file__).resolve().parent
 s=(p.parent/'qemu/nikon-z8-lab.c').read_text()
-body=s[s.index('static void engine1548_overlay_indexed('):s.index('static void engine1548_scanout_tick(')]
+from source_helpers import function
+body=function(s, 'graphics_spans_overlap')+s[s.index('static void engine1548_overlay_indexed('):s.index('static void engine1548_scanout_tick(')]
 pre=r'''
 #include <stdint.h>
 #include <stdbool.h>
@@ -88,6 +89,21 @@ int main(void){
  assert(!engine1548_scanout_fetch(&s));assert(s.engine1548_active_bank[1]==3);assert(s.engine1548_scanout_frames==frames);
  assert(surface.pixels[0]==0xffa0a0a0);
  puts("PASS actual scanout: four distinct banks, pixel selection, active latch, rejected address preserves frame and active bank");
+ /* Full-height chroma must use the second row for NV16; NV12 shares row0. */
+ s.engine1548_addresses[1][3][1]=14;s.engine1548_requested_bank[1]=0;
+ memset(ram+0x800,0,4);s.raw_pipeline_model=true;
+ s.engine1548_direct_control[1]=3;
+ uint32_t*d=s.engine1548_direct_fields[1];d[0]=0;d[2]=2|(2<<16);d[3]=d[4]=2;
+ s.engine1548_addresses[1][0][0]=0xa00;s.engine1548_addresses[1][0][1]=14;
+ s.engine1548_addresses[1][1][0]=0xb00;s.engine1548_addresses[1][1][1]=14;
+ memset(ram+0xa00,100,4);ram[0xb00]=ram[0xb01]=128;ram[0xb02]=255;ram[0xb03]=0;
+ assert(engine1548_scanout_fetch(&s));assert(s.engine1548_last_frame_has_video);
+ assert(surface.pixels[0]==0xff646464);assert(surface.pixels[2]!=surface.pixels[0]);
+ d[0]=4;assert(engine1548_scanout_fetch(&s));assert(surface.pixels[2]==surface.pixels[0]);
+ s.engine1548_addresses[1][1][0]=0xa00;
+ assert(engine1548_scanout_fetch(&s));assert(!s.engine1548_last_frame_has_video);
+ puts("PASS actual NV16/NV12 scanout: chroma row geometry and overlapping plane rejection");
+
 }
 '''
 with tempfile.TemporaryDirectory() as d:

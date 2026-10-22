@@ -54,3 +54,24 @@ The model retains selected configuration and request state for blocks at
 `0x15b00000` and `0x15648000..0x15660000`. Retained requests do not establish
 DMA completion, video encoding or playable recording. The main launcher
 exposes photo and menu controls.
+
+## Saved-photo transfer
+
+The optional JPEG decoder owns per-core NV16 outputs and epochs. A1 START
+validates those decoded planes, finite input geometry, nonoverlapping spans
+and the F4/B4 output program. It retains the input pixels, applies functional
+nearest sampling and writes both destination planes before publishing input
+first/data/end and B4 writer notifications. Original ISR/W1C owns retirement.
+A changed decoder epoch cancels output; pending input, B4 or E ownership
+prevents reuse. Explicit input STOP releases retained work without creating
+output pixels. The observed B6 pulse is a timeout-path control and performs
+no DMA.
+
+For the original source-14 luma request, enabled/armed E computes 256
+saturating 24-bit histogram bins from active decoded pixels, excluding pitch
+padding. E cause0 follows the complete bins. This functional approximation
+does not reproduce Nikon filters, physical histogram routing or timing.
+Original C3.11 displays the 1620×1080 decoded preview after a 1024×682 resize
+and now completes its input/histogram waits without relying on timeout
+cleanup. Two normal Play/Photo/Menu cycles recover fresh pixels. Recovery after the
+later idle transition and zoom retain separate acceptance.

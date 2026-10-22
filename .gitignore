@@ -13,4 +13,8 @@ __pycache__/
 *.png
 *.o
 *.d
+*.so
+*.dylib
+*.dll
+*.a
 qemu-system-aarch64

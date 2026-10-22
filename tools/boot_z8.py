@@ -14,8 +14,9 @@ from mcu_frames import frames,status_body
 from probe_adc_capture import at
 from probe_tasks import settle
 
-def key_body(menu=False,half=False):
-    data=bytearray(124);data[0]=data[4]=1;data[0x43]=int(menu);data[7]=int(half)
+def key_body(menu=False,half=False,shooting_mode="photo"):
+    if shooting_mode not in ("photo", "movie"): raise ValueError("Expected photo or movie")
+    data=bytearray(124);data[0]=data[4]=1;data[0x43]=int(menu);data[7]=int(half);data[0x57]=int(shooting_mode=="movie")
     return bytes(data)
 
 def observe(g,points):

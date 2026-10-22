@@ -2,3 +2,6 @@
 *.py text eol=lf
 *.c text eol=lf
 *.h text eol=lf
+
+# Preserve upstream license texts byte-for-byte.
+qemu/nikon-he-public/LICENSE.* -whitespace

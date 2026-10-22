@@ -1,0 +1,47 @@
+[
+  {
+    "after": 2,
+    "kind": "button",
+    "value": "half"
+  },
+  {
+    "after": 6,
+    "kind": "button",
+    "value": "play"
+  },
+  {
+    "after": 12,
+    "kind": "button",
+    "value": "half"
+  },
+  {
+    "after": 18,
+    "kind": "button",
+    "value": "menu"
+  },
+  {
+    "after": 22,
+    "kind": "button",
+    "value": "half"
+  },
+  {
+    "after": 28,
+    "kind": "button",
+    "value": "play"
+  },
+  {
+    "after": 34,
+    "kind": "button",
+    "value": "half"
+  },
+  {
+    "after": 40,
+    "kind": "button",
+    "value": "menu"
+  },
+  {
+    "after": 44,
+    "kind": "button",
+    "value": "half"
+  }
+]

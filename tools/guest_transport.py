@@ -7,14 +7,26 @@ from probe import QMP
 
 class Transport:
     def __enter__(self):
+        startup_at = time.monotonic()
         try:
-            with self.log_path.open('wb') as log:
-                self.proc = subprocess.Popen(self.command, stdout=subprocess.DEVNULL, stderr=log)
-            deadline = time.monotonic()+10
+            # The board emits original MAIN UART TX on stdout. Keep these
+            # bytes separate from modeled-device diagnostics on stderr.
+            self.uart_path = self.log_path.with_name('uart-tx.log')
+            with self.uart_path.open('xb') as uart, self.log_path.open('xb') as log:
+                self.proc = subprocess.Popen(self.command, stdout=uart, stderr=log)
+            self.data['uart_tx'] = dict(path=str(self.uart_path),
+                source='MAIN UART TX, combined channels', receive_supported=False)
+            deadline = startup_at+10
             while not (self.runtime/'qtest.sock').exists():
-                if self.proc.poll() is not None or time.monotonic() > deadline:
-                    raise RuntimeError('QEMU startup failed')
+                cancelled = getattr(self, 'startup_cancelled', None)
+                if cancelled and cancelled():
+                    raise InterruptedError('QEMU startup cancelled')
+                if self.proc.poll() is not None:
+                    raise RuntimeError(f'QEMU exited during startup (status {self.proc.returncode}); see stderr.log')
+                if time.monotonic() > deadline:
+                    raise RuntimeError('QEMU did not publish its control socket within 10 seconds; see stderr.log')
                 time.sleep(.02)
+            self.data['qemu_startup_seconds'] = round(time.monotonic()-startup_at, 6)
             self.qmp = QMP(self.runtime/'qmp.sock')
             self.qt = socket.socket(socket.AF_UNIX)
             self.qt.settimeout(3)
@@ -34,6 +46,8 @@ class Transport:
                 self.rsp('Z1,40160000,4')
             return self
         except BaseException as exc:
+            self.data['qemu_startup_failure'] = dict(elapsed_seconds=round(time.monotonic()-startup_at, 6),
+                process_status=self.proc.poll() if getattr(self, 'proc', None) else None, message=str(exc))
             self.__exit__(type(exc), exc, None)
             raise
 

@@ -1,0 +1,39 @@
+{
+  "camera": "Z8",
+  "firmware": "3.11",
+  "firmware_sha256": "2b43a31c9de838f84b12416de4348a7004e65be07f853ec56ec2b10f3a8e3853",
+  "experimental_flags": [
+    "--experimental-preparation-profile",
+    "--experimental-capture-selector5",
+    "--experimental-timed-single",
+    "--experimental-he-still"
+  ],
+  "profiles": {
+    "he_star": {
+      "menu_actions": [],
+      "nef_compression": 14
+    },
+    "he": {
+      "menu_actions": [
+        "menu",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "ok",
+        "down",
+        "ok",
+        "menu",
+        "menu"
+      ],
+      "nef_compression": 13
+    }
+  },
+  "scope": "One native guest capture per cold boot with synthetic preparation data; physical codec and repeated capture/recovery unqualified"
+}

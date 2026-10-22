@@ -19,6 +19,8 @@ def run(g,seconds=60,control=None):
  def send_running(body):
   # GDB breakpoint changes require a stopped guest; preserve any peer stop first.
   g.qmp.command('stop');peer.handle();peer.enqueue_external(body,2);g.qmp.command('cont')
+ shooting_mode="photo"
+ def input_body(**kwargs):return key_body(shooting_mode=shooting_mode,**kwargs)
  explicit=False;deadline=time.monotonic()+seconds;next_capture=0;phase=0;phase_at=0;capture_nav=0;capture_nav_done=not bool(g.capture_menu_states) and not g.capture_menu_file;manual_actions=[];nav_index=0;nav_at=None;release_at=None;input_ready=0
  g.qmp.command('cont')
  try:
@@ -31,17 +33,21 @@ def run(g,seconds=60,control=None):
    clock.tick();now=time.monotonic()
    vt=state('runtime-clock-state')['virtual_ns']/1e9
    if release_at is not None and vt>=release_at:
-    send_running(key_body());release_at=None;input_ready=vt+.5
+    send_running(input_body());release_at=None;input_ready=vt+.5
    if control and phase>=3 and release_at is None and vt>=input_ready:
-    offset=control.next_button()
-    if offset is not None:
-     body=bytearray(key_body());body[offset]=1;send_running(bytes(body));release_at=vt+.10
+    action=control.next_input()
+    if action is not None:
+     kind,value=action
+     if kind=="mode":
+      shooting_mode=value;send_running(input_body());control.shooting_mode=value;input_ready=vt+2
+     else:
+      body=bytearray(input_body());body[value]=1;send_running(bytes(body));release_at=vt+.10
      control.mark_sent()
-     g.data.setdefault('interactive_inputs',[]).append(dict(offset=offset,virtual_seconds=vt))
+     g.data.setdefault('interactive_inputs',[]).append(dict(kind=kind,value=value,shooting_mode=shooting_mode,virtual_seconds=vt))
    if not control and phase==6 and vt>=nav_at and release_at is None:
     sequence=[('ok-bank',74),('back-bank',35),('down-one',37),('ok-extended',74),('back-extended',35),('half-shutter',7)]
     if nav_index<len(sequence):
-     label,offset=sequence[nav_index];body=bytearray(key_body());body[offset]=1
+     label,offset=sequence[nav_index];body=bytearray(input_body());body[offset]=1
      send_running(bytes(body));release_at=vt+.10
      g.data.setdefault('navigation_inputs',[]).append(dict(label=label,offset=offset,pressed=True,virtual_seconds=vt,before_frame=len(g.data.get('pipeline_samples',[]))))
      print('Navigation input: '+label,flush=True);nav_index+=1;nav_at=vt+3
@@ -61,14 +67,14 @@ def run(g,seconds=60,control=None):
     release_ready=(int.from_bytes(bytes.fromhex(row['release_join_hex'])[:4],'little')==3 and row['screen_busy']=='00')
     startup_ready=raw['frames']>=8 or (g.data.get('experimental_preparation_profile') and release_ready)
     if phase==0 and startup_ready and lcd.get('frames',0)>=8:
-     peer.enqueue_external(key_body(),2);phase=1;phase_at=vt;print('Original startup readiness and LCD scanout observed; releasing half shutter',flush=True)
+     peer.enqueue_external(input_body(),2);phase=1;phase_at=vt;print('Original startup readiness and LCD scanout observed; releasing half shutter',flush=True)
     elif phase==1 and vt-phase_at>=2:
      # First establish the actual Z8 QUAL/dial path before any shutter input.
      phase=10;phase_at=vt;g.data['capture_setup_inputs']=[]
      rtc=bytes([1,0,0,0,26,9,10,12,34,56,0,0,0,0])
      peer.pending.append((7,rtc,frames(rtc,family=7)[0]));peer.start_rx();g.data['rtc_fixture']={'family':7,'body_hex':rtc.hex(),'physical_protocol_verified':False}
     elif phase>=10 and phase<18 and vt-phase_at>=1:
-     body=bytearray(key_body())
+     body=bytearray(input_body())
      if phase in range(10,16):body[0x1f]=1
      if phase in range(11,15):body[0x0b]=255
      peer.enqueue_external(bytes(body),2)
@@ -98,7 +104,7 @@ def run(g,seconds=60,control=None):
      g.data['active_contact_phase']=phase
      if phase>=18:
       for address,label in [(0x404623bc,'capture_full_screen_mode'),(0x404623f4,'capture_full_screen_busy'),(0x40462428,'capture_full_screen_filters'),(0x404240dc,'capture_full_screen_action'),(0x403e94bc,'capture_full_ui_key_code'),(0x4043c4d0,'capture_full_ui_screen'),(0x4043c4e0,'capture_full_ui_screen_indirect'),(0x40c00128,'capture_full_ui_controller'),(0x40d2e218,'capture_full_key_ready'),(0x40d2e230,'capture_full_key_inhibit'),(0x40d2e278,'capture_full_key_dispatch'),(0x40d572c4,'capture_full_state_input'),(0x40d5ab84,'capture_full_state_key')]:peer.arm(address,label)
-     body=bytearray(key_body());half,full=[(0,0),(1,0),(1,1),(1,0),(0,0)][phase-18]
+     body=bytearray(input_body());half,full=[(0,0),(1,0),(1,1),(1,0),(0,0)][phase-18]
      body[7]=half;body[8]=full
      g.qmp.command('qom-set',path='/machine',property='capture-gpio-input',value=str(half|(full<<1)))
      peer.enqueue_external(bytes(body),2)

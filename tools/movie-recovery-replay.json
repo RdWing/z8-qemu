@@ -1,0 +1,52 @@
+[
+  {
+    "after": 2,
+    "kind": "mode",
+    "value": "movie"
+  },
+  {
+    "after": 15,
+    "kind": "button",
+    "value": "half"
+  },
+  {
+    "after": 30,
+    "kind": "mode",
+    "value": "photo"
+  },
+  {
+    "after": 40,
+    "kind": "button",
+    "value": "menu"
+  },
+  {
+    "after": 45,
+    "kind": "button",
+    "value": "half"
+  },
+  {
+    "after": 55,
+    "kind": "mode",
+    "value": "movie"
+  },
+  {
+    "after": 65,
+    "kind": "button",
+    "value": "half"
+  },
+  {
+    "after": 75,
+    "kind": "mode",
+    "value": "photo"
+  },
+  {
+    "after": 85,
+    "kind": "button",
+    "value": "menu"
+  },
+  {
+    "after": 90,
+    "kind": "button",
+    "value": "half"
+  }
+]
