@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 import panel
 
-BUTTONS={'menu':67,'up':36,'down':37,'left':35,'right':34,'ok':74,'half':7,'i':72,'play':68,'disp':83}
+BUTTONS={'menu':67,'up':36,'down':37,'left':35,'right':34,'ok':74,'half':7,'i':72,'play':68,'disp':83,'protect':73,'delete':69}
 
 def png_from_ppm(path):
  data=Path(path).read_bytes(); pos=0; tokens=[]
@@ -31,7 +31,7 @@ def png_from_ppm(path):
 class Control:
  def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None,native_modes=False,native_capture=False):
   self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes and not native_capture);self.powered_down=False;self.cancelled=0
-  self.allowed_buttons=set(set(BUTTONS)-{'disp'} if not native_mcu else native_buttons or [])
+  self.allowed_buttons=set(set(BUTTONS)-{'disp','protect','delete'} if not native_mcu else native_buttons or [])
   self.playback=bool(playback)
   self.native_capture=bool(native_mcu and native_capture);self.capture_ready=False;self.capture_busy=False
   self.capture_serial=0;self.capture_finished=0;self.capture_error=None;self.capture_completed_jobs=0
@@ -84,7 +84,7 @@ class Control:
     elif button in BUTTONS:
      if owner.capture_busy:self.send(409,b'Wait for capture to finish.','text/plain');return
      if button not in owner.allowed_buttons:self.send(409,b'This control has no qualified native contact.','text/plain');return
-     if button=='play' and not owner.playback:self.send(409,b'Playback requires a virtual card and playback model.','text/plain');return
+     if button in ('play','protect','delete') and not owner.playback:self.send(409,b'Review controls require a virtual card and playback model.','text/plain');return
      if not owner.status()['ready']:self.send(503,b'Camera controls are not ready. Check the status above the display.','text/plain');return
      try:
       owner.queue.put_nowait(("button", BUTTONS[button]));owner.submitted+=1

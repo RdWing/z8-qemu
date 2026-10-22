@@ -467,3 +467,16 @@ macOS path failure remains open. Optional application-ring entry tracing adds
 numeric W1/W2/W3/W4 decoding at an explicit AArch64 address, without object or
 guest-memory reads. All 84 real-plugin synthetic checks pass; complete stock
 format/EX/TOPPERS decoding and hardware behavior remain unqualified.
+
+
+## Native review-key continuation
+
+Protect and Delete now have independent Z8 EX-contact/report/MAIN-switch joins
+and shared browser/AppKit commands. Both require native EX controls and the
+explicit card/playback profile; neither has a keyboard shortcut. Original
+firmware retains its Delete confirmation. A disposable-card native replay
+passes 300 harness checks, shows protection and confirmation, deletes the
+selected file, then returns to fresh Photo frames. A stopped catalog confirms
+the copied card has two NEFs while the original retains three. Confirmation
+cancellation, protection persistence and other assigned roles remain separate.
+See the [native review-key boundary](native-mcu.md#native-protect-and-delete-keys).

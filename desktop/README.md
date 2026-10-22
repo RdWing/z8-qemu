@@ -372,3 +372,24 @@ Display on/off and transferred lines and keeps its last received frame after
 disconnection. Host-peer sessions omit it. The main display, input queue, Stop
 placement and native Camera commands retain their existing behavior.
 See [panel binding and limits](../docs/native-mcu.md#z8-top-panel-binding).
+
+
+## Native review keys
+
+With original EX controls, a virtual card and the playback model enabled,
+Protect key and Delete key are available in the shared workbench and Camera
+menu. They press/release the independently mapped Z8 contacts through the
+existing queue. Host-peer and display-only profiles keep them disabled.
+Neither action has a keyboard shortcut.
+
+These commands retain the firmware's own confirmation flow. Watch the camera
+display: Play cancels its Delete question; another Delete press can confirm
+removal from the virtual card. The app reports queued input only. Use a copy
+of any card whose files you need to preserve.
+
+A finite original-firmware replay shows the protection icon and native Delete
+question, confirms one deletion on a disposable card, and returns to fresh
+Photo frames. Stopped-card catalogs independently show three original NEFs and
+two remaining copied-card NEFs. Shared browser admission/queue checks and the
+signed macOS build pass separately; these checks do not qualify protection
+persistence, confirmation cancellation or physical buttons.

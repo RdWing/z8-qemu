@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','display-help','ex-panel','panel-screen','panel-status'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
-const buttons=['menu','half','play','i','disp'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
+const buttons=['menu','half','play','i','disp','protect','delete'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
 let respond=async()=>({ok:true,status:202});
 const context=vm.createContext({console,AbortSignal,setTimeout:()=>{},Date,
  document:{querySelector:s=>nodes[s.slice(1)],querySelectorAll:()=>buttons,activeElement:null},
@@ -24,6 +24,19 @@ const run=code=>vm.runInContext(code,context);
  run("allowedButtons.push('disp');available(true)");
  assert.equal(buttons.find(b=>b.dataset.key==='disp').disabled,false);
  await run("window.z8Workbench.press('disp')");assert.equal(calls.at(-1).path,'/button/disp');
+ run("allowedButtons.push('protect','delete');playback=false;available(true)");
+ for(const key of ['protect','delete']) {
+  assert.equal(buttons.find(b=>b.dataset.key===key).disabled,true);
+  const before=calls.length;await run(`window.z8Workbench.press('${key}')`);assert.equal(calls.length,before);
+ }
+ run('playback=true;available(true)');
+ for(const key of ['protect','delete']) {
+  assert.equal(buttons.find(b=>b.dataset.key===key).disabled,false);
+  await run(`window.z8Workbench.press('${key}')`);assert.equal(calls.at(-1).path,'/button/'+key);
+ }
+ const beforeDeleteShortcut=calls.length;
+ for(const key of ['Delete','Backspace'])context.document.onkeydown({key,target:{tagName:'BODY'}});
+ assert.equal(calls.length,beforeDeleteShortcut);
  const beforeShortcut=calls.length;
  context.document.onkeydown({key:'d',target:{tagName:'BODY'},metaKey:true});
  assert.equal(calls.length,beforeShortcut);

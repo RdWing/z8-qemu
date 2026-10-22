@@ -241,3 +241,15 @@ Stop and generation guards retain ownership while the child runs `--version`;
 a timeout never starts or automatically retries a firmware session. Existing
 startup/error presentation owns the result; successful preflight does not
 present the camera as ready.
+
+
+## Native review keys
+
+Protect key and Delete key reuse the camera button style, capability list and
+shared browser/AppKit bridge. Both require native EX controls and the explicit
+card/playback profile. No Delete/Backspace shortcut is assigned. These are
+external key presses: original firmware owns the confirmation displayed on the
+camera screen, including Play to cancel and another Delete press to confirm.
+The workbench reports queued input only. It never skips that screen, deletes
+host files, retries a key automatically or claims a deletion has completed.
+Keep the consequence text next to the keys; Stop remains available below them.

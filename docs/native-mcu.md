@@ -413,3 +413,30 @@ Twenty-four firmware-free actual-board checks cover present/absent boot,
 repeated removal/reinsertion, unchanged endpoint/backing-file/adapter ownership,
 neighbor isolation, read-only observation and rejection without the adapter.
 A disposable-card original MAIN/EX run toggles false/true at virtual 19/23 seconds, then completes review and returns to Photo: 300 harness checks, 633 RAW frames, 761 MAIN/698 EX frames, zero checksum failures and clean shutdown. The backend stays identical. No absent-period filesystem event was independently observed, so complete native hot-plug remains unqualified.
+
+
+## Native Protect and Delete keys
+
+Z8 expander `0x23` bit 9 produces EX report byte `0x49` (Protect); bit 18
+produces byte `0x45` (Delete). Original MAIN consumes distinct switch masks.
+These target bindings are independent of the donor's key map.
+
+On a disposable three-photo card copy, a finite original MAIN/EX replay enters
+Playback, presses Protect twice, opens the native Delete confirmation and
+confirms with a second Delete press. The screen shows the protection icon,
+then the confirmation, then `DSC_0002.NEF` as `2/2`. A stopped-card catalog
+independently confirms `DSC_0003.NEF` is absent and the two other NEFs remain;
+the original card still has all three. Play returns to Photo and RAW frames
+advance to 332. All 300 harness checks pass, with 683 MAIN / 641 EX frames,
+zero checksum failures and clean owned shutdown at 30.012 virtual seconds.
+This is a bounded emulator workflow, not physical control qualification.
+
+Browser Protect key / Delete key and the matching AppKit Camera commands use
+the existing per-button admission, queue and contact release. Both require
+native EX controls plus a virtual card and playback model; host-peer,
+display-only, stale and capture-busy sessions reject them. Neither has a
+keyboard shortcut. Watch the camera's own confirmation: another Delete press
+can remove the selected virtual-card file. The queue reports input delivery,
+not a saved protection flag or completed deletion. Confirmation cancellation,
+protection persistence after restart and other assigned shooting roles remain
+separate checks.
