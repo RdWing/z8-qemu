@@ -20,6 +20,10 @@ struct Z8McuBridge {
     QEMUTimer *timer;
     qemu_irq irq[3];
     bool pumping;
+    DeviceState *main_gic;
+    unsigned supply_port, supply_pin;
+    bool supply_enabled, supply_armed, supply_off;
+    uint64_t supply_cuts, supply_resets;
     uint8_t switch_report[124], switch_wire[256];
     uint64_t switch_frames;
 };
@@ -65,9 +69,38 @@ static uint32_t z8_mcu_gpio_write(NikonZ8State *s, hwaddr addr, uint32_t value)
     }
     return z8_mcu_gpio_read(s,addr,next);
 }
+/* Explicit virtual supply, not an asserted physical pin-to-rail binding.
+ * The initial fixture is powered. First high arms subsequent cut/return edges. */
+static void z8_mcu_main_supply(Z8McuBridge *m, bool level)
+{
+    if (!m->supply_enabled) { return; }
+    if (level && !m->supply_armed) { m->supply_armed = true; return; }
+    if (!level && m->supply_armed && !m->supply_off) {
+        m->supply_off = true; m->supply_cuts++;
+        CPUState *cs;
+        CPU_FOREACH(cs) {
+            ARMCPU *cpu = ARM_CPU(cs);
+            if (!arm_feature(&cpu->env, ARM_FEATURE_M)) {
+                arm_set_cpu_off(arm_cpu_mp_affinity(cpu));
+            }
+        }
+        error_report("Z8_MAIN_SUPPLY cut ns=%"PRId64, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    } else if (level && m->supply_off) {
+        m->supply_off = false; m->supply_resets++;
+        device_cold_reset(m->main_gic);
+        int rc = arm_set_cpu_on_and_reset(0);
+        error_report("Z8_MAIN_SUPPLY return ns=%"PRId64" architectural reset rc=%d; EX/card/RAM retained",
+                     qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), rc);
+    }
+}
+
 static void z8_mcu_pin_out(void *opaque,unsigned port,unsigned pin,bool level)
 {
     Z8McuBridge *m=opaque;NikonZ8State *s=m->owner;
+    if (port==m->supply_port && pin==m->supply_pin &&
+        ((m->chip.gpio[port].moder >> (2*pin)) & 3) == 1) {
+        z8_mcu_main_supply(m,level);
+    }
     if (port==0 && pin==4) { z8_toplcd_scs(&m->panel,level); }
     if (port==4 && pin==8) { z8_toplcd_disp(&m->panel,level); }
     if (port==3 && pin==11) { z8_toplcd_start(&m->panel,level); }
@@ -166,6 +199,7 @@ static bool z8_mcu_apply_contacts(Z8McuBridge *m,const char *value,Error **errp)
 static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
 {
     if (!s->mcu_image || !*s->mcu_image) {
+        if (s->mcu_main_supply_pin) { error_report("mcu-main-supply-pin requires native MCU attachment");exit(1); }
         if (s->mcu_adc_inputs) { error_report("mcu-adc-inputs requires native MCU attachment");exit(1); }
         if (s->mcu_capture_sync_wires) { error_report("mcu-capture-sync-wires requires original EX attachment");exit(1); }
         return;
@@ -174,6 +208,12 @@ static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
         error_report("native MCU requires -smp 4,maxcpus=5, serial-fixture and no synthetic CCOMP GPIO peer");exit(1);
     }
     Z8McuBridge *m=g_new0(Z8McuBridge,1);m->owner=s;s->native_mcu=m;
+    m->main_gic = gic;
+    if (s->mcu_main_supply_pin) {
+        m->supply_enabled = true;
+        m->supply_port = s->mcu_main_supply_pin[0] - 'A';
+        m->supply_pin = atoi(s->mcu_main_supply_pin + 1);
+    }
     for (unsigned i=0;i<2;i++) { m->irq[i]=qdev_get_gpio_in(gic,25+i); }
     m->irq[2]=qdev_get_gpio_in(gic,30);
     m->timer=timer_new_ns(QEMU_CLOCK_VIRTUAL,z8_mcu_tick,m);
@@ -201,6 +241,19 @@ static void z8_mcu_init(NikonZ8State *s,DeviceState *gic)
     if (s->mcu_capture_sync_wires) { z8_stm32_gpio_drive(&m->chip.gpio[5],4,!!(s->syscon[0x100c/4]&0x1000)); }
     z8_stm32_pins(&m->chip,s->mcu_pins,&error_fatal);
     z8_mcu_apply_contacts(m,s->mcu_contacts,&error_fatal);
+}
+static char *get_z8_main_supply(Object *obj,Error **errp)
+{ return g_strdup(NIKON_Z8_LAB(obj)->mcu_main_supply_pin); }
+static void set_z8_main_supply(Object *obj,const char *value,Error **errp)
+{
+    char port, tail; unsigned pin;
+    if (!value || strlen(value)<2 || strlen(value)>3 ||
+        sscanf(value, "%c%u%c", &port, &pin, &tail) != 2 ||
+        port < 'A' || port > 'K' || pin > 15) {
+        error_setg(errp, "mcu-main-supply-pin requires one declared pin A0..K15"); return;
+    }
+    NikonZ8State *s=NIKON_Z8_LAB(obj);
+    g_free(s->mcu_main_supply_pin); s->mcu_main_supply_pin=g_strdup(value);
 }
 static char *get_z8_mcu_image(Object *obj,Error **errp) { return g_strdup(NIKON_Z8_LAB(obj)->mcu_image); }
 static void set_z8_mcu_image(Object *obj,const char *value,Error **errp)
@@ -241,7 +294,9 @@ static char *get_z8_mcu_io(Object *obj,Error **errp)
             i ? "," : "",i,p->active ? "true" : "false",p->tx_queued,p->rx_queued,p->pending,
             m->chip.spi[i ? 3 : 0].r[0],m->chip.spi[i ? 3 : 0].r[1]);
     }
-    g_string_append_printf(out,"],\"rtc\":{\"control\":%u,\"stored_status\":%u,\"prescaler\":%u,\"wakeup_reload\":%u,\"alarm_a\":%u,\"alarm_b\":%u,\"alarm_subseconds_a\":%u,\"alarm_subseconds_b\":%u,\"backup_clock\":%u,\"alarm_matches\":[%"PRIu64",%"PRIu64"],\"wakeup_expiries\":%"PRIu64",\"alarm_irq_level\":%s,\"wakeup_irq_level\":%s}}",
+    g_string_append_printf(out,"],\"main_supply\":{\"enabled\":%s,\"armed\":%s,\"off\":%s,\"cuts\":%"PRIu64",\"resets\":%"PRIu64"},\"power\":{\"stop_active\":%s,\"stop_entries\":%"PRIu64",\"stop_wakes\":%"PRIu64"},\"rtc\":{\"control\":%u,\"stored_status\":%u,\"prescaler\":%u,\"wakeup_reload\":%u,\"alarm_a\":%u,\"alarm_b\":%u,\"alarm_subseconds_a\":%u,\"alarm_subseconds_b\":%u,\"backup_clock\":%u,\"alarm_matches\":[%"PRIu64",%"PRIu64"],\"wakeup_expiries\":%"PRIu64",\"alarm_irq_level\":%s,\"wakeup_irq_level\":%s}}",
+        m->supply_enabled ? "true" : "false",m->supply_armed ? "true" : "false",m->supply_off ? "true" : "false",m->supply_cuts,m->supply_resets,
+        m->chip.stop_active ? "true" : "false",m->chip.stop_entries,m->chip.stop_wakes,
         m->chip.rtc[2],m->chip.rtc[3],m->chip.rtc[4],m->chip.rtc[5],
         m->chip.rtc[7],m->chip.rtc[8],m->chip.rtc[17],m->chip.rtc[18],
         m->chip.rcc[Z8_RCC_BDCR/4],m->chip.rtc_alarm_events[0],m->chip.rtc_alarm_events[1],m->chip.rtc_wake_events,

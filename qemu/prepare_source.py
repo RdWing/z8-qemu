@@ -37,6 +37,44 @@ TCG_NEW = '''    case GDB_BREAKPOINT_SW:
         }
         return removed ? 0 : -ENOENT;
     }'''
+# Optional M-profile board power controller hook. Other boards retain RAZ/WI
+# SLEEPDEEP and their existing WFI/WFE behavior.
+M_SLEEP_CPU_OLD = "    CPUARMState env;\n\n    /* Coprocessor information */"
+M_SLEEP_CPU_NEW = """    CPUARMState env;
+
+    void (*m_profile_sleep)(ARMCPU *cpu, bool wfe, void *opaque);
+    void *m_profile_sleep_opaque;
+
+    /* Coprocessor information */"""
+M_SLEEP_NVIC_OLD = "        value &= ~(R_V7M_SCR_SLEEPDEEP_MASK | R_V7M_SCR_SLEEPDEEPS_MASK);"
+M_SLEEP_NVIC_NEW = """        value &= ~R_V7M_SCR_SLEEPDEEPS_MASK;
+        if (!cpu->m_profile_sleep) {
+            value &= ~R_V7M_SCR_SLEEPDEEP_MASK;
+        }"""
+M_SLEEP_WFI_OLD = """    env->halt_reason = HALT_WFI;
+    cs->exception_index = EXCP_HLT;"""
+M_SLEEP_WFI_NEW = """    ARMCPU *cpu = env_archcpu(env);
+    if (arm_feature(env, ARM_FEATURE_M) && cpu->m_profile_sleep &&
+        (env->v7m.scr[M_REG_NS] & R_V7M_SCR_SLEEPDEEP_MASK)) {
+        cpu->m_profile_sleep(cpu, false, cpu->m_profile_sleep_opaque);
+    }
+    env->halt_reason = HALT_WFI;
+    cs->exception_index = EXCP_HLT;"""
+M_SLEEP_WFE_OLD = """    env->halt_reason = HALT_WFE;
+    cs->exception_index = EXCP_HLT;"""
+M_SLEEP_WFE_NEW = """    if (arm_feature(env, ARM_FEATURE_M) && cpu->m_profile_sleep &&
+        (env->v7m.scr[M_REG_NS] & R_V7M_SCR_SLEEPDEEP_MASK)) {
+        cpu->m_profile_sleep(cpu, true, cpu->m_profile_sleep_opaque);
+    }
+    env->halt_reason = HALT_WFE;
+    cs->exception_index = EXCP_HLT;"""
+M_SLEEP_PATCHES = [
+    ('target/arm/cpu.h', M_SLEEP_CPU_OLD, M_SLEEP_CPU_NEW),
+    ('hw/intc/armv7m_nvic.c', M_SLEEP_NVIC_OLD, M_SLEEP_NVIC_NEW),
+    ('target/arm/tcg/op_helper.c', M_SLEEP_WFI_OLD, M_SLEEP_WFI_NEW),
+    ('target/arm/tcg/op_helper.c', M_SLEEP_WFE_OLD, M_SLEEP_WFE_NEW),
+]
+
 KCONFIG = '''config NIKON_Z8_LAB
     bool
     depends on AARCH64 && TCG
@@ -101,6 +139,18 @@ def plan(source):
     ]:
         p = source/name
         changes[p] = replace_verified(p.read_text(), old, new, label).encode()
+    for name, old, new in M_SLEEP_PATCHES:
+        p = source/name
+        body = changes.get(p, p.read_bytes()).decode()
+        if name.endswith('op_helper.c'):
+            function = 'wfi' if old == M_SLEEP_WFI_OLD else 'wfe'
+            start = body.index('void HELPER(' + function + ')(')
+            end = body.index('\nvoid HELPER(', start + 1)
+            body = body[:start] + replace_verified(body[start:end], old, new,
+                'M-profile ' + function) + body[end:]
+        else:
+            body = replace_verified(body, old, new, 'M-profile power hook')
+        changes[p] = body.encode()
     core = json.loads((HERE/'qemu-core/sources.json').read_text())
     receipt_path=source/'.z8-qemu-overlay.json'
     prior=json.loads(receipt_path.read_text()) if receipt_path.exists() else {}

@@ -92,6 +92,8 @@ struct STM32F2XXTimerState {
     int64_t tick_offset;
     uint64_t hit_time;
     uint64_t freq_hz;
+    bool clock_stopped;
+    int64_t clock_stop_ns, stopped_update_ns, stopped_compare_ns;
 
     uint32_t tim_cr1;
     uint32_t tim_cr2;
@@ -115,5 +117,7 @@ struct STM32F2XXTimerState {
 
 /* An edge on timer input TIn (ti 0..3), for input capture. */
 void stm32f2xx_timer_input(STM32F2XXTimerState *s, unsigned ti, bool level);
+
+void stm32f2xx_timer_set_clock_stopped(STM32F2XXTimerState *s, bool stopped);
 
 #endif /* HW_STM32F2XX_TIMER_H */

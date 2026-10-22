@@ -70,6 +70,9 @@ static void stm32f4xx_exti_set_irq(void *opaque, int irq, int level)
         return;
     }
     s->exti_pr |= 1 << irq;
+    if (s->exti_emr & (1u << irq)) {
+        qemu_irq_pulse(s->event);
+    }
 
     if (!((1 << irq) & s->exti_imr)) {
         /* Interrupt is masked */
@@ -166,6 +169,7 @@ static void stm32f4xx_exti_init(Object *obj)
                           TYPE_STM32F4XX_EXTI, 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
+    qdev_init_gpio_out_named(DEVICE(obj), &s->event, "event", 1);
     qdev_init_gpio_in(DEVICE(obj), stm32f4xx_exti_set_irq,
                       NUM_GPIO_EVENT_IN_LINES);
 }

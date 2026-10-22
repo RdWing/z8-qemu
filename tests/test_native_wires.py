@@ -19,7 +19,8 @@ class NativeWires(unittest.TestCase):
 typedef uint64_t hwaddr;
 typedef struct { uint32_t moder,odr,level; } GPIO;
 typedef struct NikonZ8State NikonZ8State;
-typedef struct { NikonZ8State *owner;struct { GPIO gpio[11]; } chip;int panel;int irq[3]; } Z8McuBridge;
+typedef struct { NikonZ8State *owner;struct { GPIO gpio[11]; } chip;unsigned supply_port,supply_pin;int panel;int irq[3]; } Z8McuBridge;
+static void z8_mcu_main_supply(Z8McuBridge *m,bool level) { (void)m;(void)level;assert(0); }
 struct NikonZ8State { Z8McuBridge *native_mcu;bool mcu_capture_sync_wires;uint32_t syscon[0x2000],gpio_irq_config[2][8]; };
 static int levels[3],drives;
 static void qemu_set_irq(int n,int v){levels[n]=v;}

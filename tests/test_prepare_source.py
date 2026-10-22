@@ -18,6 +18,13 @@ class SourceOverlay(unittest.TestCase):
                'configs/devices/aarch64-softmmu/default.mak':'CONFIG_ARM_TEST=y\n',
                'hw/pci-host/designware.c':prepare.DMA_OLD,
                'accel/tcg/tcg-accel-ops.c':prepare.TCG_OLD}
+        for name, old, new in prepare.M_SLEEP_PATCHES:
+            if name.endswith('op_helper.c'):
+                function = 'wfi' if old == prepare.M_SLEEP_WFI_OLD else 'wfe'
+                files[name] = files.get(name, '') + 'void HELPER(' + function + ')(void) {\n' + old + '\n}\n'
+            else:
+                files[name] = old
+        files['target/arm/tcg/op_helper.c'] += 'void HELPER(end)(void) {}\n'
         for name,data in files.items():
             p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(data)
         for name in json.loads((ROOT/'qemu/qemu-core/sources.json').read_text()):

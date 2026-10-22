@@ -532,10 +532,10 @@ existing explicit contact-replay interface, with no firmware memory/PC writes
 or host switch replies.
 
 The finite check passes all 210 harness checks, with 429 MAIN / 396 EX frames,
-zero bad frames and clean owned shutdown. Returning PC5 low does not resume
-MAIN. A separate candidate wake pulse produces an EX GPIO response while its
-retained main-switch byte stays off; the missing service/power/reset connection
-is still under investigation. No Power-on action or inferred reset wire is
+zero bad frames and clean owned shutdown. Before STOP clock gating, returning PC5 low does not resume
+MAIN, and the candidate wake pulse leaves the retained byte off. The STOP and
+explicit supply-fixture results below supersede that modeled limitation;
+physical power/reset wiring remains under investigation. No Power-on action or inferred reset wire is
 advertised. Use the separately qualified cold Session restart to start another
 workbench session. Electrical wake, fastboot and retained-memory behavior remain
 unqualified.
@@ -565,7 +565,8 @@ seconds in the finite replay; its 210 harness checks pass with a clean stop.
 The strengthened locked-handler fixture rejects the previous binary after its
 first wake interrupt and passes on the corrected build. Original EX now clears
 repeated Alarm A flags, with 422 MAIN / 409 EX frames and zero bad frames.
-MAIN still remains in terminal SRAM wait loops. After shutdown, EX has the wake interrupt and EXTI mask enabled but the
+In this earlier RTC-only run, MAIN remains in terminal SRAM wait loops.
+After shutdown, EX has the wake interrupt and EXTI mask enabled but the
 sampled rising/falling edge selections are clear. A read-only store trace
 confirms earlier rising-edge configuration followed by later GPIO configuration
 writes. Generating RTC flags alone does not qualify native wake or restart.
@@ -574,3 +575,53 @@ Calendar time retains the existing one-virtual-second fixture; arbitrary
 prescaler/oscillator accuracy, non-LSE clocks, calibration, timestamp/tamper,
 backup-domain reset and physical wake wiring remain separate gaps. The model
 does not infer a board reset wire or force firmware to resume.
+
+## STOP and an explicit MAIN supply fixture
+
+The board now retains M4 SLEEPDEEP and gates modeled MCU clocks at actual
+WFI/WFE entry. SysTick, fourteen timers, SPI transmit deadlines and DMA pumping
+pause while the independent RTC continues. Configured EXTI interrupts restore
+clocks before reaching NVIC; configured EXTI events release WFE. Timer counters
+and deadlines retain their phase instead of accumulating matches during STOP.
+Other boards keep QEMU's former SLEEPDEEP behavior. Standby, oscillator/voltage
+accuracy and complete peripheral clock qualification remain open.
+
+Twelve synthetic actual-board checks cover clock gating, a non-integral-second
+RTC interval, event-only wake, rejected falling edges and ordinary sleep. The
+original EX now enters and leaves STOP twice, resamples the running main-switch
+byte after the declared wake contact and executes further output configuration.
+The STOP-only replay passes 210 harness checks; MAIN stays parked because its
+power/reset connection is separate from an interrupt.
+
+`--experimental-main-supply-pin C1` on `tools/run_native.py` selects an explicit
+virtual supply connection. It is disabled by default. The output must be in
+GPIO output mode. The initial fixture is powered; the first high arms it.
+Subsequent low stops the A53s; return high resets GIC and boots CPU0 through
+its architectural reset vector. Stock MAIN starts its other cores. EX, virtual
+card and RAM remain retained. Repeated same-level writes do not issue resets.
+The IO snapshot exposes selected-supply state and cut/reset counters read-only.
+This is a declared functional connection, not recovered physical Z8 wiring or
+a complete electrical power-domain/fastboot model.
+
+Twenty-two synthetic checks cover the default unconnected case, selected and
+neighbor outputs, two cuts/resets, retained MAIN RAM, independent EX execution,
+idempotence and invalid pin rejection. An original MAIN/EX single-cycle run
+cuts at 21.146 and returns at 24.050 virtual seconds, then resumes Photo and
+RAW frames without resetting EX. At 45.004 seconds it reaches 579 RAW frames,
+909 MAIN/889 EX frames, zero bad frames, 416 passing harness checks and clean
+owned shutdown. No host switch reply, firmware instruction/RAM patch or manual
+PC assignment supplies restart; CPU reset uses the configured reset vector.
+
+The separately qualified cold Session restart remains available without this
+experimental connection. Physical wiring, complete MAIN peripheral-domain
+reset/retention and recording/capture across a power cycle retain separate
+gates.
+
+A second original run uses the production CLI fixture for two cut/return cycles.
+Both architectural resets succeed; EX's startup reset count remains one. At
+70.013 virtual seconds the run has 703 RAW frames, 1,374 MAIN/1,342 EX frames,
+zero bad frames, 808 passing harness checks and clean owned stop. Original UI
+state responds to Menu after both restarts (6→1), and half returns it to 6 with
+Photo/RAW recovery. Immediate contact snapshots do not independently qualify
+fully rendered Menu contents. The read-only counters report two supply cuts,
+two resets and four STOP entries/exits.

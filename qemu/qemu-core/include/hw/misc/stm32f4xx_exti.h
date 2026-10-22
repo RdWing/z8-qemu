@@ -54,6 +54,7 @@ struct STM32F4xxExtiState {
     uint32_t exti_pr;
 
     qemu_irq irq[NUM_INTERRUPT_OUT_LINES];
+    qemu_irq event;
 };
 
 #endif

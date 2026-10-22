@@ -283,7 +283,7 @@
       "source_sha256": "f124dca524a8d2ab5a7d8c18c266505900d6823f3c773476d93419778ef6b4b4"
     },
     "qemu/nikon-z8-lab.c": {
-      "adapted_sha256": "25fed064ebbafc361d4517201c7909b8190e1a1262cc09726be194d40bc84bee",
+      "adapted_sha256": "47c57d9074950398b800d242454146c79c927fb3e604134e77f22dbd94c0caea",
       "source_path": "nikon-z63-z9lab.c",
       "source_sha256": "661629da99a21a1b78e5a4d1d7d19ccd0bb921a3047a8c7cf510d19a7fe2dc55"
     },
@@ -343,7 +343,7 @@
     "qemu/nikon-z8-stm32.h": {
       "source_path": "nikon-z63-stm32.h",
       "source_sha256": "1286bfad92089dad118f12a0eeab15c700d96b55dd7c86af72139592885b2492",
-      "adapted_sha256": "1aea8bc7f2d17c0f8d62da5723c45cca6a6989f6de2f74ab697e8cad2cd35b21"
+      "adapted_sha256": "600db34e7f8990539b26c8cd2727fd66b20e549578390dbaf43e511baf4588d5"
     },
     "qemu/nikon-z8-toplcd.h": {
       "source_path": "nikon-z63-toplcd.h",
@@ -354,19 +354,19 @@
       "source_path": "../../hw/timer/stm32f2xx_timer.c",
       "source_sha256": "329bdea8fe32954e99d8552afaa283df765495bc166078ad7ed9a02fae6fd1ec",
       "qemu_11_upstream_sha256": "adcf0dbf28c32da7c78e589337f9eb7ca8b96c671e2ad34b21bf788fd7fc17ed",
-      "adapted_sha256": "db7069099615cfe0952247ebd0c06e5c50abcb32dda26f399ad5324acfed918f"
+      "adapted_sha256": "ebbadbef9f2d316307eebbf29c12aa08fcbfecb0e2acc500c4ae5bb76bab299a"
     },
     "qemu/qemu-core/include/hw/timer/stm32f2xx_timer.h": {
       "source_path": "../../include/hw/timer/stm32f2xx_timer.h",
       "source_sha256": "a54f4df0f2a7659b35d0d4194c0823b29b34278f910b1496edae173b0f9699e3",
       "qemu_11_upstream_sha256": "2a06a5c0f5b0975d4ca35b9029bb0176bbc489182a0ca33377915392da3a50f4",
-      "adapted_sha256": "d19f2315df642d0ecbe12f3ed9ab1afc74d8bc45eb40f1696a93b7145299fb9e"
+      "adapted_sha256": "771e04ef84799ce1ae3722a46c0beb3aac91841238a6d147844f2c5d19884b8b"
     },
     "qemu/qemu-core/hw/misc/stm32f4xx_exti.c": {
       "source_path": "../../hw/misc/stm32f4xx_exti.c",
       "source_sha256": "114e420f8e10a1d9e1821be396529d65035793a6e73ae07ae74433eeee542da2",
       "qemu_11_upstream_sha256": "d759f72edec32ba2878e3d47de670ebf64e717955858ab516468ff0be2d05b3c",
-      "adapted_sha256": "3c053b9ad3a5ec397e5486c6eabcca1b8ac396e3df49ffb4878702b973f9aed2"
+      "adapted_sha256": "1f58b31f2e9f320186a5722fa8cdd6b8321b0978da4a6e642e3debcec1daea2e"
     },
     "plugins/z8trace.c": {
       "adapted_sha256": "672b3353496403990ea9dda8fd2128c833edfcda9860c34f90c76fc3d1c9b65a",

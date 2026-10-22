@@ -158,6 +158,11 @@ struct Z8Stm32 {
 
     uint32_t rcc[0x98 / 4];
     uint32_t pwr_cr, pwr_csr;
+    bool stop_active, stop_wfe, stop_systick_run;
+    uint64_t stop_entries, stop_wakes;
+    int64_t stop_enter_ns;
+    int64_t stop_spi_deadline[Z8_STM32_SPI_N];
+    qemu_irq exti_irq[23], exti_event;
     uint32_t flash_acr, flash_cr, flash_sr, flash_optcr, flash_optcr1;
     unsigned flash_key;
     bool flash_ignored_named;           /* the not-programming-mode write */
@@ -300,6 +305,7 @@ static const struct {
 static bool z8_stm32_dma_tx(Z8Stm32 *m, uint32_t par, uint32_t *value);
 static bool z8_stm32_dma_rx(Z8Stm32 *m, uint32_t par, uint32_t value);
 static void z8_stm32_dma_kick(Z8Stm32 *m);
+static void z8_stm32_stop_clocks(Z8Stm32 *m, bool stopped);
 static uint32_t z8_stm32_dma_left(Z8Stm32 *m, uint32_t par, bool to_periph);
 
 static uint32_t z8_stm32_pc(void)
@@ -2447,6 +2453,7 @@ static uint32_t z8_stm32_dma_left(Z8Stm32 *m, uint32_t par, bool to_periph)
 /* A stream was enabled: a peripheral may already be requesting. */
 static void z8_stm32_dma_kick(Z8Stm32 *m)
 {
+    if (m->stop_active) { return; }
     for (unsigned i = 0; i < 3; i++) {
         z8_stm32_i2c_pump(&m->i2c[i]);
     }
@@ -2776,7 +2783,13 @@ static void z8_stm32_reset_registers(Z8Stm32 *m, bool power_on)
 
 static void z8_stm32_reset(void *opaque)
 {
-    z8_stm32_reset_registers(opaque, true);
+    Z8Stm32 *m = opaque;
+    if (m->stop_active) {
+        m->stop_active = false;
+        z8_stm32_stop_clocks(m, false);
+    }
+    m->stop_entries = m->stop_wakes = 0;
+    z8_stm32_reset_registers(m, true);
 }
 
 /* This is the STM32 chip's system-reset domain, not an EXPEED reset.
@@ -2784,11 +2797,92 @@ static void z8_stm32_reset(void *opaque)
  * the AIRCR write would destroy the active execution context. All QEMU
  * device updates below run with the BQL; no firmware address is special.
  */
+static void z8_stm32_stop_clocks(Z8Stm32 *m, bool stopped)
+{
+    SysTickState *tick = &m->armv7m.systick[M_REG_NS];
+    if (stopped) {
+        m->stop_systick_run = (tick->control & 1) && ptimer_get_limit(tick->ptimer);
+        ptimer_transaction_begin(tick->ptimer);
+        ptimer_stop(tick->ptimer);
+        ptimer_transaction_commit(tick->ptimer);
+    }
+    clock_update_hz(m->sysclk, stopped ? 0 : Z8_STM32_SYSCLK_HZ);
+    if (!stopped && m->stop_systick_run) {
+        ptimer_transaction_begin(tick->ptimer);
+        ptimer_run(tick->ptimer, 0);
+        ptimer_transaction_commit(tick->ptimer);
+    }
+    for (unsigned i = 0; i < ARRAY_SIZE(m->spi); i++) {
+        QEMUTimer *timer = m->spi[i].tx_timer;
+        if (!timer) { continue; }
+        if (stopped) {
+            m->stop_spi_deadline[i] = timer_expire_time_ns(timer);
+            timer_del(timer);
+        } else if (m->stop_spi_deadline[i] >= 0) {
+            timer_mod(timer, m->stop_spi_deadline[i] +
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - m->stop_enter_ns);
+        }
+    }
+    for (unsigned i = 0; i < ARRAY_SIZE(m->tim); i++) {
+        stm32f2xx_timer_set_clock_stopped(&m->tim[i], stopped);
+    }
+    for (unsigned i = 0; i < ARRAY_SIZE(m->tim_more); i++) {
+        stm32f2xx_timer_set_clock_stopped(&m->tim_more[i], stopped);
+    }
+}
+
+static void z8_stm32_enter_stop(ARMCPU *cpu, bool wfe, void *opaque)
+{
+    Z8Stm32 *m = opaque;
+    BQL_LOCK_GUARD();
+    /* PDDS selects Standby, which is a separate reset/retention contract. */
+    if (m->stop_active || (m->pwr_cr & 2)) {
+        return;
+    }
+    m->stop_active = true;
+    m->stop_wfe = wfe;
+    m->stop_enter_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    m->stop_entries++;
+    z8_stm32_stop_clocks(m, true);
+}
+
+static void z8_stm32_leave_stop(Z8Stm32 *m)
+{
+    if (m->stop_active) {
+        m->stop_active = false;
+        m->stop_wakes++;
+        z8_stm32_stop_clocks(m, false);
+    }
+}
+
+static void z8_stm32_exti_interrupt(void *opaque, int line, int level)
+{
+    Z8Stm32 *m = opaque;
+    if (level) {
+        z8_stm32_leave_stop(m);
+    }
+    qemu_set_irq(qdev_get_gpio_in(DEVICE(&m->armv7m),
+                 z8_stm32_exti_irq[line]), level);
+}
+
+static void z8_stm32_exti_event(void *opaque, int line, int level)
+{
+    Z8Stm32 *m = opaque;
+    if (level) {
+        if (m->stop_wfe) {
+            z8_stm32_leave_stop(m);
+        }
+        m->armv7m.cpu->env.event_register = true;
+        qemu_cpu_kick(CPU(m->armv7m.cpu));
+    }
+}
+
 static void z8_stm32_system_reset_on_cpu(CPUState *cpu, run_on_cpu_data data)
 {
     Z8Stm32 *m = data.host_ptr;
 
     assert(bql_locked());
+    z8_stm32_leave_stop(m);
     z8_stm32_reset_registers(m, false);
     for (unsigned i = 0; i < ARRAY_SIZE(m->tim); i++) {
         device_cold_reset(DEVICE(&m->tim[i]));
@@ -3030,6 +3124,8 @@ static void z8_stm32_init(Z8Stm32 *m, Object *owner, const char *image,
         !qdev_realize(DEVICE(&m->cluster), NULL, errp)) {
         return;
     }
+    m->armv7m.cpu->m_profile_sleep = z8_stm32_enter_stop;
+    m->armv7m.cpu->m_profile_sleep_opaque = m;
     m->sysresetreq = qemu_allocate_irq(z8_stm32_sysresetreq, m, 0);
     qdev_connect_gpio_out_named(armv7m, "SYSRESETREQ", 0, m->sysresetreq);
 
@@ -3169,8 +3265,8 @@ static void z8_stm32_init(Z8Stm32 *m, Object *owner, const char *image,
     memory_region_add_subregion(&m->mem, 0x40013c00,
         sysbus_mmio_get_region(SYS_BUS_DEVICE(&m->exti), 0));
     for (unsigned i = 0; i < 23; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(&m->exti), i,
-                           qdev_get_gpio_in(armv7m, z8_stm32_exti_irq[i]));
+        m->exti_irq[i] = qemu_allocate_irq(z8_stm32_exti_interrupt, m, i);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&m->exti), i, m->exti_irq[i]);
     }
 
     for (unsigned c = 0; c < 2; c++) {
@@ -3200,6 +3296,9 @@ static void z8_stm32_init(Z8Stm32 *m, Object *owner, const char *image,
     m->fmpi2c.er_irq = qdev_get_gpio_in(armv7m, 96);
     z8_stm32_map(m, &m->fmpi2c.mr, owner, &z8_stm32_fmpi2c_ops, m,
                   "z8-mcu-fmpi2c1", Z8_STM32_FMPI2C_BASE, 0x400);
+
+    m->exti_event = qemu_allocate_irq(z8_stm32_exti_event, m, 0);
+    qdev_connect_gpio_out_named(DEVICE(&m->exti), "event", 0, m->exti_event);
 
     m->rtc_alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, z8_stm32_rtc_alarm_tick, m);
     m->rtc_wake_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, z8_stm32_rtc_wake_tick, m);

@@ -4,6 +4,7 @@
 from pathlib import Path
 import hashlib
 import json
+import os
 
 def main():
     root = Path(__file__).resolve().parents[1]
@@ -12,8 +13,14 @@ def main():
         path = root/name
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             raise ValueError('Source inventory mismatch: ' + name)
-    actual = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file() and p.name != '.DS_Store'
-              and not any(x in ('.git', '.local', '__pycache__') for x in p.relative_to(root).parts)}
+    excluded = {'.git', '.local', '__pycache__'}
+    actual = set()
+    for base, directories, files in os.walk(root, followlinks=False):
+        directories[:] = [name for name in directories if name not in excluded]
+        for name in files:
+            path = Path(base)/name
+            if name not in excluded and name != '.DS_Store' and path.is_file():
+                actual.add(str(path.relative_to(root)))
     if actual != set(manifest['files']) | {'source-manifest.json'}:
         raise ValueError('Unexpected source inventory additions or omissions')
     print('Verified', len(manifest['files']), 'source-only files')
