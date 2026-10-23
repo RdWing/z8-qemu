@@ -411,6 +411,12 @@ struct NikonZ8State {
     uint64_t serial5_audio_sample_updates, serial5_audio_sample_reads;
     unsigned serial5_pcm_phase[5];
     uint64_t serial5_pcm_blocks[5], serial5_pcm_words[5], serial5_pcm_irqs[5];
+    bool serial5_tx_drain_model;
+    QEMUTimer *serial5_tx_drain_timer;
+    GChecksum *serial5_tx_drain_hash;
+    uint64_t serial5_tx_drain_bytes, serial5_tx_drain_jobs;
+    uint64_t serial5_tx_drain_last_source, serial5_tx_drain_empty_reads;
+    const char *serial5_tx_drain_fault;
     qemu_irq clock_irq;
     uint32_t engine_config[3];
     uint32_t engine_hold[2], engine_bank[2];
@@ -7840,6 +7846,8 @@ static uint64_t *movie1564_buffer(NikonZ8State *s, hwaddr addr, unsigned size) {
  * them is not a FIFO clock or PCM transfer. +10 combines config and status:
  * retain only documented software fields; ACK16/17 cannot create an event.
  * Native DMA/FIFO, captured sample registers and IRQ remain unsupported here. */
+static void serial5_tx_drain_schedule(NikonZ8State *s);
+
 static bool serial5_audio_config_access(NikonZ8State *s, hwaddr addr,
                                        uint64_t *value, unsigned size, bool write)
 {
@@ -7887,6 +7895,7 @@ static bool serial5_audio_config_access(NikonZ8State *s, hwaddr addr,
         if (!(next & 0x1000)) { s->serial5_pcm_phase[(addr-0x0e200100)/0x100]=0; }
     }
     *field = next; s->serial5_audio_writes++;
+    serial5_tx_drain_schedule(s);
     return true;
 }
 
@@ -8102,6 +8111,8 @@ static void pdma_progress(NikonZ8State *s, unsigned ch, unsigned remaining)
     pdma_irq_update(s, ch);
 }
 
+#include "nikon-z8-audio-tx.h"
+
 static bool serial_refill(NikonZ8State *s, unsigned ch)
 {
     Z8SerialTransfer *t = &s->serial_transfer[ch];
@@ -8187,6 +8198,7 @@ static bool pdma_write(NikonZ8State *s, unsigned ch, unsigned word, uint32_t val
     }
     r[word] = value;
     pdma_irq_update(s, ch);
+    serial5_tx_drain_schedule(s);
     return true;
 }
 
@@ -19705,6 +19717,7 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
         return s->reset_17a0300;
     }
     uint64_t serial5_value = 0;
+    if (serial5_tx_drain_read(s, addr, &serial5_value, size)) { return serial5_value; }
     if (serial5_audio_sample_access(s, addr, &serial5_value, size, false)) { return serial5_value; }
     if (serial5_audio_config_access(s, addr, &serial5_value, size, false)) { return serial5_value; }
     if (s->bootstrap_fixtures && size == 4 && addr >= 0x0e200100 && addr < 0x0e200600 && ((addr & 255) == 0x1c || (addr & 255) == 0x54 || (addr & 255) == 0x58 || (addr & 255) == 0x5c || (addr & 255) == 0x60)) { return 0; /* No external audio samples have arrived. Read-only diagnostic counters. */ }
@@ -20759,6 +20772,7 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
     uint32_t *serial_config = serial5_config(s, addr, size);
     if (serial_config) {
         *serial_config = value;
+        serial5_tx_drain_schedule(s);
         return;
     }
     if (s->bootstrap_fixtures && size == 4 &&
@@ -21091,6 +21105,7 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
             }
         }
         s->peripheral_global[(addr - 0x0e100000) >> 16] = value;
+        serial5_tx_drain_schedule(s);
         return;
     }
     if (s->bootstrap_fixtures && size == 4 && value == 0x4000 &&
@@ -23371,6 +23386,8 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc,"serial5-audio-sample-state",get_serial5_audio_sample_state,NULL);
     object_class_property_add_str(oc,"serial5-pcm-input",NULL,set_serial5_pcm_input);
     object_class_property_add_str(oc,"serial5-pcm-state",get_serial5_pcm_state,NULL);
+    object_class_property_add_bool(oc,"serial5-tx-drain-model",get_serial5_tx_drain_model,set_serial5_tx_drain_model);
+    object_class_property_add_str(oc,"serial5-tx-drain-state",get_serial5_tx_drain_state,NULL);
     object_class_property_add_str(oc, "graphics-state", get_graphics_state, NULL);
 };
 
@@ -23380,6 +23397,8 @@ static void nikon_z8_finalize(Object *obj)
     g_clear_pointer(&s->nand_pages, g_hash_table_unref);
     g_clear_pointer(&s->serial_last_tx, g_free);
     if (s->serial_write_peer_timer) { timer_free(s->serial_write_peer_timer); }
+    if (s->serial5_tx_drain_timer) { timer_free(s->serial5_tx_drain_timer); }
+    if (s->serial5_tx_drain_hash) { g_checksum_free(s->serial5_tx_drain_hash); }
     if (s->audio_register_map) { g_hash_table_destroy(s->audio_register_map); }
     if (s->serial_write_peer_source_hash) { g_checksum_free(s->serial_write_peer_source_hash); }
     if (s->serial_write_peer_wire_hash) { g_checksum_free(s->serial_write_peer_wire_hash); }

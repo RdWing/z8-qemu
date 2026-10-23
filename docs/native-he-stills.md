@@ -134,7 +134,7 @@ After the emulator stops, extract actual initialized card bytes and run the
 container/RAW audits above:
 
 ```sh
-python3 tools/extract_virtual_exfat.py --volume /private/fresh-card.raw \
+python3 tools/extract_card_file.py --volume /private/fresh-card.raw \
   --file DCIM/100NCZ_8/DSC_0001.NEF --output /private/new-native-he/DSC_0001.NEF
 ```
 
@@ -157,11 +157,42 @@ combined capture/live-view profile. Keep the existing explicit HE recipe and
 its separate Movie-session boundary. Accelerated timing controls do not
 replace production-timing recovery checks.
 
-A separate production-timing power control completes one MAIN supply cut and
+A prior production-timing power control completes one MAIN supply cut and
 restart before capture with HE preparation active. After stock date/RAW setup
 and one fully audited HE★ file, the off/on control instead reaches 116.019
 virtual seconds with no supply cut/reset or second capture. The initial
 controller request/reply completes, but the later off request and terminal park
 are absent. Finite input and HE data/STOP ownership are already retired in a
-separate read-only diagnostic; this does not identify the remaining software
-wait. Capture across a MAIN restart remains unqualified.
+separate read-only diagnostic. The missing audio TX consumer below explains
+the retained sound owner. Capture across a MAIN restart remains unqualified.
+
+## Finite sound transfer and shutdown
+
+The experimental native HE profile includes `serial5-tx-drain-model`. The
+original firmware submits a finite sound buffer during capture; retaining its
+registers without consuming its DMA leaves the audio service busy and prevents
+shutdown. The new sink reads the mapped source bytes, records their SHA-256,
+then completes the existing DMA descriptor. The original ISR, sound callback,
+stop request and shutdown worker own the subsequent releases.
+
+This model covers channel 0, request 27, aligned single 32-bit transfers to its
+TX FIFO. It requires the explicit serial and bus fixtures and the guest TX
+request. It stays off outside the HE profile. Cancellation or an invalid,
+ambiguous or unmapped descriptor produces no bytes or completion. The session
+is bounded to 16 MiB and 1,024 descriptors; the functional completion delay is
+one virtual millisecond, not a measured sample rate. `serial5-tx-drain-state`
+reports counts, source address, byte hash, pending request and fault state.
+There is no DAC output or physical sound-quality qualification.
+
+The actual-board check needs no Nikon inputs:
+
+```sh
+python3 tests/check_audio_tx.py --qemu /path/to/qemu-system-aarch64 \
+  --output /path/to/new-audio-tx-check
+```
+
+All 45 byte-transfer, status, cancellation and rejection checks pass. An
+original-firmware accelerated replay now clears both retained busy bits,
+completes the original suspend callback and cuts MAIN supply after an audited
+HE★ exposure. Its extra EX resets and one bad frame keep it a diagnostic;
+production-timing shutdown and restart have separate acceptance.

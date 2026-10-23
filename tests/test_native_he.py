@@ -30,6 +30,8 @@ class NativeHE(unittest.TestCase):
             self.assertEqual((guest.out/'experimental-bank8-999.bin').read_bytes(),b'\x01')
             self.assertEqual((guest.out/'experimental-selector5.bin').read_bytes(),b'\x01')
             self.assertFalse(guest.data['experimental_native_he']['host_mcu_messages'])
+            self.assertIn('serial5-tx-drain-model=on',guest.command[2])
+            self.assertFalse(guest.data['experimental_native_he']['audio_tx_sink']['dac_output'])
             states={name:{} for name in native_he.STATES}
             states.update({'engine152c-he-still-state':dict(jobs=1,acks=1,pending=False,stop_pending=False),
                 'engine152c-request-state':dict(output=0x800010000,capacity=64,width=8,height=4),
