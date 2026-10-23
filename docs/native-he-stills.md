@@ -208,3 +208,31 @@ input mismatches. Maximum/mean error against the supplied 14-bit frame is
 without fault. This qualifies this modeled capture/off/restart sequence;
 continuous HE live view and a second exposure across restart remain open.
 The fresh desktop bundle also builds and passes strict signature verification.
+
+
+## Finite input while preview runs
+
+The existing, default-off `primary-d980-live-single-model` can now consume one
+later periodic source frame for the observed original-EX normal-preparation
+profile. It requires a fresh prepared finite request, matching enable generation,
+active units `0x77F7F`, source control `0x704B`, a running source and the complete
+8280×5520 format-2 descriptor with 12,448-byte rows. Descriptor validation still
+checks mapped destinations and capacity. Reset, Movie input, another geometry,
+a stopped source or a stale generation cannot use this additional path.
+
+The byte writer completes before the existing finite-frame notifications.
+It changes neither the guest source bitmap nor firmware callbacks. The explicit
+live-single option remains disabled in the supported HE profile. Packed12
+packing, frame timing and this source-to-capture join are functional hypotheses.
+Accelerated original-firmware controls transfer one 68,712,960-byte frame
+and continue producing Photo frames. A complete RAM snapshot matches all
+45,705,600 supplied sensor samples under the declared packed12 conversion,
+with zero nonzero padding bytes. No HE encoder job or saved NEF follows.
+The final bounded build passes 601 transport/runtime checks with 814 continuous
+RAW frames, one EX reset and zero bad frames. The finite request completes once
+with one admitted attempt. The parameter units are active, while the modeled downstream processing
+consumers remain unused. Configuration-only diagnostic counters do not prove
+that original firmware failed to start those units. The final extension also
+cancels after 64 refused DMA attempts, without completing an unwritten frame.
+This is input-model progress; combined HE capture/live-view acceptance remains
+open at that downstream data-consumer join. Production timing is unqualified.

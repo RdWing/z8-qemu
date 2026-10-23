@@ -245,13 +245,37 @@ static void primary_d980_source_control(NikonZ8State *s, unsigned group,
     }
 }
 
+/* Explicit live-single experiment: the normal preparation branch starts
+ * SIF before enabling the finite full-resolution descriptor. Consume one
+ * later source-clock frame for that fresh owner, rather than inventing a
+ * second START edge or changing its channel bitmap. This exact format-2
+ * profile remains a functional packed12 hypothesis, not HE qualification. */
+static bool primary_d980_native_live_source(NikonZ8State *s)
+{
+    const uint32_t *c = s->primary_d980_latched;
+    return s->primary_d980_live_single_model && s->native_mcu && s->z8_still &&
+           s->z8_timed_single_model && s->primary_d980_single_model &&
+           s->primary_d980_single_armed && s->primary_d980_input_epoch &&
+           s->primary_d980_single_request_epoch == s->primary_d980_input_epoch &&
+           !s->primary_reset_stage && s->engine150c_active == 0x77f7f &&
+           s->event_timing_active && (s->event_control_1508[0] & 1) &&
+           s->event_control_1508[3] == 0x704b && !s->event_mode_1508[0] &&
+           c[0] == 2 && c[1] == (8280u << 16) && c[2] == (5520u << 16) &&
+           c[4] == 12448 && !video_raw_descriptor(s) && primary_d980_ready(s);
+}
+
 /* Z8 timing hypothesis: periodic input may own an armed single request.
  * Complete only after primary_d980_receive writes the full frame; an armed
  * request or a source-ready bitmap alone is not a completion event. */
 static void primary_d980_tick(NikonZ8State *s)
 {
     if (s->z8_timed_single_model && s->primary_d980_single_armed) {
-        if ((s->event_control_1508[3] & 0x201) != 0x201) {
+        bool live_source = primary_d980_native_live_source(s);
+        if ((s->event_control_1508[3] & 0x201) != 0x201 && !live_source) {
+            return;
+        }
+        if (live_source && ++s->primary_d980_single_attempts > 64) {
+            primary_d980_single_cancel(s);
             return;
         }
         if (primary_d980_receive(s, false)) {
