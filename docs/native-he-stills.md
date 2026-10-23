@@ -194,5 +194,17 @@ python3 tests/check_audio_tx.py --qemu /path/to/qemu-system-aarch64 \
 All 45 byte-transfer, status, cancellation and rejection checks pass. An
 original-firmware accelerated replay now clears both retained busy bits,
 completes the original suspend callback and cuts MAIN supply after an audited
-HE★ exposure. Its extra EX resets and one bad frame keep it a diagnostic;
-production-timing shutdown and restart have separate acceptance.
+HE★ exposure. Its extra EX resets and one bad frame keep it a diagnostic.
+
+A separate production-timing replay on the final build passes all 487 checks.
+After one HE★ exposure, MAIN supply cuts at 70.190284447 virtual seconds and
+returns at 100.015244543 with architectural reset. Original EX remains running;
+its reset count is one, with 2,423 MAIN / 2,417 EX frames and zero bad frames.
+Menu opens after restart, and half-press returns to the Photo screen. The saved
+29,324,288-byte NEF survives the cycle and passes all 45,705,600 RAW samples,
+three JPEG preview decodes, exact receiver/strip comparison and zero producer
+input mismatches. Maximum/mean error against the supplied 14-bit frame is
+26 / 3.0295569033116294. The audio sink consumes 47 descriptors / 451,200 bytes
+without fault. This qualifies this modeled capture/off/restart sequence;
+continuous HE live view and a second exposure across restart remain open.
+The fresh desktop bundle also builds and passes strict signature verification.
