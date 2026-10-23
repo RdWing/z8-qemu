@@ -156,3 +156,12 @@ packed12 descriptor and produces no finite input frame, HE job or NEF by
 combined capture/live-view profile. Keep the existing explicit HE recipe and
 its separate Movie-session boundary. Accelerated timing controls do not
 replace production-timing recovery checks.
+
+A separate production-timing power control completes one MAIN supply cut and
+restart before capture with HE preparation active. After stock date/RAW setup
+and one fully audited HE★ file, the off/on control instead reaches 116.019
+virtual seconds with no supply cut/reset or second capture. The initial
+controller request/reply completes, but the later off request and terminal park
+are absent. Finite input and HE data/STOP ownership are already retired in a
+separate read-only diagnostic; this does not identify the remaining software
+wait. Capture across a MAIN restart remains unqualified.
