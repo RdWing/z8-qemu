@@ -7,7 +7,8 @@ from movie_inputs import native_modes_enabled
 OPTIONS=('experimental_he_still','experimental_preparation_profile',
          'experimental_capture_selector5','experimental_timed_single')
 STATES=('engine152c-he-still-state','engine152c-request-state','primary-d980-state',
-        'primary-d980-single-frame-state','primary-d980-source-notify-state')
+        'primary-d980-single-frame-state','primary-d980-source-notify-state',
+        'serial5-tx-drain-state')
 
 
 def arguments(parser):
@@ -26,7 +27,7 @@ def validate(args):
 def attach(guest,args):
     if not validate(args):return
     index=guest.command.index('-M')+1
-    guest.command[index]+=',z8-timed-single-model=on,engine152c-stream-receiver-model=on,engine152c-he-still-model=on,engine153-alternate-bank-model=on,mcu-capture-sync-wires=on'
+    guest.command[index]+=',z8-timed-single-model=on,engine152c-stream-receiver-model=on,engine152c-he-still-model=on,engine153-alternate-bank-model=on,mcu-capture-sync-wires=on,serial5-tx-drain-model=on'
     for name,address in [('experimental-bank8-999.bin',0x45a403e7),('experimental-selector5.bin',0x47f5af45)]:
         path=guest.out/name;path.write_bytes(b'\x01')
         guest.command+=['-device',f'loader,file={path},addr={address:#x},force-raw=on']
@@ -35,6 +36,7 @@ def attach(guest,args):
         'preparation_profile':{'address':'0x45a403e7','value':1},
         'capture_selector5':{'address':'0x47f5af45','value':1},
         'factory_calibration':False,'physical_codec_verified':False,'capture_sync_wires':True,
+        'audio_tx_sink':{'completion_requires_source_bytes':True,'dac_output':False,'physical_timing_verified':False},
         'input_scope':'Declared original EX and separate MAIN GPIO contacts; physical shared wiring unqualified'}
 
 
