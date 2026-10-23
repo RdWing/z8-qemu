@@ -241,3 +241,44 @@ Stop and generation guards retain ownership while the child runs `--version`;
 a timeout never starts or automatically retries a firmware session. Existing
 startup/error presentation owns the result; successful preflight does not
 present the camera as ready.
+
+
+## Native review keys
+
+Protect key and Delete key reuse the camera button style, capability list and
+shared browser/AppKit bridge. Both require native EX controls and the explicit
+card/playback profile. No Delete/Backspace shortcut is assigned. These are
+external key presses: original firmware owns the confirmation displayed on the
+camera screen, including Play to cancel and another Delete press to confirm.
+The workbench reports queued input only. It never skips that screen, deletes
+host files, retries a key automatically or claims a deletion has completed.
+Keep the consequence text next to the keys; Stop remains available below them.
+
+
+## Native command dials
+
+Main/Sub dial minus and plus controls use the existing button styles and guarded
+queue. Group each pair with its axis label and accessible names. On narrow
+screens the complete dial group spans the control grid, with the axes side by
+side. No new colors, dialogs, keyboard shortcuts or visual tokens are introduced.
+The existing AppKit Camera menu calls the same `z8Workbench.turnDial` API and
+receives an independent `dialsReady` capability through the same-origin bridge.
+Host-peer and display-only sessions retain disabled controls and an inline reason.
+
+Each admitted turn is one signed EX count, delivered through four separated
+external pin phases. The backend serializes turns, buttons, modes and capture.
+A delayed tick preserves minimum phase spacing; it never catches up by emitting
+multiple edges at once. Shutdown returns an unfinished turn to its starting pin
+levels without replaying it. Input delivery and firmware acceptance stay distinct.
+
+Exposure mode minus/plus extends the same dial group, guarded queue and AppKit
+Camera bridge. It holds MODE around one Main turn, then releases both inputs;
+there is no persistent modifier toggle or keyboard shortcut. The label distinguishes
+exposure mode from the separate Photo/Movie selector. Firmware owns the resulting
+P/S/A/M choice; queue feedback does not claim the mode changed.
+
+Exposure compensation minus/plus extends the same dial group beside exposure
+mode on narrow screens. It holds the qualified compensation button around one
+Main turn using the shared finite chord owner. Existing queue feedback, native
+capability, capture guard, Stop release and AppKit bridge apply. Original firmware
+owns the EV step and result; no host setting write or fixed EV promise is added.

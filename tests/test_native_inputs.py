@@ -28,6 +28,21 @@ class NativeInputs(unittest.TestCase):
         self.assertEqual(qmp.calls[-1][1]['value'],'23.8=0')
         inputs.tick(control,2.25);self.assertEqual(qmp.calls[-1][1]['value'],'23.8=1')
 
+    def test_review_contacts_release_without_repeating_or_changing_other_keys(self):
+        class QMP:
+            def __init__(self):self.values=[]
+            def command(self,name,**kw):self.values.append((kw['property'],kw['value']))
+        class Control:
+            def __init__(self):self.actions=[('button',73),('button',69)];self.sent=0
+            def next_input(self):return self.actions.pop(0) if self.actions else None
+            def mark_sent(self):self.sent+=1
+        qmp=QMP();control=Control();inputs=Inputs(qmp)
+        inputs.tick(control,1);inputs.tick(control,1.25)
+        inputs.tick(control,1.5);inputs.release();inputs.release()
+        self.assertEqual(qmp.values,[('mcu-contacts','23.9=0'),('mcu-contacts','23.9=1'),
+                                     ('mcu-contacts','23.18=0'),('mcu-contacts','23.18=1')])
+        self.assertEqual(control.sent,2)
+
     def test_mode_contact_stays_latched_through_button_release(self):
         class QMP:
             def __init__(self):self.values=[]

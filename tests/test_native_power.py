@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from native_power import powered_down
+from native_power import powered_down, validate_supply_pin
 
 class NativePower(unittest.TestCase):
     def test_exact_terminal_state_and_negative_controls(self):
@@ -24,3 +24,9 @@ class NativePower(unittest.TestCase):
             self.assertFalse(powered_down(candidate,0))
             candidate=copy.deepcopy(clock);del candidate['cpus'][index]['pc']
             self.assertFalse(powered_down(candidate,0)) # Older diagnostic schema.
+
+    def test_supply_fixture_requires_one_explicit_pin(self):
+        for pin in ('A0','C1','K15'):
+            self.assertEqual(validate_supply_pin(pin),pin)
+        for pin in (None,'','C16','c1','C-1','C1:K2','C1,other=on','C4294967296'):
+            with self.subTest(pin=pin),self.assertRaises(ValueError):validate_supply_pin(pin)

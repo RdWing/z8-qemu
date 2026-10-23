@@ -58,15 +58,17 @@ class QemuPreflight(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); marker = root/'pids.json'
             binary = self.executable(root,
-                'import json,os,pathlib,signal,subprocess,sys,time\n'
+                'import json,os,pathlib,signal,time\n'
                 'signal.signal(signal.SIGTERM,signal.SIG_IGN)\n'
-                'child=subprocess.Popen([sys.executable,"-c","import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(60)"])\n'
-                'pathlib.Path('+repr(str(marker))+').write_text(json.dumps([os.getpid(),child.pid]))\n'
+                'child=os.fork()\n'
+                'if child==0: time.sleep(60); os._exit(0)\n'
+                'pathlib.Path('+repr(str(marker))+').write_text(json.dumps([os.getpid(),child]))\n'
                 'time.sleep(60)')
             started = time.monotonic()
             with self.assertRaisesRegex(TimeoutError, 'QEMU --version did not finish'):
-                qemu_preflight.check(binary, timeout=.5)
-            self.assertLess(time.monotonic()-started, 3)
+                # Leave interpreter startup time before testing process-group cleanup.
+                qemu_preflight.check(binary, timeout=2)
+            self.assertLess(time.monotonic()-started, 5)
             self.assertTrue(marker.exists())
             parent, child = json.loads(marker.read_text())
             with self.assertRaises(ProcessLookupError):

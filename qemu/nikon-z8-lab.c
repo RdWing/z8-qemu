@@ -29,6 +29,7 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "system/address-spaces.h"
 #include "system/cpus.h"
+#include "target/arm/arm-powerctl.h"
 #include "system/qtest.h"
 #include "system/runstate.h"
 #include "exec/icount.h"
@@ -262,6 +263,7 @@ typedef struct Ex7CaptureSurface {
 struct NikonZ8State {
     MachineState parent;
     char *mcu_image, *mcu_pins, *mcu_contacts, *mcu_adc_inputs;
+    char *mcu_main_supply_pin;
     struct Z8McuBridge *native_mcu;
     bool mcu_capture_sync_wires;
 
@@ -22970,6 +22972,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_bool(oc, "task1500-ff-clear-model", get_task1500_ff_clear_model, set_task1500_ff_clear_model);
     object_class_property_add_str(oc,"mcu-image",get_z8_mcu_image,set_z8_mcu_image);
+    object_class_property_add_str(oc,"mcu-main-supply-pin",get_z8_main_supply,set_z8_main_supply);
     object_class_property_add_bool(oc,"mcu-capture-sync-wires",get_z8_mcu_capture_sync_wires,set_z8_mcu_capture_sync_wires);
     object_class_property_add_str(oc,"native-mcu-state",get_z8_mcu_state,NULL);
     object_class_property_add_str(oc,"native-mcu-io-state",get_z8_mcu_io,NULL);

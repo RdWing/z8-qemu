@@ -46,18 +46,24 @@ The equivalent CLI options work in `tools/run.py` and `tools/run_native.py`:
 --trace-call 0x40160000 --trace-cpu 0 --trace-limit 10000 --trace-per-site 4
 ```
 
-For store observation, supply `--trace-watch LO:HI:PCLO:PCHI`, or desktop
+For memory observation, supply `--trace-watch LO:HI:PCLO:PCHI`, or desktop
 `trace_watch` with exactly the numeric fields `lo`, `hi`, `pclo`, `pchi`.
 Intervals are increasing and end-exclusive; both the code interval and memory
-interval are required. Stores overlapping the watched memory interval count;
-stores from outside the code interval do not. Calls and watches can coexist.
+interval are required. The default observes writes. Add `--trace-access read`
+or `--trace-access both` (desktop `trace_access: "read"` or `"both"`) to observe
+guest loads or both directions. The compiled plugin accepts `access=read`,
+`access=write` or `access=both` with a complete watch range. Accesses overlapping
+the memory interval count; accesses outside the code interval do not. Read
+records use the value transferred by the guest load, without an additional
+host memory/MMIO read. Reads and writes have independent per-site accounting.
+Calls and watches can coexist.
 No ranges or instruction sites are inferred from another camera/version.
 
-The private `plugin-trace.log` is JSON Lines: a start record, call/store/application records
+The private `plugin-trace.log` is JSON Lines: a start record, call/read/store/application records
 and an exit summary. Call records contain vCPU, PC, four argument-register
 values and the link register; unavailable registers are `null`. QEMU 11 register
 zero can have a null-valued opaque handle, so descriptor presence is tracked
-separately. Store records contain the actual address, access size and value,
+separately. Read and store records contain the actual address, access size and value,
 including the API's 128-bit value form. `host_us` measures elapsed host monotonic
 time, not virtual camera time, cycle accuracy or measured hardware latency.
 
@@ -76,9 +82,10 @@ python3 tests/check_trace_plugin.py --qemu /path/to/qemu-system-aarch64 \
   --plugin .local/plugins/libz8trace.dylib --output .local/new-trace-check
 ```
 
-All 84 checks pass on the built macOS QEMU: real synthetic A53/M4 calls and
-stores, exact argument/data values, per-site/total bounds, CPU/address/code
-filtering, overlapping stores, rejected configurations and no-replace output.
+All 125 checks pass on the built macOS QEMU: real synthetic A53/M4 calls,
+loads and stores, exact argument/data values, per-site/total bounds,
+CPU/address/code/direction filtering, overlapping accesses, rejected
+configurations and no-replace output.
 Application-entry controls additionally check the fifth register, low32 truncation, untouched null/unaligned/unmapped object addresses, explicit unsupported M4 hits and coexistence with calls/stores. Both guest programs continue independently. These checks qualify the plugin
 API/model integration; format-aware firmware logging, interactive console,
 USB and physical-camera behavior remain separate.

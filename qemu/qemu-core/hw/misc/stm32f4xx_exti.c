@@ -70,6 +70,9 @@ static void stm32f4xx_exti_set_irq(void *opaque, int irq, int level)
         return;
     }
     s->exti_pr |= 1 << irq;
+    if (s->exti_emr & (1u << irq)) {
+        qemu_irq_pulse(s->event);
+    }
 
     if (!((1 << irq) & s->exti_imr)) {
         /* Interrupt is masked */
@@ -115,9 +118,16 @@ static void stm32f4xx_exti_write(void *opaque, hwaddr addr,
     trace_stm32f4xx_exti_write(addr, value);
 
     switch (addr) {
-    case EXTI_IMR:
+    case EXTI_IMR: {
+        uint32_t newly_enabled = value & ~s->exti_imr & s->exti_pr;
         s->exti_imr = value;
+        for (unsigned i = 0; i < NUM_INTERRUPT_OUT_LINES; i++) {
+            if (newly_enabled & (1u << i)) {
+                qemu_irq_pulse(s->irq[i]);
+            }
+        }
         return;
+    }
     case EXTI_EMR:
         s->exti_emr = value;
         return;
@@ -159,6 +169,7 @@ static void stm32f4xx_exti_init(Object *obj)
                           TYPE_STM32F4XX_EXTI, 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 
+    qdev_init_gpio_out_named(DEVICE(obj), &s->event, "event", 1);
     qdev_init_gpio_in(DEVICE(obj), stm32f4xx_exti_set_irq,
                       NUM_GPIO_EVENT_IN_LINES);
 }

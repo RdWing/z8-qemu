@@ -29,7 +29,7 @@ Z63 firmware on the Z8 machine.
 | C2.01 NAND/startup/SNOR fixes | No target firmware, address, SNOR edit or provisioning recipe copied. Z8 keeps its existing boot and virtual store. | Original Z8 boot/menu/capture regression; no physical persistence claim. |
 | STM32 reset/update/compare timers, IMU/I2C startup and native MCU controls | Optional native EX attachment now runs original Z8 MAIN/EX with Z8 GPIO/SPI glue; default capture/menu runs retain their host peer. | 77 synthetic reset/contact/read-only checks pass; original shooting display, Menu/navigation/half, Movie/Photo and card-backed Play/early return reached. Original-EX HE files now have separate source/decoder acceptance; three consecutive HE★ captures recover normally with explicit sync wiring; remaining controls stay open. |
 | Z63 rotary dial, lens, top LCD, power and card-detect wiring | Z8 serial handshakes are mapped independently. The top panel now uses source-confirmed Z8 geometry and ready routing with separate native rendering checks; Z8 lens/motor and power still need their own bindings; external CFexpress detection now has a separately tested MAIN-side input; the native Photo/Movie lever now has separate acceptance. | Native panel drawing is checked separately; physical timing/appearance and remaining contacts are unqualified. |
-| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench has native session lifecycle, screenshot/photo export, card-gated Playback, UART/device diagnostics and optional explicit-address call/store tracing. Native EX contacts have separate acceptance. Z63 assets/maps and stock firmware hooks are not copied as Z8 bindings. | Read-only trace integration has 48 real-plugin synthetic checks; interactive console, complete stock log decoding and USB remain open. Optional numeric application-entry observation has separate synthetic checks. |
+| Go desktop UI, USB, plugins and board-specific diagnostics | The Z8 workbench has native session lifecycle, screenshot/photo export, card-gated Playback, UART/device diagnostics and optional explicit-address call/load/store tracing. Native EX contacts have separate acceptance. Z63 assets/maps and stock firmware hooks are not copied as Z8 bindings. | Read-only trace integration has 125 real-plugin synthetic checks; interactive console, complete stock log decoding and USB remain open. Optional numeric application-entry observation has separate synthetic checks. |
 | QEMU host compatibility | Keep QEMU 11 core headers, console/loader APIs, architectural events, DesignWare ATU and all-vCPU breakpoint fixes. Build included C++17 HE sources with x264/x265/libjpeg. | Complete native macOS build; Linux full build remains untested here. |
 
 ## Preserve Z8 timed-single ownership
@@ -467,3 +467,59 @@ macOS path failure remains open. Optional application-ring entry tracing adds
 numeric W1/W2/W3/W4 decoding at an explicit AArch64 address, without object or
 guest-memory reads. All 84 real-plugin synthetic checks pass; complete stock
 format/EX/TOPPERS decoding and hardware behavior remain unqualified.
+
+
+## Native review-key continuation
+
+Protect and Delete now have independent Z8 EX-contact/report/MAIN-switch joins
+and shared browser/AppKit commands. Both require native EX controls and the
+explicit card/playback profile; neither has a keyboard shortcut. Original
+firmware retains its Delete confirmation. A disposable-card native replay
+passes 300 harness checks, shows protection and confirmation, deletes the
+selected file, then returns to fresh Photo frames. A stopped catalog confirms
+the copied card has two NEFs while the original retains three. Confirmation
+cancellation, protection persistence and other assigned roles remain separate.
+See the [native review-key boundary](native-mcu.md#native-protect-and-delete-keys).
+
+
+## Native command-dial continuation
+
+Main/Sub command dials now have target EX pin-table/polling/report bindings and
+browser/AppKit controls. Four separated external phases generate one signed EX
+count; the existing queue serializes turns with camera input. No donor exposure
+mode ladder or firmware write supplies these controls. A native run observes all
+four signed report pulses, menu/submenu navigation, an actual browser turn and
+Photo recovery; all 300 checks pass with zero checksum failures. The host suite
+passes 87 tests (86 passed, one optional skip). ISO chords, sustained
+fast turns, lens/power, complete stock logging/console/USB and combined HE/Movie
+preview remain open. See [command-dial limits](native-mcu.md#native-mainsub-command-dials).
+
+The MODE continuation adds one finite held-button/Main-dial chord through the
+same queue, browser controls and AppKit Camera bridge. Original EX reports
+MODE and the signed count; original MAIN retains Manual mode after release.
+This is separate from lens-supported P/S exposure and from physical controls.
+
+The MODE run passes 281 harness checks, 724 MAIN / 674 EX frames and zero bad
+frames, with clean shutdown. The updated host suite has 88 passes and one
+optional skip. Native browser acceptance includes M → A → M and a live chord;
+new AppKit-menu runtime clicks, shutter-step consumption and settings across
+restart remain unqualified. The [native control owner](native-mcu.md#exposure-mode-chord)
+retains the detailed scope and acceptance.
+
+Exposure compensation now has its own target contact/report/mask join and uses
+the same finite held-button/Main owner as MODE. Original firmware displays
+`0.0 → +0.3 → +0.7 → +0.3` under an external-contact replay; host settings and
+switch packets are not injected. The [compensation scope](native-mcu.md#exposure-compensation-chord)
+keeps displayed EV acceptance separate from physical exposure or saved pixels.
+
+The production-queue check passes all 208 harness checks, 695 MAIN / 652 EX
+frames and zero bad frames, including return to zero and an actual browser
+increase. Cancellation tests, source contracts, signed macOS build and strict
+UI audit pass. ISO, lens/power, complete stock logging/console/USB and combined
+HE/Movie preview still prevent a full-parity claim.
+
+The Z8 main-switch sense now has a target PC5 binding and original software-
+shutdown acceptance through explicit contact replay. Returning its level does
+not restart MAIN; a separate EX wake-candidate output response does not join a
+reset/power domain. The [native power boundary](native-mcu.md#native-main-switch-shutdown-input)
+keeps this result separate from cold workbench restart and full power parity.

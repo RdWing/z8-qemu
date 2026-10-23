@@ -159,6 +159,9 @@ static uint64_t stm32f2xx_timer_cc_due(STM32F2XXTimerState *s, unsigned ch,
 
 static void stm32f2xx_timer_cc_sync(STM32F2XXTimerState *s, int64_t now)
 {
+    if (s->clock_stopped) {
+        return;
+    }
     int64_t from = stm32f2xx_ns_to_ticks(s, s->cc_seen_ns);
     int64_t to = stm32f2xx_ns_to_ticks(s, now);
     bool irq = false;
@@ -185,7 +188,7 @@ static void stm32f2xx_timer_set_cc_alarm(STM32F2XXTimerState *s)
     uint64_t best = 0;
 
     timer_del(s->cc_timer);
-    if (!(s->tim_cr1 & TIM_CR1_CEN) || !s->tim_arr) {
+    if (s->clock_stopped || !(s->tim_cr1 & TIM_CR1_CEN) || !s->tim_arr) {
         return;
     }
     now_t = stm32f2xx_ns_to_ticks(s, s->cc_seen_ns);
@@ -253,6 +256,9 @@ static void stm32f2xx_timer_interrupt(void *opaque)
 
 static inline int64_t stm32f2xx_ns_to_ticks(STM32F2XXTimerState *s, int64_t t)
 {
+    if (s->clock_stopped) {
+        t = MIN(t, s->clock_stop_ns);
+    }
     return muldiv64(t, s->freq_hz, 1000000000ULL) / (s->tim_psc + 1);
 }
 
@@ -263,7 +269,7 @@ static void stm32f2xx_timer_set_alarm(STM32F2XXTimerState *s, int64_t now)
     int64_t position, period = (int64_t)s->tim_arr + 1;
 
     timer_del(s->timer);
-    if (s->tim_arr == 0 || !(s->tim_cr1 & TIM_CR1_CEN)) {
+    if (s->clock_stopped || s->tim_arr == 0 || !(s->tim_cr1 & TIM_CR1_CEN)) {
         return;
     }
 
@@ -294,6 +300,7 @@ static void stm32f2xx_timer_reset(DeviceState *dev)
 
     timer_del(s->timer);
     timer_del(s->cc_timer);
+    s->clock_stopped = false;
     s->hit_time = 0;
     s->cc_seen_ns = now;
     s->tim_cr1 = 0;
@@ -601,6 +608,37 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
     stm32f2xx_timer_cc_sync(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     stm32f2xx_timer_write_reg(s, offset, val64, size);
     stm32f2xx_timer_set_cc_alarm(s);
+}
+
+/* Pause the clock without consuming elapsed virtual time as counter ticks. */
+void stm32f2xx_timer_set_clock_stopped(STM32F2XXTimerState *s, bool stopped)
+{
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    if (stopped == s->clock_stopped) {
+        return;
+    }
+    if (stopped) {
+        stm32f2xx_timer_cc_sync(s, now);
+        s->clock_stop_ns = now;
+        s->stopped_update_ns = timer_expire_time_ns(s->timer);
+        s->stopped_compare_ns = timer_expire_time_ns(s->cc_timer);
+        timer_del(s->timer);
+        timer_del(s->cc_timer);
+        s->clock_stopped = true;
+    } else {
+        int64_t elapsed = now - s->clock_stop_ns;
+        s->clock_stopped = false;
+        s->tick_offset += stm32f2xx_ns_to_ticks(s, now) -
+                          stm32f2xx_ns_to_ticks(s, s->clock_stop_ns);
+        s->cc_seen_ns += elapsed;
+        if (s->stopped_update_ns >= 0) {
+            s->hit_time = s->stopped_update_ns + elapsed;
+            timer_mod(s->timer, s->hit_time);
+        }
+        if (s->stopped_compare_ns >= 0) {
+            timer_mod(s->cc_timer, s->stopped_compare_ns + elapsed);
+        }
+    }
 }
 
 static const MemoryRegionOps stm32f2xx_timer_ops = {

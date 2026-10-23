@@ -22,7 +22,7 @@ from native_inputs import Inputs, CONTACTS
 import movie_inputs
 import native_he
 import virtual_card
-from native_power import powered_down
+from native_power import powered_down, validate_supply_pin
 import trace_plugin
 import native_adc
 
@@ -33,6 +33,7 @@ p.add_argument('--mcu',type=Path,required=True)
 p.add_argument('--native-controls',action='store_true',help='Qualified EX Menu/navigation/half contacts; requires loopback view')
 p.add_argument('--contact-replay',type=Path,help='Ordered original-MCU external contact actions at virtual times')
 p.add_argument('--mcu-adc-inputs',help='Declared numeric ADC.CH=VALUE samples; no physical control names')
+p.add_argument('--experimental-main-supply-pin',help='Explicit virtual MAIN supply output, e.g. C1; physical wiring unverified, EX/card/RAM retained')
 p.add_argument('--mcu-pins',default='',help='Explicit external contacts, e.g. G1=1:G13=1; no inherited Z63 key names')
 p.add_argument('--seconds',type=int,default=180)
 p.add_argument('--experimental-shared221',action='store_true')
@@ -45,6 +46,7 @@ p.add_argument('--virtual-seconds',type=float,help='Optional finite virtual-time
 a=p.parse_args()
 try:
  trace_profile=trace_plugin.validate(a)
+ if a.experimental_main_supply_pin is not None:validate_supply_pin(a.experimental_main_supply_pin)
  if a.mcu_adc_inputs is not None:native_adc.validate(a.mcu_adc_inputs)
  movie_inputs.validate(a)
  native_capture=native_he.validate(a)
@@ -74,6 +76,9 @@ g=Guest(firmware,a.qemu,a.raw,a.output)
 trace_plugin.attach(g,trace_profile)
 index=g.command.index('-M')+1
 g.command[index]=g.command[index].replace('nikon-z8-lab,','nikon-z8-full-lab,zr-sd-empty-fixture=on,')+',mcu-image='+str(mcu)+',mcu-pins='+a.mcu_pins
+if a.experimental_main_supply_pin:
+ g.command[index]+=',mcu-main-supply-pin='+a.experimental_main_supply_pin
+ g.data['experimental_main_supply']=dict(pin=a.experimental_main_supply_pin,active_high=True,initial_powered=True,physical_binding_verified=False,scope='A53/GIC reset; EX, card and RAM retained')
 if a.mcu_adc_inputs:
  g.command[index]+=',mcu-adc-inputs='+a.mcu_adc_inputs
  g.data['declared_mcu_adc_inputs']=a.mcu_adc_inputs
@@ -96,7 +101,7 @@ if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_m
 native_he.attach(g,a)
 mode_controls=a.native_controls and native_he.control_modes_enabled(a)
 g.data.update(native_mode_controls=mode_controls,native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
-control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls) if a.port is not None else None
+control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls,native_dials=a.native_controls) if a.port is not None else None
 if control:
  g.startup_cancelled=control.stop.is_set
  control.write_endpoint(g.out);signal.signal(signal.SIGTERM,lambda *_:control.stop.set())

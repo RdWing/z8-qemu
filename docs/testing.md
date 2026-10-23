@@ -79,3 +79,31 @@ partial/invalid/unselected negatives. Host PNG/HTTP and production-JavaScript
 checks cover display blanking, bounds, capability, image versions and retained
 pixels on disconnection. Original EX drawing and native UI remain separate
 runtime acceptance.
+
+RTC alarm/wake delivery has a separate firmware-free runtime check:
+
+```sh
+python3 tests/check_mcu_rtc.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-rtc-check
+```
+
+Its sixteen checks execute synthetic M4 handlers through RTC, EXTI and NVIC,
+including timing, flag clearing with WPR locked and retention across a
+guest-requested MCU-only reset. The locked-handler fixture rejects the earlier
+binary that retained the event flag after its first interrupt. Native
+power-on recovery remains a separate original-firmware acceptance gate.
+
+STOP clock gating and the optional supply controller have separate actual-board
+checks, each using independent synthetic programs:
+
+```sh
+python3 tests/check_mcu_stop.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-stop-check
+python3 tests/check_main_supply.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-supply-check
+```
+
+The twelve STOP checks use guest-recorded timer/interrupt values rather than
+host scheduling to establish clock isolation. The twenty-two supply checks
+include two cycles and the default unconnected negative control. Neither suite
+qualifies physical pin-to-rail wiring or original-firmware operation by itself.

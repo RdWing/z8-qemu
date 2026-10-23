@@ -87,6 +87,8 @@ requires all five experimental Movie options below. Other buttons stay disabled.
 | DISP | expander `0x23`, bit 8 | `0x53` |
 | Half-shutter | PG1 | `0x07` |
 | Playback | expander `0x23`, bit 5 | `0x44` |
+| Protect | expander `0x23`, bit 9 | `0x49` |
+| Delete | expander `0x23`, bit 18 | `0x45` |
 | Photo/Movie | expander `0x23`, bit 10; high/low | `0x57` |
 
 Explicit idle inputs PG1/PG13/PG14/PG15 are high. Releasing PG14/PG15 clears
@@ -413,3 +415,213 @@ Twenty-four firmware-free actual-board checks cover present/absent boot,
 repeated removal/reinsertion, unchanged endpoint/backing-file/adapter ownership,
 neighbor isolation, read-only observation and rejection without the adapter.
 A disposable-card original MAIN/EX run toggles false/true at virtual 19/23 seconds, then completes review and returns to Photo: 300 harness checks, 633 RAW frames, 761 MAIN/698 EX frames, zero checksum failures and clean shutdown. The backend stays identical. No absent-period filesystem event was independently observed, so complete native hot-plug remains unqualified.
+
+
+## Native Protect and Delete keys
+
+Z8 expander `0x23` bit 9 produces EX report byte `0x49` (Protect); bit 18
+produces byte `0x45` (Delete). Original MAIN consumes distinct switch masks.
+These target bindings are independent of the donor's key map.
+
+On a disposable three-photo card copy, a finite original MAIN/EX replay enters
+Playback, presses Protect twice, opens the native Delete confirmation and
+confirms with a second Delete press. The screen shows the protection icon,
+then the confirmation, then `DSC_0002.NEF` as `2/2`. A stopped-card catalog
+independently confirms `DSC_0003.NEF` is absent and the two other NEFs remain;
+the original card still has all three. Play returns to Photo and RAW frames
+advance to 332. All 300 harness checks pass, with 682 MAIN / 641 EX frames,
+zero checksum failures and clean owned shutdown at 30.003 virtual seconds.
+This is a bounded emulator workflow, not physical control qualification.
+
+Browser Protect key / Delete key and the matching AppKit Camera commands use
+the existing per-button admission, queue and contact release. Both require
+native EX controls plus a virtual card and playback model; host-peer,
+display-only, stale and capture-busy sessions reject them. Neither has a
+keyboard shortcut. Watch the camera's own confirmation: another Delete press
+can remove the selected virtual-card file. The queue reports input delivery,
+not a saved protection flag or completed deletion. Confirmation cancellation,
+protection persistence after restart and other assigned shooting roles remain
+separate checks.
+
+
+## Native Main/Sub command dials
+
+The original Z8 EX pin table and polling routines independently bind Main to
+PE7/PE13 and Sub to PF11/PF14. Each external pair follows a complete four-phase
+Gray cycle; original EX emits the signed report delta. The workbench's Main/Sub
+minus and plus buttons and AppKit Camera commands reuse the existing queue.
+They require native EX controls, with no added card requirement. Host-peer and
+display-only sessions keep them disabled.
+
+One queued turn produces a single `-1` or `+1` EX count, rather than a host
+switch packet or firmware memory write. Each phase lasts at least 80 virtual
+milliseconds; this is a declared input cadence, not measured dial electronics.
+Late ticks do not collapse phases. Turns serialize with buttons/modes/capture;
+Stop releases an unfinished turn to its starting levels and never retries it.
+Signs name the firmware delta, without claiming clockwise physical rotation.
+
+A finite original MAIN/EX run records all four signed report pulses, navigates
+menu entries and enters/leaves a submenu. It also accepts a Main-plus turn from
+the live browser. Half-shutter returns to Photo, with 269 RAW frames at virtual
+28.029, 635 MAIN / 602 EX frames, zero checksum failures, all 300 harness checks
+passing and clean owned shutdown. The pulses last about eleven virtual
+milliseconds; ordinary half-second host snapshots missed some of them, so the
+acceptance uses separate read-only higher-frequency report observations.
+
+Browser 640px layout, live queue feedback and disconnected disabling are checked.
+The native menu bridge has host checks and a signed macOS build. ISO chords, lens-dependent settings, rapid continuous turns and
+physical dial timing remain separate work.
+
+### Exposure-mode chord
+
+Exposure mode minus/plus holds the independently qualified MODE contact
+(expander `0x22`, bit 5) around one Main dial turn. Original EX supplies MODE
+at report byte `0x0E` and the signed Main count at `0x0B`; the host neither
+writes a setting nor constructs a switch packet. Each finite chord settles
+for 250 virtual milliseconds before turning and holds for another 250 after
+its last phase, then releases. Stop cancels either phase and releases MODE;
+later inputs wait for the entire chord and its cooldown.
+
+The shared browser and Camera-menu commands use the existing dial capability,
+readiness, bounded queue and capture guard. No modifier toggle or keyboard
+shortcut is introduced. The original-firmware no-electronic-lens fixture
+advances through the mode selection and retains M after release. P/S selection
+highlights can return to A in the shooting display; this is not evidence of
+a lost dial count. The exact lens/effective-setting gate remains untraced,
+and lens-supported P/S exposure is not qualified.
+
+The finite production run passes all 281 harness checks, with 724 MAIN / 674
+EX frames, zero checksum failures and clean shutdown at 31.035 virtual seconds.
+It returns from M to A, then accepts a live browser mode-plus input and retains
+M again. The host suite runs 89 tests (88 pass, one optional skip); source and
+renderer contracts, strict UI audit, signed macOS build and signature checks
+pass. Exact shutter-step consumption, restart persistence and new AppKit-menu
+runtime clicks remain separate acceptance gates.
+
+### Exposure-compensation chord
+
+Exposure compensation minus/plus holds the target compensation contact
+(expander `0x22`, bit 3) around one Main turn. Original EX supplies the button
+at report byte `0x15` and the signed Main count at `0x0B`. The shared finite
+modifier owner handles MODE and compensation: 250 virtual milliseconds to
+settle, four separated dial phases, another 250 milliseconds held, then release
+and cooldown. Stop restores both inputs; later actions cannot interleave.
+
+An original MAIN/EX contact replay displays `0.0 → +0.3 → +0.7 → +0.3` for two
+positive counts and one negative count. This is the firmware's displayed
+third-EV step in the tested fixture. The host never writes an EV value, and
+the firmware owns custom step/reversal behavior. Metering, physical exposure,
+saved-pixel changes, limits and restart persistence remain separate gates.
+
+The production HTTP queue separately displays `0.0 → +0.3 → +0.7 → +0.3 → 0.0`;
+a live browser plus request displays `+0.3` again. Original EX reports every
+hold, count and release. All 208 harness checks pass with 695 MAIN / 652 EX
+frames, zero bad frames and clean stop at 30.054 virtual seconds. The browser's
+640px layout and disconnected disabling are checked. Host tests pass 88 with
+one optional skip; source/renderer contracts, strict UI audit and signed macOS
+build/signature checks pass. New AppKit menu clicks retain separate runtime
+acceptance; the shared bridge/build checks do not qualify them.
+
+## Native main-switch shutdown input
+
+Target EX input tables and original MAIN/EX execution now bind the main-switch
+sense to PC5. Low is the running sense in the tested fixture. Replaying
+`mcu-pins` value `C5=1` changes original report byte 4 from 1 to 0 and invokes
+software shutdown; MAIN reaches its terminal SRAM WFI loops. This uses the
+existing explicit contact-replay interface, with no firmware memory/PC writes
+or host switch replies.
+
+The finite check passes all 210 harness checks, with 429 MAIN / 396 EX frames,
+zero bad frames and clean owned shutdown. Before STOP clock gating, returning PC5 low does not resume
+MAIN, and the candidate wake pulse leaves the retained byte off. The STOP and
+explicit supply-fixture results below supersede that modeled limitation;
+physical power/reset wiring remains under investigation. No Power-on action or inferred reset wire is
+advertised. Use the separately qualified cold Session restart to start another
+workbench session. Electrical wake, fastboot and retained-memory behavior remain
+unqualified.
+
+## RTC alarm and wake events
+
+The RTC model now generates Alarm A/B and periodic wake flags from the declared
+32768 Hz LSE input. Calendar field masks and subsecond comparisons select alarm
+matches; WUTR and WUCKSEL select the wake interval. Enabled flags drive EXTI17
+(shared Alarm A/B, NVIC41) and EXTI22 (wake, NVIC3). Delivery still requires the
+guest's EXTI edge, mask and NVIC configuration. Clearing a flag lowers its RTC
+source even while WPR is locked; INIT and configuration remain protected.
+Disabling a timer cancels future events. MCU-only reset retains the
+backup-domain calendar, controls and active timer, while resetting EXTI/NVIC.
+The read-only `native-mcu-io-state` RTC fields expose stored flags, configuration,
+match/expiry counters and source levels without acknowledging an event.
+
+Sixteen firmware-free actual-board checks cover periodic timing, pending-flag
+interrupt enable, locked-handler flag clearing, masked/unmasked EXTI delivery, repeated alarms, calendar/date
+and weekday matches across a year boundary, flag clearing, timer cancellation,
+MCU-reset retention and independent A53 progress. The test uses an explicit
+instruction-count clock so host scheduling does not determine its timing check.
+
+Original MAIN/EX enables Alarm A while running and a wake timer after shutdown.
+The new model produces 20 Alarm A matches and 74 wake expiries by 36.045 virtual
+seconds in the finite replay; its 210 harness checks pass with a clean stop.
+The strengthened locked-handler fixture rejects the previous binary after its
+first wake interrupt and passes on the corrected build. Original EX now clears
+repeated Alarm A flags, with 422 MAIN / 409 EX frames and zero bad frames.
+In this earlier RTC-only run, MAIN remains in terminal SRAM wait loops.
+After shutdown, EX has the wake interrupt and EXTI mask enabled but the
+sampled rising/falling edge selections are clear. A read-only store trace
+confirms earlier rising-edge configuration followed by later GPIO configuration
+writes. Generating RTC flags alone does not qualify native wake or restart.
+
+Calendar time retains the existing one-virtual-second fixture; arbitrary
+prescaler/oscillator accuracy, non-LSE clocks, calibration, timestamp/tamper,
+backup-domain reset and physical wake wiring remain separate gaps. The model
+does not infer a board reset wire or force firmware to resume.
+
+## STOP and an explicit MAIN supply fixture
+
+The board now retains M4 SLEEPDEEP and gates modeled MCU clocks at actual
+WFI/WFE entry. SysTick, fourteen timers, SPI transmit deadlines and DMA pumping
+pause while the independent RTC continues. Configured EXTI interrupts restore
+clocks before reaching NVIC; configured EXTI events release WFE. Timer counters
+and deadlines retain their phase instead of accumulating matches during STOP.
+Other boards keep QEMU's former SLEEPDEEP behavior. Standby, oscillator/voltage
+accuracy and complete peripheral clock qualification remain open.
+
+Twelve synthetic actual-board checks cover clock gating, a non-integral-second
+RTC interval, event-only wake, rejected falling edges and ordinary sleep. The
+original EX now enters and leaves STOP twice, resamples the running main-switch
+byte after the declared wake contact and executes further output configuration.
+The STOP-only replay passes 210 harness checks; MAIN stays parked because its
+power/reset connection is separate from an interrupt.
+
+`--experimental-main-supply-pin C1` on `tools/run_native.py` selects an explicit
+virtual supply connection. It is disabled by default. The output must be in
+GPIO output mode. The initial fixture is powered; the first high arms it.
+Subsequent low stops the A53s; return high resets GIC and boots CPU0 through
+its architectural reset vector. Stock MAIN starts its other cores. EX, virtual
+card and RAM remain retained. Repeated same-level writes do not issue resets.
+The IO snapshot exposes selected-supply state and cut/reset counters read-only.
+This is a declared functional connection, not recovered physical Z8 wiring or
+a complete electrical power-domain/fastboot model.
+
+Twenty-two synthetic checks cover the default unconnected case, selected and
+neighbor outputs, two cuts/resets, retained MAIN RAM, independent EX execution,
+idempotence and invalid pin rejection. An original MAIN/EX single-cycle run
+cuts at 21.146 and returns at 24.050 virtual seconds, then resumes Photo and
+RAW frames without resetting EX. At 45.004 seconds it reaches 579 RAW frames,
+909 MAIN/889 EX frames, zero bad frames, 416 passing harness checks and clean
+owned shutdown. No host switch reply, firmware instruction/RAM patch or manual
+PC assignment supplies restart; CPU reset uses the configured reset vector.
+
+The separately qualified cold Session restart remains available without this
+experimental connection. Physical wiring, complete MAIN peripheral-domain
+reset/retention and recording/capture across a power cycle retain separate
+gates.
+
+A second original run uses the production CLI fixture for two cut/return cycles.
+Both architectural resets succeed; EX's startup reset count remains one. At
+70.013 virtual seconds the run has 703 RAW frames, 1,374 MAIN/1,342 EX frames,
+zero bad frames, 808 passing harness checks and clean owned stop. Original UI
+state responds to Menu after both restarts (6→1), and half returns it to 6 with
+Photo/RAW recovery. Immediate contact snapshots do not independently qualify
+fully rendered Menu contents. The read-only counters report two supply cuts,
+two resets and four STOP entries/exits.

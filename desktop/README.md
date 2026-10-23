@@ -98,7 +98,7 @@ shared selector queue.
 This is an initial native desktop integration. Remaining MCU keys/lens/power,
 physical top-panel timing, recording, playback idle wake/zoom, USB, format-aware firmware logging, interactive firmware commands
 and Linux/Windows desktop bundles remain open. Read-only UART/device diagnostics are available below.
-The Z63 camera skin, rotary-dial map and firmware addresses are not presented as
+The Z63 camera skin, exposure-mode ADC ladder and unjoined firmware addresses are not presented as
 Z8 controls. The experimental native HE profile below adds shared browser,
 keyboard and native Camera-menu capture using the qualified paired contacts.
 
@@ -372,3 +372,61 @@ Display on/off and transferred lines and keeps its last received frame after
 disconnection. Host-peer sessions omit it. The main display, input queue, Stop
 placement and native Camera commands retain their existing behavior.
 See [panel binding and limits](../docs/native-mcu.md#z8-top-panel-binding).
+
+
+## Native review keys
+
+With original EX controls, a virtual card and the playback model enabled,
+Protect key and Delete key are available in the shared workbench and Camera
+menu. They press/release the independently mapped Z8 contacts through the
+existing queue. Host-peer and display-only profiles keep them disabled.
+Neither action has a keyboard shortcut.
+
+These commands retain the firmware's own confirmation flow. Watch the camera
+display: Play cancels its Delete question; another Delete press can confirm
+removal from the virtual card. The app reports queued input only. Use a copy
+of any card whose files you need to preserve.
+
+A finite original-firmware replay shows the protection icon and native Delete
+question, confirms one deletion on a disposable card, and returns to fresh
+Photo frames. Stopped-card catalogs independently show three original NEFs and
+two remaining copied-card NEFs. Shared browser admission/queue checks and the
+signed macOS build pass separately; these checks do not qualify protection
+persistence, confirmation cancellation or physical buttons.
+
+
+## Native command dials
+
+Original-EX control sessions offer Main/Sub dial minus and plus buttons plus
+matching Camera-menu commands. Each queues one signed dial count through a
+complete external quadrature cycle. The existing queue serializes camera inputs;
+no firmware message, memory write or automatic retry supplies the count. The
+buttons remain disabled in host-peer/display-only sessions, during capture and
+after disconnection. No keyboard shortcuts are assigned.
+
+Original-firmware checks cover both signs on both axes, menu movement, submenu
+entry/return, a live browser turn and half-shutter recovery. The 80-millisecond
+phase cadence is a functional input choice, not physical timing. ISO chords and lens-dependent behavior remain unqualified.
+
+Exposure mode minus/plus uses the same controls and Camera menu. Each action
+holds MODE around one Main turn and releases both inputs before another camera
+action can run. Stop also releases a cancelled chord. Original firmware retains
+Manual mode in the no-electronic-lens fixture; P/S highlights may return to A
+on the shooting display. Watch the firmware display for the effective result.
+
+Native browser acceptance covers M → A → M, an actual browser chord, narrow
+layout and disabled controls after clean shutdown. The updated host suite has
+88 passes and one optional skip; the signed macOS build and signature verify.
+New Camera-menu runtime clicks and exact shutter-step consumption remain separate.
+
+Exposure compensation minus/plus adds the corresponding Camera commands and
+workbench pair. Each holds the compensation button around a single Main turn,
+using MODE's existing finite lease and cancellation rules. The tested firmware
+displays third-EV steps; watch its display for the result. These controls do not
+write an EV setting directly or guarantee changed sensor/recorded pixels.
+
+Native browser testing covers two increases, two decreases back to zero and
+another live-browser increase, with all contacts released and clean shutdown.
+The shared cancellation tests, 640px layout, disconnected state and signed app
+build pass. The new Camera-menu actions have build/bridge checks; their own
+native runtime clicks and restart persistence remain unqualified.
