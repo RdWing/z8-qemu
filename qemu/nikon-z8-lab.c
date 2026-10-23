@@ -11180,7 +11180,7 @@ static char *get_primary_d980_single_state(Object *obj, Error **errp)
     NikonZ8State *s = NIKON_Z8_LAB(obj);
     return g_strdup_printf("{\"enabled\":%s,\"armed\":%s,\"epoch\":%" PRIu64
         ",\"completed_epoch\":%" PRIu64 ",\"frames\":%" PRIu64 ",\"requests\":%" PRIu64
-        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"source_waits\":%" PRIu64 ",\"source_start_epoch\":%" PRIu64 ",\"scope\":\"functional one-frame external input after FRONT preparation and bitmap201 or original-EX SIF START; physical protocol unproved\"}",
+        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"source_waits\":%" PRIu64 ",\"source_start_epoch\":%" PRIu64 ",\"scope\":\"functional one-frame external input after FRONT preparation; bitmap201, original-EX SIF START or explicit native live-source profile; physical protocol unproved\"}",
         s->primary_d980_single_model ? "true" : "false", s->primary_d980_single_armed ? "true" : "false",
         s->primary_d980_input_epoch, s->primary_d980_single_epoch, s->primary_d980_single_frames,
         s->primary_d980_single_requests, s->primary_d980_single_cancelled, s->primary_d980_single_attempts,
