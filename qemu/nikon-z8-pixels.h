@@ -27,10 +27,12 @@ static bool raw_pipeline_address(NikonZ8State *s, uint64_t encoded,
     return dma_ram_range(s, encoded, bytes);
 }
 
-/* Input timing is independent of IMPRSZ destination setup. Original ZR
- * 412aa7a0 maps primary subgroup1 bit29 to source wait400000; Z8 uses the
- * same cause at410b6ae8. No OS state is written by the device. This source
- * model produces no guest DMA, resize completion or saved RAW file. */
+/* Input timing is independent of IMPRSZ destination setup. C3.11's
+ * original40c1f7f4 collects subgroup1 at+210 into payload+4 and forwards
+ * it to the registered40cacdec callback. Bits29/30 here are functional
+ * upper-source boundaries; software flag masks and physical timing are
+ * not established by the notification alone. No OS state, guest DMA,
+ * resize completion or saved RAW file is supplied by this source model. */
 static void raw_source_boundary_receive(NikonZ8State *s, bool single_input)
 {
     if (!s->raw_source_boundary_model || !s->raw_pixels ||
@@ -576,11 +578,11 @@ static void raw_pipeline_tick(void *opaque)
         s->raw_pipeline_batches++;
     }
     raw_pipeline_irq_update(s);
-    /* Native255 CAPTG waits in410b6c50 for the second input's boundary.
-     * The original ISR supplies +210 in payload+4; PPC410b677c maps bit30
-     * to flag800000, and410b6ae8 maps bit29 to flag400000. Complete these
-     * two active upper paths after real output writes in this combined ISP.
-     * This is a functional frame boundary, not measured physical ISP timing. */
+    /* C3.11's original40c1f7f4 supplies+210 in payload+4 to the
+     * registered40cacdec callback. Complete these two active upper paths
+     * only after real output writes in this combined ISP. Notification
+     * consumption does not by itself establish a software wait-flag map
+     * or measured physical ISP framing/timing. */
     uint32_t primary = ((s->engine150c_active & 2) ? 0x20000000 : 0) |
                        ((s->engine150c_active & 0x10000) ? 0x40000000 : 0);
     primary &= s->engine_150c_init[0x20c / 4];

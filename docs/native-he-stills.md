@@ -230,9 +230,21 @@ and continue producing Photo frames. A complete RAM snapshot matches all
 with zero nonzero padding bytes. No HE encoder job or saved NEF follows.
 The final bounded build passes 601 transport/runtime checks with 814 continuous
 RAW frames, one EX reset and zero bad frames. The finite request completes once
-with one admitted attempt. The parameter units are active, while the modeled downstream processing
-consumers remain unused. Configuration-only diagnostic counters do not prove
+with one admitted attempt. The parameter units are active, while the modeled
+downstream processing consumers remain unused. Configuration-only diagnostic counters do not prove
 that original firmware failed to start those units. The final extension also
 cancels after 64 refused DMA attempts, without completing an unwritten frame.
-This is input-model progress; combined HE capture/live-view acceptance remains
-open at that downstream data-consumer join. Production timing is unqualified.
+A separate production-default `icount shift=0,sleep=on` replay passes all 446
+checks through 60 virtual seconds. It completes the finite request once with
+one admitted attempt, keeps 641 continuous RAW frames, and has one EX reset,
+zero bad frames and clean owned stop. All 45,705,600 RAM samples and row padding
+match the accelerated result exactly. This qualifies the modeled input under
+the default timing profile; no HE request/job or saved NEF follows.
+
+A read-only IRQ control also confirms that firmware consumes the source
+notifications. The retained RAW DMA done bit is excluded by its guest enable
+mask, so its zero direct ACK count is expected. An additional byte-backed
+input-ready notification is acknowledged but does not configure the later
+image-processing request; that prototype is excluded. The next join remains
+the original primary-unit pixel/descriptor and request-admission chain.
+Combined HE capture/live-view acceptance remains open.

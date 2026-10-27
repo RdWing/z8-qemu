@@ -9643,8 +9643,9 @@ static void primary_empty_end_update(NikonZ8State *s);
 
 static void engine150c_stop_irq_update(NikonZ8State *s)
 {
-    /* Original 40c20024 sets/clears enable fields; 40c1f6f4 consumes
-     * primary status groups. Group 2 produces stop causes 1000/4000
+    /* Original IRQ262 registration at40c1f778 selects40c1f7f4, which
+     * snapshots enabled status at+204/+210/+21c and W1C-acks those words
+     * at40c1f83c/848/850. Group 2 produces stop causes 1000/4000
      * and the first-150d opt-in 8000. Group 0 also carries direct stops
      * and separately enabled diagnostic cycle events.
      * Enabled/raw views and immediate empty-pipeline draining are explicit
@@ -11887,7 +11888,7 @@ static bool engine150c_stop_write(NikonZ8State *s, hwaddr addr,
             /* 40caf748 calls 40c1fb6c directly. Unlike 40c1fb78 this
              * path has no +34 kick/hold/reset. Original 40caf270 enables
              * group0 causes 20000/400000 for logical 10000/20000;
-             * primary ISR 40c1f6f4 acknowledges them at +204.
+             * primary ISR40c1f7f4 acknowledges them at+204 (40c1f83c).
              * Immediate drain is only a functional empty-pipeline model. */
             bool capture_command = s->primary_capture_direct_stop_model && value == 0x401e;
             bool capture_drained = capture_command && !s->primary_reset_stage &&
