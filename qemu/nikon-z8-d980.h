@@ -248,8 +248,9 @@ static void primary_d980_source_control(NikonZ8State *s, unsigned group,
 /* Explicit live-single experiment: the normal preparation branch starts
  * SIF before enabling the finite full-resolution descriptor. Consume one
  * later source-clock frame for that fresh owner, rather than inventing a
- * second START edge or changing its channel bitmap. This exact format-2
- * profile remains a functional packed12 hypothesis, not HE qualification. */
+ * second START edge or changing its channel bitmap. The observed JPEG and RAW
+ * descriptors use packed12 and packed14 respectively; each retains its exact
+ * pitch. Their source timing and physical packing remain model hypotheses. */
 static bool primary_d980_native_live_source(NikonZ8State *s)
 {
     const uint32_t *c = s->primary_d980_latched;
@@ -260,8 +261,10 @@ static bool primary_d980_native_live_source(NikonZ8State *s)
            !s->primary_reset_stage && s->engine150c_active == 0x77f7f &&
            s->event_timing_active && (s->event_control_1508[0] & 1) &&
            s->event_control_1508[3] == 0x704b && !s->event_mode_1508[0] &&
-           c[0] == 2 && c[1] == (8280u << 16) && c[2] == (5520u << 16) &&
-           c[4] == 12448 && !video_raw_descriptor(s) && primary_d980_ready(s);
+           c[1] == (8280u << 16) && c[2] == (5520u << 16) &&
+           ((c[0] == 2 && c[4] == 12448) ||
+            (c[0] == 1 && c[4] == 14496)) &&
+           !video_raw_descriptor(s) && primary_d980_ready(s);
 }
 
 /* Z8 timing hypothesis: periodic input may own an armed single request.

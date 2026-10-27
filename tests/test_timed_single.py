@@ -112,7 +112,19 @@ s.event_control_1508[3]=0x7009;assert(!primary_d980_native_live_source(&s));s.ev
 s.event_mode_1508[0]=2;assert(!primary_d980_native_live_source(&s));s.event_mode_1508[0]=0;
 s.primary_reset_stage=1;assert(!primary_d980_native_live_source(&s));s.primary_reset_stage=0;
 s.engine150c_active=0x401e;assert(!primary_d980_native_live_source(&s));s.engine150c_active=0x77f7f;
-s.primary_d980_latched[0]=1;assert(!primary_d980_native_live_source(&s));s.primary_d980_latched[0]=2;
+/* A RAW request has its own observed packed14 pitch. Crossed packing/pitch
+ * pairs, unsupported formats and incomplete mapped descriptors stay refused. */
+s.primary_d980_latched[0]=1;assert(!primary_d980_native_live_source(&s));
+s.primary_d980_latched[4]=14496;assert(primary_d980_native_live_source(&s));
+s.ready=false;assert(!primary_d980_native_live_source(&s));s.ready=true;
+s.primary_d980_latched[4]++;assert(!primary_d980_native_live_source(&s));s.primary_d980_latched[4]--;
+s.primary_d980_latched[0]=2;assert(!primary_d980_native_live_source(&s));
+s.primary_d980_latched[0]=3;assert(!primary_d980_native_live_source(&s));
+s.primary_d980_latched[0]=1;
+NikonZ8State raw=s;before=dma_calls;allow_dma=1;primary_d980_tick(&raw);
+assert(!raw.primary_d980_single_armed&&raw.primary_d980_single_frames==1&&raw.primary_d980_single_epoch==12&&dma_calls==before+1);
+primary_d980_tick(&raw);assert(dma_calls==before+1);
+s.primary_d980_latched[0]=2;s.primary_d980_latched[4]=12448;
 s.primary_d980_latched[4]++;assert(!primary_d980_native_live_source(&s));s.primary_d980_latched[4]--;
 s.primary_d980_latched[1]-=1u<<16;assert(!primary_d980_native_live_source(&s));s.primary_d980_latched[1]+=1u<<16;
 s.primary_d980_latched[2]-=1u<<16;assert(!primary_d980_native_live_source(&s));s.primary_d980_latched[2]+=1u<<16;

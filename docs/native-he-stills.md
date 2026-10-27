@@ -216,7 +216,8 @@ The existing, default-off `primary-d980-live-single-model` can now consume one
 later periodic source frame for the observed original-EX normal-preparation
 profile. It requires a fresh prepared finite request, matching enable generation,
 active units `0x77F7F`, source control `0x704B`, a running source and the complete
-8280×5520 format-2 descriptor with 12,448-byte rows. Descriptor validation still
+8280×5520 descriptor: format 2 with 12,448-byte rows, or format 1 with
+14,496-byte rows. Descriptor validation still
 checks mapped destinations and capacity. Reset, Movie input, another geometry,
 a stopped source or a stale generation cannot use this additional path.
 
@@ -248,3 +249,28 @@ input-ready notification is acknowledged but does not configure the later
 image-processing request; that prototype is excluded. The next join remains
 the original primary-unit pixel/descriptor and request-admission chain.
 Combined HE capture/live-view acceptance remains open.
+
+Read-only matrix-worker controls observe 2,039 completed preview/settings
+actions in the normal branch, while the working HE profile completes 81
+actions including capture processing and storage. However, inspection of the
+actual screens finds different effective output settings: the normal replay
+ends at JPEG normal/small, while the supported HE replay ends at RAW/large.
+The fixed contact sequence navigates different menu states. These controls
+therefore do not isolate an HE request failure. The completed packed12 RAM
+transfer remains valid input evidence; the absence of an HE job in that JPEG
+run cannot qualify a missing HE processing transition. RAW/HE selection must
+be verified before the combined capture test.
+
+A screen-confirmed RAW run identifies a separate admission defect: its format-1,
+14,496-byte-pitch descriptor remained armed because the running-source guard
+accepted only format 2. The guard now admits both observed packing/pitch pairs,
+with the same source, generation, geometry and mapped-descriptor checks.
+Crossed packing/pitch pairs remain rejected. In an accelerated original-MAIN/EX
+control with pauses between menu contacts, RAW L is verified before shutter
+release. All 564 checks pass; one request transfers all 80,017,920 bytes in
+one attempt, with zero source waits/cancellations, 756 continuous RAW frames,
+one EX reset, zero bad frames and clean owned stop. HE still has no request/job
+or saved file, and the capture matrix remains unqueued. This qualifies the
+packed14 input admission, not the remaining primary-processing completion or
+combined HE/live-preview workflow. The updated build also preserves the
+packed12 control: all 45,705,600 samples and row padding match its prior hash.
