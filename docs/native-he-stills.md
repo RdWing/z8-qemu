@@ -283,3 +283,14 @@ Its 392 checks pass with 397 continuous RAW frames and clean owned stop.
 The worker's final zero return can include an internal input timeout, so it
 must not be treated as proof of successful processing. Combined HE/live
 preview remains open.
+
+
+Further private notification controls separate preview progress from capture
+request creation. A screen-confirmed RAW control passes 649 checks and the full
+packed14 RAM comparison. Repeated primary-output waits return success, with
+618 continuous RAW frames, but no HE job follows. A read-only request trace
+then confirms the supported HE control enters the capture constructor, whereas
+the combined preview control does not enter that handler during the observed
+interval. The interrupt prototypes remain excluded: a consumed notification
+and successful preview wait do not establish a capture-processing request.
+The next unresolved transition is the stock capture controller's producer path.

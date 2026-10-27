@@ -165,9 +165,10 @@ static void primary_d980_single_complete(NikonZ8State *s)
     s->primary_d980_single_epoch = s->primary_d980_input_epoch;
     s->primary_d980_single_frames++;
     if (s->z8_still) {
-        /* z8-still-capture: the upper unit's frame ends with the
-         * still's data, +0x204 bit 6, and its +0x14 bit 0 says it
-         * was a capture's frame (z8lab_attach.c.in). */
+        /* Functional still input: publish upper bit6 after all DMA bytes
+         * and retain the inherited +14 bit0 input. C3.11 getter40c1f038
+         * reads both +10/+14 low bits; that software contract alone does
+         * not establish this field as a physical capture-frame marker. */
         s->engine150c_bit6_pending |= 0x40;
         s->engine_150c_primary[0x14 / 4] |= 1;
         s->z8_still_ends++;
