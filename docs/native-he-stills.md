@@ -274,3 +274,12 @@ or saved file, and the capture matrix remains unqueued. This qualifies the
 packed14 input admission, not the remaining primary-processing completion or
 combined HE/live-preview workflow. The updated build also preserves the
 packed12 control: all 45,705,600 samples and row padding match its prior hash.
+
+A second screen-confirmed packed14 control also passes the complete mapped-RAM
+comparison: all 45,705,600 samples match, every padding byte is zero, and the
+80,017,920-byte buffer hash is
+`543b9eeb0f212c277a25bda41fb1bb631e38d61e4d7fe5f4349bfb8bdd4d33a8`.
+Its 392 checks pass with 397 continuous RAW frames and clean owned stop.
+The worker's final zero return can include an internal input timeout, so it
+must not be treated as proof of successful processing. Combined HE/live
+preview remains open.

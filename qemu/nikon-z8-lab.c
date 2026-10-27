@@ -19476,8 +19476,8 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
         s->primary19d_config_reads++;
         return s->primary19d_config_words[37];
     }
-    /* Native174: object19d base150c0400, getter40c1f634 reads +14c
-     * and masks7f; wrapper40cb249c maps1/2/other to0/1/2. The producer
+    /* C3.11 object19d base150c0400: getter40c1f734 reads +14c
+     * and masks7f; wrapper40cb0d98 maps1/2/other to0/1/2. The producer
      * and field meaning remain unknown. Explicit input only, not reset,
      * retained config, Bayer/depth/compression or completed image status. */
     if (s->bootstrap_fixtures && s->primary_metadata14c_input_valid &&
