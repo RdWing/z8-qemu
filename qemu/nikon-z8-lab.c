@@ -752,6 +752,7 @@ struct NikonZ8State {
     QEMUTimer *primary_d980_single_timer;
     uint64_t primary_d980_input_epoch, primary_d980_single_epoch, primary_d980_single_frames;
     uint64_t primary_d980_single_request_epoch;
+    uint64_t primary_d980_single_submit, primary_d980_latched_submit, primary_d980_live_rearms;
     uint64_t primary_d980_single_cancelled, primary_d980_single_requests;
     unsigned primary_d980_single_attempts;
     uint64_t primary_d980_single_source_waits, primary_d980_source_start_epoch;
@@ -11196,11 +11197,12 @@ static char *get_primary_d980_single_state(Object *obj, Error **errp)
     NikonZ8State *s = NIKON_Z8_LAB(obj);
     return g_strdup_printf("{\"enabled\":%s,\"armed\":%s,\"epoch\":%" PRIu64
         ",\"completed_epoch\":%" PRIu64 ",\"frames\":%" PRIu64 ",\"requests\":%" PRIu64
-        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"source_waits\":%" PRIu64 ",\"source_start_epoch\":%" PRIu64 ",\"scope\":\"functional one-frame external input after FRONT preparation; bitmap201, original-EX SIF START or explicit native live-source profile; physical protocol unproved\"}",
+        ",\"cancelled\":%" PRIu64 ",\"attempts\":%u,\"source_waits\":%" PRIu64 ",\"source_start_epoch\":%" PRIu64 ",\"submits\":%" PRIu64 ",\"completed_submit\":%" PRIu64 ",\"live_rearms\":%" PRIu64 ",\"scope\":\"functional one-frame external input after FRONT preparation; bitmap201, original-EX SIF START or explicit native live-source profile; physical protocol unproved\"}",
         s->primary_d980_single_model ? "true" : "false", s->primary_d980_single_armed ? "true" : "false",
         s->primary_d980_input_epoch, s->primary_d980_single_epoch, s->primary_d980_single_frames,
         s->primary_d980_single_requests, s->primary_d980_single_cancelled, s->primary_d980_single_attempts,
-        s->primary_d980_single_source_waits, s->primary_d980_source_start_epoch);
+        s->primary_d980_single_source_waits, s->primary_d980_source_start_epoch,
+        s->primary_d980_submits, s->primary_d980_single_submit, s->primary_d980_live_rearms);
 }
 
 static bool get_primary_d980_source_notify_model(Object *obj, Error **errp)
@@ -12484,6 +12486,7 @@ static bool engine150c_control_write(NikonZ8State *s, hwaddr addr,
         if (value & 0x4000) {
             memcpy(s->primary_d980_latched, s->primary_d980_submitted,
                    sizeof(s->primary_d980_latched));
+            s->primary_d980_latched_submit = s->primary_d980_submits;
             s->primary_d980_slot = 0;
         }
         s->engine150c_latched |= value;

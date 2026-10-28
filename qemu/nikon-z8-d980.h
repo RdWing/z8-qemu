@@ -30,11 +30,10 @@ static bool primary_d980_description(NikonZ8State *s, const uint32_t *c,
     return raw_pipeline_address(s, *encoded, (uint64_t)*stride * *height, physical);
 }
 
-static bool primary_d980_ready(NikonZ8State *s)
+static bool primary_d980_descriptor_ready(NikonZ8State *s, const uint32_t *c)
 {
     unsigned w, h, pitch;
     uint64_t encoded, physical;
-    const uint32_t *c = s->primary_d980_latched;
     if (!primary_d980_description(s, c, 0, &w, &h, &pitch, &encoded, &physical)) {
         return false;
     }
@@ -47,6 +46,11 @@ static bool primary_d980_ready(NikonZ8State *s)
         }
     }
     return true;
+}
+
+static bool primary_d980_ready(NikonZ8State *s)
+{
+    return primary_d980_descriptor_ready(s, s->primary_d980_latched);
 }
 
 static uint8_t *primary_d980_pack12(const NikonRawPixels *p,
@@ -163,6 +167,7 @@ static void primary_d980_single_complete(NikonZ8State *s)
 {
     s->primary_d980_single_armed = false;
     s->primary_d980_single_epoch = s->primary_d980_input_epoch;
+    s->primary_d980_single_submit = s->primary_d980_latched_submit;
     s->primary_d980_single_frames++;
     if (s->z8_still) {
         /* Functional still input: publish upper bit6 after all DMA bytes
@@ -309,14 +314,17 @@ static void primary_d980_input_trace(NikonZ8State *s, const char *action,
     fprintf(stderr, "Z8_D980_INPUT action=%s ns=%" PRId64 " pc=%" PRIx64
         " previous=%x value=%x prepared=%u armed=%u epoch=%" PRIu64
         " completed=%" PRIu64 " frames=%" PRIu64 " primary=%x reset=%u"
-        " clock=%u live=%u control=%x front=%x\n", action,
+        " clock=%u live=%u control=%x front=%x submits=%" PRIu64
+        " completed_submit=%" PRIu64 " rearms=%" PRIu64 "\n", action,
         qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
         current_cpu ? ARM_CPU(current_cpu)->env.pc : 0, previous, value,
         s->primary_d980_prepared, s->primary_d980_single_armed,
         s->primary_d980_input_epoch, s->primary_d980_single_epoch,
         s->primary_d980_frames, s->engine150c_active, s->primary_reset_stage,
         s->event_timing_active, s->primary_d980_live_single_model,
-        s->event_control_1508[3], s->event_mode_1508[0]);
+        s->event_control_1508[3], s->event_mode_1508[0],
+        s->primary_d980_submits, s->primary_d980_single_submit,
+        s->primary_d980_live_rearms);
 }
 
 static void primary_d980_single_cancel(NikonZ8State *s)
@@ -390,6 +398,49 @@ static void primary_d980_single_arm(NikonZ8State *s)
               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 33333333);
 }
 
+/* Explicit native live-HE continuation: C3.11 resubmits the input table
+ * while the shared preview unit remains enabled. A later FRONT preparation
+ * may own that fresh submission only after the previous finite HE transaction
+ * has retired. Latch/arm here, never DMA or completion. This input-generation
+ * boundary is a functional model, not measured silicon latch timing. */
+static bool primary_d980_live_rearm(NikonZ8State *s)
+{
+    if (!s->primary_d980_live_single_model || !s->native_mcu || !s->z8_still ||
+        !s->z8_timed_single_model || !s->primary_d980_single_model ||
+        s->primary_d980_single_armed || s->primary_d980_prepared ||
+        !s->primary_d980_input_epoch ||
+        s->primary_d980_input_epoch != s->primary_d980_single_epoch ||
+        !s->primary_d980_single_submit ||
+        s->primary_d980_submits <= s->primary_d980_single_submit ||
+        s->primary_reset_stage || s->engine150c_stop_requested ||
+        s->engine150c_stop_reset_asserted || s->engine150c_active != 0x77f7f ||
+        !s->event_timing_active || !(s->event_control_1508[0] & 1) ||
+        s->event_control_1508[3] != 0x724b || video_raw_descriptor(s) ||
+        !s->engine152c_he_still_model || !s->engine152c_he_jobs ||
+        s->engine152c_he_jobs != s->primary_d980_single_frames ||
+        s->engine152c_he_acks != s->engine152c_he_jobs ||
+        s->engine152c_he_stop_acks != s->engine152c_he_jobs ||
+        s->engine152c_he_pending || s->engine152c_request_pending ||
+        s->engine152c_he_stop_pending || s->engine152c_stream_requested ||
+        s->engine152c_stream_pending ||
+        (s->primary_d980_pending & ~0x4000000u) ||
+        (s->primary_d980_pending & s->engine_150c_init[0x20c / 4]) ||
+        !primary_d980_descriptor_ready(s, s->primary_d980_submitted)) {
+        return false;
+    }
+    memcpy(s->primary_d980_latched, s->primary_d980_submitted,
+           sizeof(s->primary_d980_latched));
+    s->primary_d980_latched_submit = s->primary_d980_submits;
+    s->primary_d980_slot = 0;
+    /* The old masked done bit owns no enabled IRQ. Reinitialize the writer
+     * status as on its existing fresh-enable path, without an ISR ACK. */
+    s->primary_d980_pending = 0;
+    s->primary_d980_input_epoch++;
+    s->primary_d980_live_rearms++;
+    primary_d980_input_trace(s, "rearm", 0, 0);
+    return true;
+}
+
 static void primary_d980_single_mode(NikonZ8State *s, unsigned channel,
                                     uint32_t previous, uint32_t value)
 {
@@ -409,6 +460,7 @@ static void primary_d980_single_mode(NikonZ8State *s, unsigned channel,
         }
         return;
     }
+    primary_d980_live_rearm(s);
     if (!s->primary_d980_input_epoch ||
         s->primary_d980_single_epoch == s->primary_d980_input_epoch ||
         s->primary_d980_single_armed) {

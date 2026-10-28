@@ -335,8 +335,37 @@ keeps its existing preparation and live-single default. This qualifies one
 ordinary HE capture with continuing preview under the explicit accelerated
 profile, not physical imaging, default-timing acceptance or repeated use.
 
-A separate second-release check remains open: two descriptor submissions share
-one finite-input epoch/frame, and the later processing request rejects that
-consumed input. That run saves its first NEF but fails its final MMIO check.
-Do not count it as a second capture pass. High efficiency-star with this live
-preview profile and Movie recovery retain separate acceptance.
+### Rearming a finite input while preview stays enabled
+
+The second-release trace resubmits its descriptor while the shared primary
+unit remains enabled. The finite-input epoch previously advanced only on unit
+enable, so the later FRONT preparation could not arm a new input. The explicit
+live-single model now renews that epoch on a genuine FRONT `2→3` transition
+with a newer, valid submitted descriptor and retired previous HE data/STOP.
+It records the submission actually latched with the completed DMA, rather than
+a later shadow submission. A completed input must have its own acknowledged
+HE job and STOP before another input can be admitted.
+
+Reset/stop, prepared or armed input, continuous receiver work, an enabled old
+writer IRQ and invalid DMA spans refuse renewal. The renewed descriptor still
+passes through the ordinary full RAW transfer before completion; renewal itself
+does no pixel work or guest-state writes. The existing live-single option stays
+default-off. This is a functional latch boundary, not measured hardware timing.
+
+Native repetition uses both release stages from `tools/native_inputs.py`:
+half/full/full-release/half-release at offsets 0/2/6/8 virtual seconds, followed
+by recovery time. Simultaneous full/half release controls do not isolate an
+input-notification defect. Host tests cover duplicate FRONT transitions, stale
+and later shadow submissions, HE/STOP ownership, enabled pending IRQs, reset,
+invalid spans and subsequent renewed inputs.
+
+Before the final per-input HE-count guard, a four-exposure diagnostic produces
+four finite DMA/HE/STOP transactions and
+four guest NEFs. Every file decodes all 45,705,600 RAW samples and three JPEGs,
+equals its own receiver strip, and has zero producer-input mismatches. The
+first three exposures return capture permission and advance live preview.
+However, the fourth shows the firmware restart-error screen despite passing
+829 transport checks. Fresh controls on the final guarded build also stall before the second
+descriptor submission, so native renewal with that added guard remains unqualified. These are unresolved native acceptance failures; transport counters
+and valid files alone do not qualify repeat shooting. High efficiency-star in
+this live-preview profile, default timing and Movie recovery remain separate.
