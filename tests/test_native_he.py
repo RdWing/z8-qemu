@@ -70,3 +70,23 @@ class NativeHE(unittest.TestCase):
             guest.qmp.events=[]
             with self.assertRaises(ValueError):native_he.sample(guest)
             self.assertFalse(any(x.startswith('pmemsave') for x in guest.qmp.events))
+
+    def test_live_profile_is_explicit_and_selects_matching_inputs(self):
+        values={name:True for name in native_he.OPTIONS}
+        values.update(card='card.raw',contact_replay='contacts.json',
+                      experimental_shared221=True,experimental_boundary_inputs=True,
+                      experimental_sensor_source_clock=True,experimental_yuv_channels=True,
+                      experimental_movie_selector16=True,experimental_he_live_preview=True)
+        for name in native_he.OPTIONS:
+            with self.subTest(name=name),self.assertRaises(ValueError):
+                native_he.validate(SimpleNamespace(**dict(values,**{name:False})))
+        with tempfile.TemporaryDirectory() as temp:
+            guest=SimpleNamespace(command=['qemu','-M','nikon-z8-full-lab'],data={},out=Path(temp))
+            native_he.attach(guest,SimpleNamespace(**values))
+            self.assertEqual((guest.out/'experimental-bank8-999.bin').read_bytes(),b'\0')
+            self.assertEqual((guest.out/'experimental-selector5.bin').read_bytes(),b'\1')
+            self.assertTrue(guest.data['experimental_native_he']['live_preview_profile'])
+            self.assertEqual(guest.data['experimental_native_he']['preparation_profile']['value'],0)
+            for model in ['primary-d980-live-single-model','raw-pipeline-input-pair-model','backend-program-epoch-model']:
+                self.assertIn(model+'=on',guest.command[2])
+            self.assertFalse(native_he.control_modes_enabled(SimpleNamespace(**values)))

@@ -563,7 +563,9 @@ struct NikonZ8State {
     uint64_t video_yuv_output_frames, video_yuv_output_refills, video_yuv_output_banks, video_yuv_output_waits;
     bool raw_pipeline_1514_completion_model;
     bool raw_pipeline_151c_completion_model;
-    bool raw_pipeline_input_pair_model;
+    bool raw_pipeline_input_pair_model, raw_pipeline_source_gate_held;
+    uint32_t raw_pipeline_source_pad;
+    uint64_t raw_pipeline_source_deferred_frames;
     uint64_t raw_pipeline_input_pair_completions, raw_pipeline_input_pair_acks;
     uint64_t raw_pipeline_input_pair_cancelled;
     uint64_t raw_pipeline_1514_completions, raw_pipeline_1514_acks;
@@ -7384,6 +7386,22 @@ static bool primary_d980_channel_clock_ready(NikonZ8State *s)
            !s->engine150c_stop_reset_asserted;
 }
 
+/* Shared preview remains enabled after a finite HE transaction. Its next
+ * preparation still needs configured source boundaries, but an older HE STOP
+ * must not release a newer input which has not completed its own HE job. */
+static bool primary_d980_live_source_retired(NikonZ8State *s)
+{
+    return primary_d980_finite_input_owned(s) && s->native_mcu && s->z8_still &&
+           s->z8_timed_single_model && s->engine152c_he_still_model &&
+           primary_d980_channel_clock_ready(s) && !s->primary_d980_prepared &&
+           s->engine152c_he_jobs == s->primary_d980_single_frames &&
+           s->engine152c_he_acks == s->engine152c_he_jobs &&
+           s->engine152c_he_stop_acks == s->engine152c_he_jobs &&
+           !s->engine152c_he_pending && !s->engine152c_request_pending &&
+           !s->engine152c_he_stop_pending && !s->engine152c_stream_requested &&
+           !s->engine152c_stream_pending;
+}
+
 #include "nikon-expeed-programmed-clock.h"
 
 static void event_timing_expire(void *opaque)
@@ -11792,18 +11810,61 @@ static bool video_reset_discards_statistics(NikonZ8State *s, uint32_t units)
  * to c000; this is forced reset, distinct from group1 direct/frame ends.
  * Admit only the stopped C1 stream with every produced downstream owner
  * already retired. One decoded-but-unused frame can be cancelled at kick. */
+/* Native live Photo idle holds its C1 supplier before the 400e kick.
+ * Held is quiescent only for this already retired finite HE transaction;
+ * no pending owner is acknowledged or discarded by this admission. */
+static bool primary_live_photo_held_supplier(NikonZ8State *s, uint32_t units)
+{
+    return units == 0x400e && primary_d980_finite_input_owned(s) &&
+        s->native_mcu && s->z8_still && s->z8_timed_single_model &&
+        s->engine152c_he_still_model && !s->primary_reset_stage &&
+        (s->engine150c_active & units) == units &&
+        (s->engine150c_stop_requested & units) == units &&
+        (s->engine_150c_init[0x18 / 4] & units) == units &&
+        s->engine1543_active[1] && s->engine1543_held[1] &&
+        s->primary_d980_single_frames && s->primary_d980_single_epoch &&
+        s->primary_d980_single_epoch == s->primary_d980_input_epoch &&
+        !s->primary_d980_single_armed && !s->primary_d980_prepared &&
+        s->engine152c_he_jobs == s->primary_d980_single_frames &&
+        s->engine152c_he_acks == s->engine152c_he_jobs &&
+        s->engine152c_he_stop_acks == s->engine152c_he_jobs &&
+        !s->engine152c_he_pending && !s->engine152c_request_pending &&
+        !s->engine152c_he_stop_pending && !s->engine152c_stream_requested &&
+        !s->engine152c_stream_pending;
+}
+
+/* The native Photo driver leaves its completed writer cause masked.
+ * A validated held-source reset may discard that retired status, not ACK
+ * an enabled IRQ or cancel another in-flight input. RAM bytes remain intact. */
+static uint32_t primary_live_photo_writer_reset_mask(NikonZ8State *s, uint32_t units)
+{
+    return primary_live_photo_held_supplier(s, units) &&
+        s->primary_d980_pending == 0x04000000 &&
+        !(s->engine_150c_init[0x20c / 4] & s->primary_d980_pending) ?
+        s->primary_d980_pending : 0;
+}
+
+static void primary_live_photo_reset_writer(NikonZ8State *s, uint32_t units)
+{
+    uint32_t discarded = primary_live_photo_writer_reset_mask(s, units);
+    s->primary_d980_pending &= ~discarded;
+    s->primary_d980_cancelled += !!discarded;
+}
+
 static bool video_forced_stop_quiescent(NikonZ8State *s, uint32_t units)
 {
     return s->video_forced_stop_model && s->video_raw_transport_model &&
         /* A requested, held and quiescent source may be cancelled before
          * its first ISP output. Historical frame counts do not own DMA. */
         !s->primary_reset_stage &&
-        !s->engine1543_active[1] && !video_raw_packet_blocks_producer(s) &&
+        (!s->engine1543_active[1] || primary_live_photo_held_supplier(s, units)) &&
+        !video_raw_packet_blocks_producer(s) &&
         !s->engine152c_stream_pending && !(s->engine1530_config[0x1c/4]&4) &&
         !s->engine1542_pending[1] && !s->engine1542_pending[10] && !s->engine1542_pending[11] &&
         !s->raw_primary_pending && !s->raw_source_pending &&
         (!s->statistics_pending || video_reset_discards_statistics(s, units)) &&
-        !s->primary_d980_pending && !(s->engine151_pending[0]&8) &&
+        !(s->primary_d980_pending & ~primary_live_photo_writer_reset_mask(s, units)) &&
+        !(s->engine151_pending[0]&8) &&
         !(s->engine1518[0].pending&0x08100000) && !(s->event_global1_pending&0x10);
 }
 static bool get_video_forced_stop_model(Object *obj, Error **errp)
@@ -12047,6 +12108,7 @@ static bool engine150c_stop_write(NikonZ8State *s, hwaddr addr,
         }
         if (s->video_forced_stop_model && (engines&0xc000)) {
             if (!video_forced_stop_quiescent(s, engines)) { goto invalid; }
+            primary_live_photo_reset_writer(s, engines);
             if (video_reset_discards_statistics(s, engines)) {
                 s->statistics_pending = 0;
                 s->statistics_owed = false;
@@ -21327,6 +21389,9 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
              * existing MCU peer writes to unrelated bits2/3 of this word. */
             value = (value & ~UINT64_C(0x30)) | (s->capture_gpio_levels << 4);
         }
+        if (addr == 0x0d151234 && s->primary_d980_live_single_model) {
+            raw_pipeline_source_pad_write(s, value);
+        }
         value=z8_mcu_gpio_write(s,addr,value);
         s->syscon[(addr - 0x0d150000) / 4] = value;
         if (addr == 0x0d158000) {
@@ -23378,6 +23443,8 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
         get_raw_pipeline_input_pair_model, set_raw_pipeline_input_pair_model);
     object_class_property_add_str(oc, "raw-pipeline-input-pair-state",
         get_raw_pipeline_input_pair_state, NULL);
+    object_class_property_add_str(oc, "raw-pipeline-source-boundary-state",
+        get_raw_pipeline_source_boundary_state, NULL);
     object_class_property_add_bool(oc, "raw-source-boundary-model", get_raw_source_boundary_model, set_raw_source_boundary_model);
     object_class_property_add_str(oc, "raw-source-boundary-state", get_raw_source_boundary_state, NULL);
     object_class_property_add_bool(oc, "capture-stream-rearm-model", get_capture_stream_rearm_model, set_capture_stream_rearm_model);

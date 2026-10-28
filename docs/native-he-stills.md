@@ -4,7 +4,8 @@ Original Z8 C3.11 MAIN with a declared host controller peer can save one HE or
 HE★ NEF per cold boot with the opt-in
 functional HE receiver and explicit synthetic sensor/ROM preparation inputs.
 The original-EX attachment has separate [capture acceptance](native-mcu.md);
-these host-peer results do not transfer to it.
+these host-peer results do not transfer to it. Repeated ordinary HE with live
+preview has its own [opt-in profile and acceptance](#source-readiness-after-capture-cleanup).
 The guest constructs the file and writes the virtual card. The host extracts
 initialized file bytes without repairing or replacing the container.
 
@@ -359,13 +360,101 @@ input-notification defect. Host tests cover duplicate FRONT transitions, stale
 and later shadow submissions, HE/STOP ownership, enabled pending IRQs, reset,
 invalid spans and subsequent renewed inputs.
 
-Before the final per-input HE-count guard, a four-exposure diagnostic produces
+Before the source-boundary correction below, a four-exposure diagnostic produces
 four finite DMA/HE/STOP transactions and
 four guest NEFs. Every file decodes all 45,705,600 RAW samples and three JPEGs,
 equals its own receiver strip, and has zero producer-input mismatches. The
 first three exposures return capture permission and advance live preview.
 However, the fourth shows the firmware restart-error screen despite passing
-829 transport checks. Fresh controls on the final guarded build also stall before the second
-descriptor submission, so native renewal with that added guard remains unqualified. These are unresolved native acceptance failures; transport counters
-and valid files alone do not qualify repeat shooting. High efficiency-star in
-this live-preview profile, default timing and Movie recovery remain separate.
+829 transport checks. Fresh controls with the per-input HE-count guard also stall before the second
+descriptor submission, so those controls did not qualify native renewal with the added guard. These controls remain failed native acceptance evidence; transport counters
+and valid files alone do not qualify repeat shooting.
+
+
+### Source readiness after capture cleanup
+
+The second request can be dropped before descriptor submission when a source
+ready notification arrives before the preceding capture clears it. A later
+source watchdog can then produce the restart-error screen. Restoring an event
+bit or suppressing the error would bypass the original capture admission.
+
+The explicit native finite live-preview profile now retains the capture pad's
+masked control state. While that envelope is asserted, completed preview pixels
+continue but do not publish a new second-bank source-ready bit four. The first
+completed output after release starts an ungated frame; the next completed
+output may publish readiness. This places the notification after capture
+cleanup. Short pad assertions between output ticks also invalidate that frame,
+and an unfinished current HE data/STOP owner keeps the boundary held.
+
+After that input's own HE data and STOP retire, the running preview source can
+resume its configured upper source boundaries. A newer prepared/armed input,
+frame/job mismatch, pending receiver, reset or stop keeps them held. Finite RAW
+DMA remains one frame per epoch. Source retirement and readiness ordering are
+separate from existing pending interrupts, W1C and RAW/LCD pixel output.
+
+This connection requires the native MCU, Photo, timed-single, HE receiver and
+finite live-single models. Other profiles retain their previous source events.
+`raw-pipeline-source-boundary-state` reports the masked pad, held boundary and
+deferred-frame count. The connection and frame pacing are functional models;
+the physical pad assignment and Nikon encoder arithmetic remain unverified.
+
+Longer controls also require the existing `backend-program-epoch-model=on`:
+replace the opaque configuration program after its original stopped reset,
+rather than append every exposure to a cumulative 64-word inspection buffer.
+That bound is an emulator inventory limit, not a measured hardware FIFO size.
+Program words remain opaque and no codec instructions are executed.
+
+
+The CLI exposes this combination as `--experimental-he-live-preview`, together
+with all four native HE and complete Movie device-profile options above. It
+selects preparation byte zero, finite live-single input, RAW input-pair
+completion and stopped-program replacement. The earlier HE preparation recipe
+retains byte one and its existing behavior. Mode switching stays disabled in
+both HE sessions.
+
+For four ordinary HE releases, use the command above with these replacements:
+
+```sh
+  --experimental-he-live-preview \
+  --contact-replay tools/native-he-live-contacts.json --virtual-seconds 136 --seconds 3600
+```
+
+This replay contains the stock date and RAW/ordinary-HE menu preparation,
+followed by separately declared half/full/full-release/half-release contacts.
+Use a fresh card and fresh Photo state; menu sequences are state dependent.
+
+
+The shared primary stop guard also recognizes the original Photo idle sequence:
+a C1 supplier may remain active while held. Only the observed `0x400e` request
+and hold, a current completed finite epoch, acknowledged HE data/STOP and the
+native live-Photo profile can use that exception. Its completed D980 writer
+cause may remain masked; the validated reset kick cancels only that exact
+masked status. Enabled IRQs, another status bit or unfinished input/HE work
+still refuse reset. The cancellation retains RAM bytes and never increments
+IRQ ACKs. Other pixel/receiver/IRQ guards and original W1C ownership remain.
+
+
+A fresh original-MAIN/EX control on the reset-corrected build completes eight
+ordinary HE captures at accelerated `icount shift=3`: all 783 transport checks
+pass, finite inputs/HE data/STOP ACKs each reach eight, and every release returns
+to ready Photo with advancing preview. It ends at 184.283921744 virtual seconds
+with 3,591 RAW / 5,131 LCD frames, one EX reset, zero bad frames and clean stop.
+A separate four-capture public replay at default `shift=0` passes 711 checks
+and ends ready with 2,242 RAW / 3,717 LCD frames, one EX reset and zero bad
+frames. That capture control precedes the isolated idle-only status-cancellation
+change; default-timing idle acceptance remains separate.
+
+The corrected accelerated idle-source control completes two captures, idles
+for 30 virtual seconds, cancels one retired masked writer status at the reset
+kick, then completes a third capture after half/release contacts. Its 911
+checks and clean stop pass, with all three data/STOP owners retired and preview
+advancing. EX also performs a second system reset during the long idle, while
+MAIN remains running. Uninterrupted controller continuity and idle power
+integration remain unqualified.
+
+All fifteen files from these three controls independently decode all 45,705,600
+RAW samples and all three JPEGs, equal their corresponding receiver strips,
+and have zero producer-input mismatches. Error against the fixed supplied
+synthetic frame remains maximum 26 and mean 3.0295569033116294 in 14-bit units.
+HE-star with this live-preview profile, Movie transition/recovery and physical
+sensor/ISP/encoder equivalence remain open.

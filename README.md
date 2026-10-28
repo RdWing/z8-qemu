@@ -57,7 +57,11 @@ cold restart reopens the same card and returns to Photo. An optional original EX
 shooting display and writes audited functional HE/HE★ files through a declared
 [original-EX contact replay](docs/native-he-stills.md#reproduce-original-ex-capture).
 Its explicit HE profile now returns to Photo without the reset error and
-passes three consecutive HE★ captures. Shared browser/native capture controls
+passes three consecutive HE★ captures. A separate opt-in ordinary-HE
+[live-preview profile](docs/native-he-stills.md#source-readiness-after-capture-cleanup)
+passes eight consecutive captures and a four-capture default-timing replay.
+Its long-idle control captures again, but an extra EX reset leaves controller
+continuity and idle power integration open. Shared browser/native capture controls
 use the same guarded contact queue; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
 preserved and freshly accepted by LibRaw and Adobe. See the
 [feature disposition and checks](docs/z63-backport.md) before enabling the
