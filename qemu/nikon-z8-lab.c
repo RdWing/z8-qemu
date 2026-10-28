@@ -7368,6 +7368,21 @@ static bool primary_d980_finite_input_owned(NikonZ8State *s)
            (s->engine150c_active & 0x4000);
 }
 
+static bool primary_d980_channel_clock_ready(NikonZ8State *s)
+{
+    if (!primary_d980_finite_input_owned(s)) {
+        return true;
+    }
+    /* The channel clock also advances the original photo frame countdown.
+     * Hold it until this exposure's complete DMA, then let the configured
+     * clock continue without another RAW transfer or source completion. */
+    return s->primary_d980_single_frames && !s->primary_d980_single_armed &&
+           s->primary_d980_single_epoch &&
+           s->primary_d980_single_epoch == s->primary_d980_input_epoch &&
+           !s->primary_reset_stage && !s->engine150c_stop_requested &&
+           !s->engine150c_stop_reset_asserted;
+}
+
 #include "nikon-expeed-programmed-clock.h"
 
 static void event_timing_expire(void *opaque)
@@ -7390,9 +7405,9 @@ static void event_timing_expire(void *opaque)
             statistics_tick(s);
         }
     }
-    /* Finite input owns RAW/source/channel0 completion. Configured output
-     * and diagnostic clocks are independent: retaining their old boundaries
-     * does not deliver another input frame or satisfy its source wait.
+    /* Finite input owns RAW/source completion. Channel0 waits for its DMA,
+     * then resumes as the photo frame clock. Configured output and diagnostic
+     * clocks do not deliver another input frame or satisfy its source wait.
      * Original input STOP/reset retires the finite owner. Default unchanged;
      * this separation is functional, not measured silicon timing. */
     raw_source_boundary_tick(s);
@@ -7415,13 +7430,13 @@ static void event_timing_expire(void *opaque)
         raw_pipeline_tick(s);
     }
     s->event_aux0_inputs++;
-    if (!primary_d980_finite_input_owned(s)) { s->event_channel_inputs++; }
+    if (primary_d980_channel_clock_ready(s)) { s->event_channel_inputs++; }
     /* Opt-in paired auxiliary boundaries. The original4115ab5c maps
      * bit0 to the stop wait1000; bit1 supplies the existing cycle2000.
      * Both follow this configured virtual source, never a guest PC. This
      * is a functional timing assumption, not measured sensor signaling. */
     s->event_aux0_pending |= s->event1508_aux_paired_boundary ? 3 : 2;
-    if (!primary_d980_finite_input_owned(s)) { s->event_pending_1508 |= 1; }
+    if (primary_d980_channel_clock_ready(s)) { s->event_pending_1508 |= 1; }
     programmed_clock_tick(s);
     event_aux0_update_irq(s);
     event_channel_update_irq(s);
@@ -18011,6 +18026,16 @@ static bool engine152c_stream_start(NikonZ8State *s)
     return true;
 }
 
+/* A completed finite input can coexist with a running preview source.
+ * Its epoch and armed state fence new RAW bytes independently of the shared
+ * primary enable. Keep the continuous receiver's drain contract separate. */
+static bool engine152c_he_source_drained(NikonZ8State *s)
+{
+    return !(s->engine150c_active & 0x4000) ||
+           (primary_d980_finite_input_owned(s) &&
+            primary_d980_channel_clock_ready(s));
+}
+
 /* Z8 C3.11 40c316c0 requests STOP after the finite HE ISR has retired
  * both data causes. Keep this separate from the continuous movie receiver:
  * the finite FIFO owns no movie descriptor or packet. A completed real HE
@@ -18030,7 +18055,7 @@ static bool engine152c_he_stop_control(NikonZ8State *s, hwaddr addr,
         s->engine152c_stream_requested || s->engine152c_stream_pending ||
         s->engine152c_he_stop_pending ||
         s->engine152c_he_acks<=s->engine152c_he_stop_requests ||
-        (s->engine150c_active&0x4000)) {
+        !engine152c_he_source_drained(s)) {
         unknown_access(s,addr,value,size,true);return true;
     }
     s->engine152c_he_stop_pending=true;s->engine152c_he_stop_requests++;
@@ -18043,7 +18068,7 @@ static void engine152c_he_stop_tick(NikonZ8State *s)
     if (!s->engine152c_he_stop_pending || s->engine152c_he_stop_done ||
         s->engine152c_he_pending || s->engine152c_request_pending ||
         s->engine152c_stream_pending || s->engine152c_stream_requested ||
-        (s->engine150c_active&0x4000)) { return; }
+        !engine152c_he_source_drained(s)) { return; }
     s->engine152c_he_stop_done=true;s->engine152c_he_stop_events++;
     s->engine152c_config[0][0xc/4]=0;s->engine152c_stream_pending|=8;
     engine152c_stream_irq_update(s);

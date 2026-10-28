@@ -60,8 +60,10 @@ def main():
             pass
         g=Guest();g.out=Path(temp);g.command=[];g.data={}
         attach(g)
-        assert len(g.data['synthetic_rom_inputs']['rows']) == 11
+        assert len(g.data['synthetic_rom_inputs']['rows']) == 12
         assert all((g.out/x['file']).is_file() for x in g.data['synthetic_rom_inputs']['rows'])
+        still = next(x for x in g.data['synthetic_rom_inputs']['rows'] if x['address'] == '0x47f63022')
+        assert (g.out/still['file']).read_bytes() == (1200).to_bytes(2, 'little')
     subprocess.run([sys.executable, str(ROOT/'tests/test_display_bank.py')], check=True)
     subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', str(ROOT/'tests'), '-p', 'test_timed_single.py'], check=True)
     print('PASS source syntax, entry points, dependency closure, ROM fixtures, card copying, region/serial/timed/lossless contracts, compressed-profile rejection and actual display renderer')

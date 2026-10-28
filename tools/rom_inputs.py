@@ -6,7 +6,10 @@ These are not factory calibration or recovered parameter tables.
 import hashlib,json,struct
 
 def attach(g):
- fields={0x47f62dd4:b'\x24\0',0x47f62f62:struct.pack('<H',1200),0x47f63922:struct.pack('<H',1200),0x47e8b568:b'\x01\0\0\0',0x47f5af40:b'\1\1'}
+ # Still preparation selects slot 1, subrow 3, adjacent to preview slot 0.
+ # Its missing timing unit produces a wrapped 65,536-frame plan. These
+ # matching synthetic units are functional inputs, not factory calibration.
+ fields={0x47f62dd4:b'\x24\0',0x47f62f62:struct.pack('<H',1200),0x47f63022:struct.pack('<H',1200),0x47f63922:struct.pack('<H',1200),0x47e8b568:b'\x01\0\0\0',0x47f5af40:b'\1\1'}
  for a in [0x45cffffc,0x460dfffc,0x46d7fffc,0x47bffffc,0x47f7fffc]:fields[a]=b'ENDM'
  group=bytearray(0x20000);group[0xb870]=20;group[0xb874]=4;group[0xb7e0]=88;group[0xb7e4]=77;group[-4:]=b'ENDM';fields[0x462e0000]=bytes(group)
  rows=[]

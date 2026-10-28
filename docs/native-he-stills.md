@@ -294,3 +294,49 @@ the combined preview control does not enter that handler during the observed
 interval. The interrupt prototypes remain excluded: a consumed notification
 and successful preview wait do not establish a capture-processing request.
 The next unresolved transition is the stock capture controller's producer path.
+
+
+### Capture countdown with live preview
+
+A screen-confirmed RAW L/High efficiency trace finds an earlier scheduling
+stall. The still preparation selects an external-ROM timing slot missing from
+the synthetic inputs. Adding the existing synthetic unit 1,200 to that slot
+changes a wrapped 65,536-frame plan to five frames. These values are functional
+model inputs, not recovered factory calibration.
+
+Finite RAW ownership also suppressed the periodic channel clock after its one
+complete DMA. The explicit live-single model now resumes that clock only after
+the current input epoch completes, with no request armed or reset/stop active.
+RAW DMA and source notifications remain finite. The native trace then counts
+five frames down to the original zero callback and advances capture state.
+One HE job produces 17,139,200 acknowledged bytes after one 80,017,920-byte
+input transfer. The initial clock-only run stops at receiver STOP before file creation or
+preview recovery; it is not an end-to-end capture pass.
+
+
+The receiver STOP guard now recognizes a drained current-epoch finite input
+while the shared preview unit remains enabled. It still requires acknowledged
+HE output, held receiver, no armed input, matching epoch, and no reset/stop or
+continuous-receiver owner. The screen-verified single-capture control uses accelerated
+`icount shift=3,sleep=on` and passes all 473 checks, has one input request/frame/attempt, zero waits/cancellations, one HE job
+and one acknowledged receiver STOP, one EX reset, zero bad frames and clean
+owned stop. RAW/LCD counters advance from 582/1,926 after capture to 819/2,163
+at the final sample, with the RAW L shooting screen visible.
+
+The guest-written High efficiency NEF is 17,898,496 initialized bytes, tag 13,
+with its 17,139,200-byte strip at byte 759,296. All 45,705,600 samples and the
+160×120, 640×424 and 8256×5504 JPEGs decode. The saved strip equals the actual
+receiver snapshot; all producer samples match the supplied synthetic source.
+Decoded maximum/mean absolute error is 26/3.0295569033116294 in 14-bit units.
+This control uses preparation input `0x45A403E7=0`, with
+`primary-d980-live-single-model=on` and `raw-pipeline-input-pair-model=on`
+in addition to the explicit native HE/shared models. The supported HE recipe
+keeps its existing preparation and live-single default. This qualifies one
+ordinary HE capture with continuing preview under the explicit accelerated
+profile, not physical imaging, default-timing acceptance or repeated use.
+
+A separate second-release check remains open: two descriptor submissions share
+one finite-input epoch/frame, and the later processing request rejects that
+consumed input. That run saves its first NEF but fails its final MMIO check.
+Do not count it as a second capture pass. High efficiency-star with this live
+preview profile and Movie recovery retain separate acceptance.
