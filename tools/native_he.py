@@ -18,7 +18,7 @@ def arguments(parser):
                             help='Explicit native HE synthetic profile; all four options, a card and original-EX contacts are required')
 
     parser.add_argument('--experimental-he-live-preview',action='store_true',
-                        help='Ordinary HE live-preview profile: preparation byte zero and guarded finite input/source/program epochs; requires all native HE options')
+                        help='HE/HE-star live-preview profile: preparation byte zero and guarded finite input/source/program epochs; requires all native HE options')
 
 def validate(args):
     chosen=[getattr(args,name,False) for name in OPTIONS]

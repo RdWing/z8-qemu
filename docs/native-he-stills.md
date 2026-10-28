@@ -442,19 +442,57 @@ with 3,591 RAW / 5,131 LCD frames, one EX reset, zero bad frames and clean stop.
 A separate four-capture public replay at default `shift=0` passes 711 checks
 and ends ready with 2,242 RAW / 3,717 LCD frames, one EX reset and zero bad
 frames. That capture control precedes the isolated idle-only status-cancellation
-change; default-timing idle acceptance remains separate.
+change; the later idle control below uses the reset-corrected binary.
 
 The corrected accelerated idle-source control completes two captures, idles
 for 30 virtual seconds, cancels one retired masked writer status at the reset
 kick, then completes a third capture after half/release contacts. Its 911
 checks and clean stop pass, with all three data/STOP owners retired and preview
 advancing. EX also performs a second system reset during the long idle, while
-MAIN remains running. Uninterrupted controller continuity and idle power
-integration remain unqualified.
+MAIN remains running. Read-only tracing places MAIN in the settings-write
+critical section while EX awaits its request completion. This accelerated
+control does not qualify controller continuity.
+
+A matching default-clock control completes two HE captures, then idles for
+35 virtual seconds. All 544 transport checks pass, with one startup EX reset,
+zero bad frames and a clean stop at 146.166611946 virtual seconds. MAIN
+finishes the settings write and reaches its parked shutdown state; EX disables
+the periodic request instead of expiring it. Both saved files pass full RAW,
+JPEG, producer and receiver audits. This control has no explicit MAIN-supply
+connection: half/release contacts leave MAIN parked, so wake and recapture
+remain unqualified. No timeout, response or reset behavior was overridden.
 
 All fifteen files from these three controls independently decode all 45,705,600
 RAW samples and all three JPEGs, equal their corresponding receiver strips,
 and have zero producer-input mismatches. Error against the fixed supplied
 synthetic frame remains maximum 26 and mean 3.0295569033116294 in 14-bit units.
-HE-star with this live-preview profile, Movie transition/recovery and physical
-sensor/ISP/encoder equivalence remain open.
+Movie transition/recovery and physical sensor/ISP/encoder equivalence remain
+open.
+
+A separate HE★ live-preview control completes three consecutive captures on
+the same reset-corrected binary. All 556 transport checks pass; each release
+returns to ready Photo with its finite input, data ACK and STOP ACK retired.
+The final sample at 119.285213056 virtual seconds has 1,639 RAW / 3,194 LCD
+frames, one startup EX reset and zero bad frames; the owned process stops
+cleanly. All three 29,324,800-byte NEFs have compression tag 14 and a
+28,565,504-byte RAW strip at offset 759,296. Each fully decodes 45,705,600
+samples and three JPEGs, matches its receiver strip and has zero producer-input
+mismatches. Error against the fixed synthetic frame is maximum 26 and mean
+3.0295569033116294 in 14-bit units.
+
+`tools/native-he-star-live-contacts.json` preserves those external actions,
+including the RAW/HE★ menu selection and three shutter cycles. Use it with
+`--experimental-he-live-preview` and the complete native HE options above.
+The first control used diagnostic `icount shift=3`. The same public replay
+at default `shift=0` now passes all 647 checks and completes three HE★ files
+with data/STOP ACKs retired and preview advancing after each capture. It ends
+ready at 122.029653671 virtual seconds with 1,822 RAW / 3,299 LCD frames, one
+startup EX reset, zero bad frames and clean stop. All three files pass the
+same full RAW, three-JPEG, producer and receiver audits described above.
+
+Movie remains unqualified in this combined profile. After two HE captures,
+Movie mode is entered and its input descriptor is submitted, but the pipeline
+does not start and returning the selector to Photo does not recover preview.
+Read-only model snapshots show continued source timing and acknowledged
+primary clock events, with no Movie receiver START. Adding another clock
+event did not resolve the failure and was discarded.
