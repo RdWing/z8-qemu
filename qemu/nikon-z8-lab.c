@@ -7508,11 +7508,13 @@ static char *get_event_channel_state(Object *obj, Error **errp)
     NikonZ8State *s = NIKON_Z8_LAB(obj);
     return g_strdup_printf("{\"enabled\":%s,\"pending\":%u,\"mask\":%u,"
         "\"irq\":%s,\"inputs\":%" PRIu64 ",\"acks\":%" PRIu64 ",\"timing_enabled\":%s,"
-        "\"timing_active\":%s,\"period_ns\":%" PRIu64 ",\"ticks\":%" PRIu64 ",\"source_clock_enabled\":%s,\"source_clock_running\":%s,\"source_ticks\":%"PRIu64",\"input_control\":%u,\"pixel_bytes\":0}",
+        "\"timer_armed\":%s,\"timing_active\":%s,\"period_ns\":%" PRIu64 ",\"ticks\":%" PRIu64 ",\"source_clock_enabled\":%s,\"source_clock_running\":%s,\"source_ticks\":%"PRIu64",\"input_control\":%u,\"pixel_bytes\":0}",
         s->event1508_channel_model ? "true" : "false", s->event_pending_1508, s->event_mask_1508,
         s->event1508_channel_model && (s->event_pending_1508 & s->event_mask_1508) ? "true" : "false",
         s->event_channel_inputs, s->event_channel_acks,
-        s->event1508_timing_model ? "true" : "false", s->event_timing_active ? "true" : "false",
+        s->event1508_timing_model ? "true" : "false",
+        s->event_timing_timer && timer_pending(s->event_timing_timer) ? "true" : "false",
+        s->event_timing_active ? "true" : "false",
         s->event_timing_period_ns, s->event_timing_ticks,
         s->z8_sensor_source_clock ? "true":"false",source_input_clock_running(s) ? "true":"false",
         s->z8_sensor_source_ticks,s->event_control_1508[3]);
@@ -12585,6 +12587,12 @@ static bool engine150c_control_write(NikonZ8State *s, hwaddr addr,
         s->engine150c_starts++;
         if (value & 0x40071) {
             s->primary_parameter_starts++;
+        }
+        if (s->z8_sensor_source_clock && (value & 2)) {
+            /* Reset may retire the timer before the source owner restarts.
+             * Reevaluate its existing clock after START, without enabling
+             * capture group 0 or delivering a frame/IRQ synchronously. */
+            event_timing_update(s);
         }
     }
     fprintf(stderr, "Z8_150C_CONTROL addr=%" HWADDR_PRIx " value=%" PRIx64

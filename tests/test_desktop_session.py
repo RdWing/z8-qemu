@@ -153,6 +153,13 @@ class DesktopSession(unittest.TestCase):
             args=desktop.command(dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie))
             for flag in ('he-still','preparation-profile','capture-selector5','timed-single'):
                 self.assertIn('--experimental-'+flag,args)
+            self.assertNotIn('--experimental-he-live-preview',args)
+            capture=dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie)
+            args=desktop.command(dict(capture,experimental_he_live_preview=True))
+            self.assertIn('--experimental-he-live-preview',args)
+            for changes in [dict(experimental_native_he=False),dict(experimental_he_live_preview='yes')]:
+                candidate=dict(capture,experimental_he_live_preview=True);candidate.update(changes)
+                with self.subTest(changes=changes),self.assertRaises(ValueError):desktop.command(candidate)
 
     def test_explicit_application_log_hook_forwards_to_both_launchers(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -20,7 +20,7 @@ FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_bounda
 
 
 def command(config):
-    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'mcu_adc_inputs', 'seconds', *FLAGS, *trace_plugin.KEYS}
+    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'experimental_he_live_preview', 'mcu_adc_inputs', 'seconds', *FLAGS, *trace_plugin.KEYS}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Unknown desktop configuration fields')
     native=bool(config.get('mcu'))
@@ -40,6 +40,10 @@ def command(config):
     if config.get('native_controls') and not native:raise ValueError('native_controls requires an mcu component')
     if type(config.get('experimental_native_he',False)) is not bool:
         raise ValueError('experimental_native_he must be true or false')
+    if type(config.get('experimental_he_live_preview',False)) is not bool:
+        raise ValueError('experimental_he_live_preview must be true or false')
+    if config.get('experimental_he_live_preview') and not config.get('experimental_native_he'):
+        raise ValueError('HE live preview requires experimental_native_he')
     if config.get('experimental_native_he'):
         movie=('experimental_shared221','experimental_boundary_inputs','experimental_yuv_channels',
                'experimental_movie_selector16','experimental_sensor_source_clock')
@@ -47,6 +51,8 @@ def command(config):
             raise ValueError('Native HE requires original EX contacts, a card and the complete experimental Movie profile')
         args += ['--experimental-he-still','--experimental-preparation-profile',
                  '--experimental-capture-selector5','--experimental-timed-single']
+        if config.get('experimental_he_live_preview'):
+            args += ['--experimental-he-live-preview']
 
     for key in ('firmware', 'qemu', 'raw', 'output'):
         value = config.get(key)

@@ -70,7 +70,7 @@ if not a.qemu.is_file() or not a.raw.is_file():p.error('QEMU and RAW paths must 
 if a.check_only:print('Original Z8 MAIN/EX and runtime paths verified.');raise SystemExit(0)
 contacts=ContactReplay(a.contact_replay) if a.contact_replay else None
 if native_capture and a.native_controls:
- contacts=ContactReplay(Path(__file__).with_name('native-he-setup-contacts.json'))
+ contacts=ContactReplay(native_he.setup_contacts(a))
 if a.native_controls:a.mcu_pins='G1=1:G13=1:G14=1:G15=1'+(':'+a.mcu_pins if a.mcu_pins else '')
 g=Guest(firmware,a.qemu,a.raw,a.output)
 trace_plugin.attach(g,trace_profile)

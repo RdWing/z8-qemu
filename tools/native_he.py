@@ -2,6 +2,7 @@
 # Copyright (C) 2026 RdWing
 """Explicit synthetic HE preparation for original MAIN/EX contact replays."""
 import json
+from pathlib import Path
 from movie_inputs import native_modes_enabled
 
 OPTIONS=('experimental_he_still','experimental_preparation_profile',
@@ -54,6 +55,11 @@ def attach(guest,args):
 def control_modes_enabled(args):
     """HE preparation and Movie preview have separate workflow qualification."""
     return native_modes_enabled(args) and not any(getattr(args,name,False) for name in OPTIONS)
+
+
+def setup_contacts(args):
+    name='native-he-star-live-setup-contacts.json' if getattr(args,'experimental_he_live_preview',False) else 'native-he-setup-contacts.json'
+    return Path(__file__).with_name(name)
 
 
 def capture_ready(guest,row):

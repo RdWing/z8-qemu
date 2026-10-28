@@ -490,9 +490,29 @@ ready at 122.029653671 virtual seconds with 1,822 RAW / 3,299 LCD frames, one
 startup EX reset, zero bad frames and clean stop. All three files pass the
 same full RAW, three-JPEG, producer and receiver audits described above.
 
-Movie remains unqualified in this combined profile. After two HE captures,
+The accelerated Movie control remains a failed diagnostic. After two HE captures,
 Movie mode is entered and its input descriptor is submitted, but the pipeline
 does not start and returning the selector to Photo does not recover preview.
 Read-only model snapshots show continued source timing and acknowledged
 primary clock events, with no Movie receiver START. Adding another clock
-event did not resolve the failure and was discarded.
+event did not resolve the failure and was discarded. Controls before an
+exposure, before HE menu setup and without HE profile options reproduce the
+stall at accelerated timing. At the normal clock, the combined profile before
+HE exposure produces 78 Movie frames with zero rejects, returns to Photo and
+passes 355 checks with clean stop. After two HE★ exposures at the default
+clock, a separate failure leaves the source timer unarmed following primary
+reset and START. The source-clock model now reevaluates its existing timer on
+an accepted source-unit START, preserving a pending deadline and capture-group
+enables. `event1508-channel-state.timer_armed` distinguishes scheduling from
+configured source eligibility. The repaired run completes and fully audits two
+HE★ files, passes 605 transport checks and stops cleanly. Source ticks resume,
+but Movie still receives no receiver START and Photo readiness does not return.
+The third exposure is therefore not attempted. This fixes clock rearming;
+post-HE Movie recovery remains open and its interactive controls stay gated.
+
+Desktop sessions can select this profile with `experimental_he_live_preview: true`
+alongside `experimental_native_he: true` and its existing dependencies. The
+automatic HE★ setup is the validated replay prefix ending with released
+contacts; exposures still require **Capture photo**. Configuration and setup
+contract tests cover forwarding, dependency checks and absence of a full-shutter
+action during setup.

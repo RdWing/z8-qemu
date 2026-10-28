@@ -10,6 +10,20 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 import native_he
 
 class NativeHE(unittest.TestCase):
+    def test_live_setup_is_a_replayed_prefix_without_shutter(self):
+        from native_contact_replay import ContactReplay
+        path=native_he.setup_contacts(SimpleNamespace(experimental_he_live_preview=True))
+        setup=ContactReplay(path).actions
+        full=ContactReplay(path.with_name('native-he-star-live-contacts.json')).actions
+        self.assertEqual(setup,full[:len(setup)])
+        self.assertLess(len(setup),len(full))
+        for row in setup:
+            self.assertNotIn('G13=0',row['value'])
+            if row['property']=='capture-gpio-input':self.assertNotEqual(row['value'],'3')
+        self.assertEqual(setup[-1]['property'],'capture-gpio-input')
+        self.assertEqual(setup[-1]['value'],'0')
+        self.assertEqual(native_he.setup_contacts(SimpleNamespace()).name,'native-he-setup-contacts.json')
+
     def test_explicit_profile_and_snapshot_ownership(self):
         values={name:True for name in native_he.OPTIONS}
         values.update(card='card.raw',contact_replay='contacts.json',

@@ -142,6 +142,12 @@ the explicit synthetic HE preparation/selector models and recovered sync wires;
 original EX produces the command and GPIO replies. It first navigates the stock
 date editor and RAW settings. Stop remains available during this preparation.
 
+Add `experimental_he_live_preview: true` to select the live-preview HE profile.
+Its stock setup selects RAW/HE★ and ends with the shutter released; no exposure
+is automatic. This is the same setup prefix used by the default-clock
+three-capture replay. The option requires `experimental_native_he: true`; the
+earlier capture profile remains available when it is omitted.
+
 HE capture sessions keep the Photo/Movie selector and native mode commands
 disabled. For the separately qualified Movie live-view workflow, start a
 session with `experimental_native_he: false`. The five shared/Movie options

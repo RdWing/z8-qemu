@@ -4,8 +4,8 @@
   "host_family": "macOS Apple Silicon",
   "full_fresh_qemu_build": true,
   "host_tests": {
-    "run": 87,
-    "pass": 86,
+    "run": 99,
+    "pass": 98,
     "skip_optional_legacy": 1
   },
   "actual_board_mmio_checks": 18,
@@ -392,8 +392,8 @@
       "physical_codec_equivalence": false
     },
     "host_suite": {
-      "tests": 97,
-      "passed": 96,
+      "tests": 99,
+      "passed": 98,
       "skipped": 1
     },
     "limits": [
@@ -476,6 +476,31 @@
       "explicit_main_supply_wire": false,
       "wake_recovery_qualified": false,
       "scope": "MAIN finishes settings persistence and parks; EX periodic request is disabled without extra reset"
+    },
+    "source_clock_restart": {
+      "qemu_sha256": "1a461191210670df732bfc5bf556d45efe7f9fbece80573f6d033015f85f4a2f",
+      "icount_shift": 0,
+      "transport_checks": 605,
+      "he_star_captures": 2,
+      "files_audited": 2,
+      "timer_armed": true,
+      "source_ticks_at_movie_checkpoint": 133,
+      "movie_checkpoint_virtual_seconds": 111.1195388,
+      "movie_receiver_starts": 0,
+      "movie_frames": 0,
+      "photo_return_qualified": false,
+      "third_capture_attempted": false,
+      "owned_qemu_stopped": true,
+      "scope": "Accepted source-owner START reschedules the existing clock without changing capture group enables or pending deadlines; Movie recovery remains open."
+    },
+    "desktop_live_setup": {
+      "explicit_option": "experimental_he_live_preview",
+      "requires_native_he": true,
+      "automatic_exposure": false,
+      "mode_controls_enabled": false,
+      "host_contracts_pass": true,
+      "app_build_and_signature_verified": true,
+      "new_native_window_test": false
     }
   }
 }
