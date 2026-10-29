@@ -10,6 +10,7 @@ https://learn.microsoft.com/en-us/windows/win32/fileio/exfat-specification
 """
 import errno
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,10 @@ from contextlib import contextmanager
 
 
 def extents(stream,length):
+    # SEEK_DATA/SEEK_HOLE move the descriptor independently of Python's read
+    # buffer. A buffered stream can then return stale bytes after seek().
+    if not isinstance(stream, io.FileIO):
+        raise ValueError('Sparse extent scans require an unbuffered file')
     position=0
     while position<length:
         try:start=os.lseek(stream.fileno(),position,os.SEEK_DATA)
@@ -113,7 +118,7 @@ def create(path,filesystem='blank'):
         struct.pack_into('<B3sB3sII',mbr,446,0,b'\x20\x21\x00',7,b'\xfe\xff\xff',offset//512,length//512)
         mbr[510:]=b'\x55\xaa'
         copied=[]
-        with partition.open('rb') as source,path.open('r+b') as target:
+        with partition.open('rb', buffering=0) as source,path.open('r+b') as target:
             target.write(mbr)
             for start,end in extents(source,length):
                 digest=hashlib.sha256();position=start
@@ -144,7 +149,7 @@ def audit(path):
     if os.name=='nt' or not path.is_file():
         raise ValueError('Existing regular card image required')
     before=path.stat();output=path.with_name(path.stem+'-after-volume.raw')
-    with path.open('rb') as source:
+    with path.open('rb', buffering=0) as source:
         mbr=source.read(512)
         if mbr[510:]!=b'\x55\xaa' or mbr[450]!=7:raise ValueError('expected generated exFAT partition')
         start,sectors=struct.unpack_from('<II',mbr,454);offset=start*512;length=sectors*512

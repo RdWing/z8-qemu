@@ -1,0 +1,42 @@
+[
+  {
+    "at": 16,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 16.4,
+    "property": "mcu-pins",
+    "value": "G1=1"
+  },
+  {
+    "at": 20,
+    "property": "mcu-contacts",
+    "value": "23.10=0"
+  },
+  {
+    "at": 30,
+    "property": "mcu-contacts",
+    "value": "22.12=0"
+  },
+  {
+    "at": 30.4,
+    "property": "mcu-contacts",
+    "value": "22.12=1"
+  },
+  {
+    "at": 40,
+    "property": "mcu-contacts",
+    "value": "22.12=0"
+  },
+  {
+    "at": 40.4,
+    "property": "mcu-contacts",
+    "value": "22.12=1"
+  },
+  {
+    "at": 50,
+    "property": "mcu-contacts",
+    "value": "23.10=1"
+  }
+]

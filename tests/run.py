@@ -6,6 +6,7 @@ import ast
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,18 @@ def main():
                      else [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
             assert all(n.split('.')[0] in allowed for n in names), (p.name, names)
     with tempfile.TemporaryDirectory(prefix='z8-tests-') as temp:
+        codec_flags = shlex.split(subprocess.check_output(
+            ['pkg-config', '--cflags', '--libs', 'glib-2.0', 'x264', 'x265', 'libavcodec', 'libavutil'], text=True))
+        codec_test = str(Path(temp)/'hevc-tier')
+        subprocess.run([os.environ.get('CC', 'cc'), '-Wall', '-Wextra', '-Werror',
+            '-Wno-unused-function', str(ROOT/'tests/verify_hevc_tier.c'),
+            *codec_flags, '-o', codec_test], check=True)
+        subprocess.run([codec_test], check=True)
+        decoder_test = str(Path(temp)/'video-decode')
+        subprocess.run([os.environ.get('CC', 'cc'), '-Wall', '-Wextra', '-Werror',
+            '-Wno-unused-function', str(ROOT/'tests/verify_video_decode.c'),
+            *codec_flags, '-o', decoder_test], check=True)
+        subprocess.run([decoder_test], check=True)
         for name in ['region', 'serial', 'lossless']:
             exe = Path(temp)/name
             flags = ['-fsanitize=address,undefined'] if name == 'lossless' else []
@@ -60,8 +73,10 @@ def main():
             pass
         g=Guest();g.out=Path(temp);g.command=[];g.data={}
         attach(g)
-        assert len(g.data['synthetic_rom_inputs']['rows']) == 11
+        assert len(g.data['synthetic_rom_inputs']['rows']) == 12
         assert all((g.out/x['file']).is_file() for x in g.data['synthetic_rom_inputs']['rows'])
+        still = next(x for x in g.data['synthetic_rom_inputs']['rows'] if x['address'] == '0x47f63022')
+        assert (g.out/still['file']).read_bytes() == (1200).to_bytes(2, 'little')
     subprocess.run([sys.executable, str(ROOT/'tests/test_display_bank.py')], check=True)
     subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', str(ROOT/'tests'), '-p', 'test_timed_single.py'], check=True)
     print('PASS source syntax, entry points, dependency closure, ROM fixtures, card copying, region/serial/timed/lossless contracts, compressed-profile rejection and actual display renderer')

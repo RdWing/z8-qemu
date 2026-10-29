@@ -4,10 +4,55 @@
  * A0/B0..2/F0..2 and bank0 descriptors. 40c2590c registers INTID6a.
  * Resampling, NV12/NV16 selection, ring pacing and frame bit0 are explicit
  * model assumptions; this does not emulate physical EXPEED processing. */
+/* The native finite-HE profile retains the original capture-pad envelope.
+ * Only a frame wholly outside that envelope may publish the next source
+ * boundary. Pixel output and already pending IRQ/W1C ownership are separate.
+ * This is a functional connection, not a measured physical pad assignment. */
+static void raw_pipeline_source_pad_write(NikonZ8State *s, uint32_t value)
+{
+    uint32_t mask = value >> 16;
+    s->raw_pipeline_source_pad = (s->raw_pipeline_source_pad & ~mask) | (value & mask);
+    if (s->raw_pipeline_source_pad & 0x80) {
+        s->raw_pipeline_source_gate_held = true;
+    }
+}
+
+static bool raw_pipeline_source_boundary_ready(NikonZ8State *s)
+{
+    bool owner = primary_d980_finite_input_owned(s) && s->native_mcu &&
+        s->z8_still && s->z8_timed_single_model && s->engine152c_he_still_model;
+    if (!owner) {
+        s->raw_pipeline_source_gate_held = false;
+        return true;
+    }
+    bool gated = (s->raw_pipeline_source_pad & 0x80) ||
+        (s->primary_d980_single_frames &&
+         (s->engine152c_he_jobs != s->primary_d980_single_frames ||
+          s->engine152c_he_acks != s->engine152c_he_jobs ||
+          s->engine152c_he_stop_acks != s->engine152c_he_jobs ||
+          s->engine152c_he_pending || s->engine152c_he_stop_pending));
+    bool ready = !gated && !s->raw_pipeline_source_gate_held;
+    s->raw_pipeline_source_gate_held = gated;
+    s->raw_pipeline_source_deferred_frames += !ready;
+    return ready;
+}
+
+static char *get_raw_pipeline_source_boundary_state(Object *obj, Error **errp)
+{
+    NikonZ8State *s = NIKON_Z8_LAB(obj);
+    return g_strdup_printf("{\"enabled\":%s,\"pad_control\":%u,\"held\":%s,"
+        "\"deferred_frames\":%" PRIu64 ",\"pixel_bytes\":0,"
+        "\"physical_binding_verified\":false,"
+        "\"scope\":\"functional completed-frame source notification after finite HE pad release; "
+        "pixel DMA and existing IRQ/W1C unchanged\"}",
+        s->primary_d980_live_single_model ? "true" : "false", s->raw_pipeline_source_pad,
+        s->raw_pipeline_source_gate_held ? "true" : "false", s->raw_pipeline_source_deferred_frames);
+}
+
 static void raw_pipeline_irq_update(NikonZ8State *s)
 {
     uint32_t pending = 0;
-    if (!s->engine1542_irq || !(s->raw_pipeline_model || s->video_preview_model)) { return; }
+    if (!s->engine1542_irq || !(s->raw_pipeline_model || s->video_preview_model || s->wave5_host_decoder_diagnostic)) { return; }
     for (unsigned i = 0; i < 15; i++) {
         unsigned off = i < 10 ? 0x18 : i < 13 ? 0x10 : i == 13 ? 0x14 : 0x50;
         pending |= s->engine1542_pending[i] & s->engine1542_config[i][off / 4];
@@ -27,14 +72,18 @@ static bool raw_pipeline_address(NikonZ8State *s, uint64_t encoded,
     return dma_ram_range(s, encoded, bytes);
 }
 
-/* Input timing is independent of IMPRSZ destination setup. Original ZR
- * 412aa7a0 maps primary subgroup1 bit29 to source wait400000; Z8 uses the
- * same cause at410b6ae8. No OS state is written by the device. This source
- * model produces no guest DMA, resize completion or saved RAW file. */
+/* Input timing is independent of IMPRSZ destination setup. C3.11's
+ * original40c1f7f4 collects subgroup1 at+210 into payload+4 and forwards
+ * it to the registered40cacdec callback. Bits29/30 here are functional
+ * upper-source boundaries; software flag masks and physical timing are
+ * not established by the notification alone. No OS state, guest DMA,
+ * resize completion or saved RAW file is supplied by this source model. */
 static void raw_source_boundary_receive(NikonZ8State *s, bool single_input)
 {
     if (!s->raw_source_boundary_model || !s->raw_pixels ||
-        (!single_input && (!source_input_clock_running(s) || primary_d980_finite_input_owned(s))) ||
+        (!single_input && (!source_input_clock_running(s) ||
+          (primary_d980_finite_input_owned(s) &&
+           !primary_d980_live_source_retired(s)))) ||
         s->primary_reset_stage) {
         return;
     }
@@ -576,11 +625,11 @@ static void raw_pipeline_tick(void *opaque)
         s->raw_pipeline_batches++;
     }
     raw_pipeline_irq_update(s);
-    /* Native255 CAPTG waits in410b6c50 for the second input's boundary.
-     * The original ISR supplies +210 in payload+4; PPC410b677c maps bit30
-     * to flag800000, and410b6ae8 maps bit29 to flag400000. Complete these
-     * two active upper paths after real output writes in this combined ISP.
-     * This is a functional frame boundary, not measured physical ISP timing. */
+    /* C3.11's original40c1f7f4 supplies+210 in payload+4 to the
+     * registered40cacdec callback. Complete these two active upper paths
+     * only after real output writes in this combined ISP. Notification
+     * consumption does not by itself establish a software wait-flag map
+     * or measured physical ISP framing/timing. */
     uint32_t primary = ((s->engine150c_active & 2) ? 0x20000000 : 0) |
                        ((s->engine150c_active & 0x10000) ? 0x40000000 : 0);
     primary &= s->engine_150c_init[0x20c / 4];
@@ -589,10 +638,11 @@ static void raw_pipeline_tick(void *opaque)
         s->raw_primary_events++;
         engine150c_stop_irq_update(s);
     }
-    /* Native4115a914..a974 consumes global1 bit4, dispatches the firmware's
+    /* The native second source-bank bit4 callback dispatches the firmware's
      * current sequence event and sets its stream boundary flag. The older
      * timing-only model supplied bit7 alone. Here bit4 follows real pixels. */
-    if (s->event1508_global1_model && (s->event_extended_1508[0x68 / 4] & 0x10)) {
+    if (s->event1508_global1_model && (s->event_extended_1508[0x68 / 4] & 0x10) &&
+        raw_pipeline_source_boundary_ready(s)) {
         s->event_global1_pending |= 0x10;
         s->event_global1_inputs++;
         event_global1_update_irq(s);

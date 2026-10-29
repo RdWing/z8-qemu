@@ -107,3 +107,88 @@ The twelve STOP checks use guest-recorded timer/interrupt values rather than
 host scheduling to establish clock isolation. The twenty-two supply checks
 include two cycles and the default unconnected negative control. Neither suite
 qualifies physical pin-to-rail wiring or original-firmware operation by itself.
+
+
+`tests/check_lpcm.py --qemu /path/to/qemu-system-aarch64 --output .local/new-lpcm-check`
+uses only synthetic data on the actual board. Its 190 assertions cover the
+explicit RAM aperture, all four PCM byte-width modes, original mailbox
+ownership and IRQ wires, malformed/unmapped inputs and reset cancellation.
+Run it again with a fresh output directory and `--disabled` for the three
+checks of the default-off boot gate. These checks do not establish recording,
+physical sample packing or native Movie playback.
+
+Sparse-card tests compare complete cloned/derived partition bytes and reject
+buffered extent scans. Extent queries change the underlying descriptor offset,
+so all sparse source reads use unbuffered files. A filesystem audit and media
+decoding are separate checks; neither implies the other.
+
+The source suite also compiles `tests/verify_hevc_tier.c` against the installed
+GLib, x264 and x265 development libraries. It checks actual VPS/SPS bytes for
+both HEVC tiers at levels 5.1 and 5.2, including the emulation-prevention bytes, and
+rejects invalid level/tier combinations. This covers encoder header signaling;
+native Movie parser admission and decoded playback require separate runs.
+
+`python3 tests/check_general_dma.py --qemu /path/to/qemu-system-aarch64 --output .local/new-general-dma-check`
+loads only synthetic RAM. Its 17 checks cover an identity transfer, an exact
+192,192-byte disjoint copy, canaries and status acknowledgement. Forward and
+backward partial overlaps, unmapped endpoints, an oversized identity span and
+an invalid source mode must leave memory unchanged and produce no completion.
+An identity transfer uses the same checked memory reads/writes as an ordinary
+copy. These checks do not establish native Movie playback or physical DMA timing.
+
+The opt-in saved-Movie decoder uses installed FFmpeg development libraries
+(`libavcodec` and `libavutil`). `tests/verify_video_decode.c` generates lossless
+HEVC and AVC streams from declared pixels and checks every decoded sample,
+parser drain and input bounds. It runs in the source suite.
+
+The actual-board regression requires an installed `ffmpeg` with `libx265`:
+
+```sh
+python3 tests/check_video_decode.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-video-decode-check
+```
+
+Its 457 checks generate their own 30-frame lossless stream. They verify actual
+RAM CRCs against the original pixels, row padding/canaries, absent auxiliary
+metadata, submission/completion timestamps, a programmed four-entry command
+queue, genuine queue-full rejection, display/reference backpressure, real
+stream end, replay and cancellation of all queued work by flush/reset. No
+Nikon inputs or saved media are required. Native workflow acceptance remains
+separate from these synthetic checks.
+
+`tests/check_video_playback.py` additionally needs NumPy. Its 44 actual-board
+checks generate a 4K lossless pattern, verify NV12 plane bytes and independent
+resize coordinates, preserve destination canaries and invalidate stale leases.
+Frame delivery reports input `0x11` plus the completed writer cause; only the
+subsequent explicit STOP reports `0x10000`. Flush/reset cancel blocked decoder
+work without a later DMA or interrupt. This keeps Movie frame and STOP
+ownership separate from the existing JPEG/NV16 contract.
+
+`tests/check_video_decode_disabled.py` needs no media generator. Its seven
+checks verify encoder-only advertised capabilities, immutable default-off
+decoding, rejected decoder creation, no instance, no DMA and no completion.
+
+Diagnostic-export cancellation includes the staging-creation window. SIGTERM
+sets a cancellation flag; the exporter checks it after entering the staging
+cleanup scope and between copy chunks, before atomic publication. A test
+requests cancellation immediately after the staging directory is created,
+verifying that it is removed and neither the source log nor destination changes.
+
+
+Audio output and repeated program loading have separate firmware-free actual-board checks:
+
+```sh
+python3 tests/check_audio_tx.py --qemu /path/to/qemu-system-aarch64 --output .local/new-audio-tx
+python3 tests/check_host_audio_output.py --qemu /path/to/qemu-system-aarch64 --output .local/new-host-audio
+python3 tests/check_backend_program.py --qemu /path/to/qemu-system-aarch64 --output .local/new-program-check
+```
+
+The 83 DMA assertions cover legacy and paired requests, actual source bytes,
+phase order, precise prefill/sample deadlines, cancellation, invalid descriptors
+and immutable boot mapping. The 11 host-output assertions check stereo 48-kHz
+WAV samples and file closure; `--backend auto` instead performs nine backend
+admission/ownership checks on the current host. The 53 program assertions
+exercise eight reset/replacement epochs, retained opaque words, no invented
+pixels/completions and strict default-off overflow. Native repeated workflows
+remain a separate gate. Publication checks reject WAV and raw PCM captures in
+tracked files and reachable history.

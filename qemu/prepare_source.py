@@ -120,7 +120,7 @@ def plan(source):
         raise ValueError('QEMU 11 ARM source-set marker not found')
     additions = "arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: files('nikon-z8-lab.c'))\n"
     additions += "arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: dependency('libjpeg', required: true))\n"
-    additions += "arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: [dependency('x264'), dependency('x265')])\n"
+    additions += "arm_common_ss.add(when: 'CONFIG_NIKON_Z8_LAB', if_true: [dependency('x264'), dependency('x265'), dependency('libavcodec'), dependency('libavutil')])\n"
     he_sources = sorted(p.relative_to(HERE).as_posix() for p in HERE.rglob('*.cpp'))
     additions += "if config_all_devices.has_key('CONFIG_NIKON_Z8_LAB')\n"
     additions += "  add_languages('cpp', required: true, native: false)\n"

@@ -71,6 +71,21 @@ all five `experimental_shared221`, `experimental_boundary_inputs`,
 have host-peer two-cycle acceptance and separate original-EX live-view/recovery
 acceptance; they do not qualify recording. See the [Movie checkpoint](../docs/z63-backport.md#movie-live-view-and-recovery-checkpoint).
 
+## Explicit wake fixture
+
+An original-EX configuration may set `experimental_main_supply_pin` to an
+explicit output such as `"C1"`. It is off by default. The C1 fixture also enables
+**Wake camera** and **Camera → Wake camera** after observed supply-off. A wake
+request pulses the declared external contact for 0.5 virtual seconds and waits
+for a new architectural reset, firmware readiness and fresh RAW/LCD frames. Other camera inputs stay
+paused; Stop remains available. Timeout reports an unconfirmed outcome without
+retry. Other pins retain CLI supply modeling without this wake-contact binding.
+
+This is an explicit functional supply/wake fixture: EX, card and RAM are retained.
+It does not establish physical power wiring or complete peripheral reset and
+fastboot behavior. [Native MCU documentation](../docs/native-mcu.md#stop-and-an-explicit-main-supply-fixture)
+records its qualification separately from cold Session restart.
+
 ## Checked and remaining
 
 The native macOS build, configuration rejection/recovery, 680px responsive
@@ -142,10 +157,18 @@ the explicit synthetic HE preparation/selector models and recovered sync wires;
 original EX produces the command and GPIO replies. It first navigates the stock
 date editor and RAW settings. Stop remains available during this preparation.
 
-HE capture sessions keep the Photo/Movie selector and native mode commands
-disabled. For the separately qualified Movie live-view workflow, start a
-session with `experimental_native_he: false`. The five shared/Movie options
-are dependencies of the HE model, not combined-preview qualification.
+Add `experimental_he_live_preview: true` to select the live-preview HE profile.
+Its stock setup selects RAW/HE★ and ends with the shutter released; no exposure
+is automatic. This is the same setup prefix used by the default-clock
+three-capture replay. The option requires `experimental_native_he: true`; the
+earlier capture profile remains available when it is omitted.
+
+The complete live-preview profile enables the Photo/Movie selector and native
+mode commands in the same capture session. Legacy HE preparation keeps them
+disabled. Capture holds the input lease until data/STOP acknowledgements retire
+and Photo readiness returns; mode changes cannot interleave with that lease.
+The 16-capture bound prevents another admission without trapping the final
+completed capture.
 
 After readiness, use **Capture photo**, **Camera → Capture photo**, or C in the
 workbench. One admitted capture holds/release the paired EX/MAIN contacts and
@@ -157,14 +180,25 @@ Capture results and per-capture sensor/receiver snapshots remain in session file
 use the [native HE audits](../docs/native-he-stills.md) after shutdown. Native
 photo export is available after Stop; see the export operation below.
 
-The native baseline check stopped startup at 2.502 virtual seconds, restarted
+An earlier preparation-profile baseline check stopped startup at 2.502 virtual seconds, restarted
 the same card, then completed three captures through the Camera menu, C and the
 browser button. All three saved NEFs independently pass full RAW/preview and
 producer/receiver audits. Playback shows the newly written `DSC_0003.NEF`
 through one 1,396,736-byte review job; half-shutter returns to the Photo UI.
-This HE profile retains the last preview on that return, so this check does
+That earlier HE profile retains the last preview on that return, so this check does
 not qualify fresh continuous Photo pixels. The session passes 372 checks,
 1,935 MAIN / 1,855 EX frames, zero checksum failures and clean owned shutdown.
+
+
+The live-preview desktop profile now completes HE★ → Movie → Photo, idle
+supply-off and native Wake camera, then HE★ → Movie → Photo → HE★ in the same
+session. Camera-menu actions, Cmd-1/Cmd-2 and the capture button share the
+interlock; controls disable during capture, wake and shutdown. All 1,041
+checks pass, with one startup EX reset, one supply cut/reset, zero bad frames
+and clean native Stop. All three saved files pass full RAW/JPEG and
+producer/receiver audits. The first post-reset RAW/LCD frames precede the later
+half-key, and the final wake gate waits for both fresh counters. This qualifies
+the explicit functional fixture, not physical wiring or recording.
 
 
 ## Export photos from a stopped card
@@ -430,3 +464,10 @@ another live-browser increase, with all contacts released and clean shutdown.
 The shared cancellation tests, 640px layout, disconnected state and signed app
 build pass. The new Camera-menu actions have build/bridge checks; their own
 native runtime clicks and restart persistence remain unqualified.
+
+
+The optional `experimental_movie_selector10` field forwards the additional
+synthetic recording-preparation input and requires all five Movie options.
+Its current [Record/Stop replay](../docs/native-mcu.md#movie-recording-preparation-frontier)
+qualifies input and preparation boundaries; saved-movie output and playback
+remain under development.

@@ -92,6 +92,20 @@ class DiagnosticExport(unittest.TestCase):
             with patch.object(logs,'open_regular',changed),self.assertRaisesRegex(ValueError,'changed'):logs.export_logs(session,dest)
             self.assertFalse(dest.exists());self.assertEqual(list(root.glob('.z8-log-export-*')),[])
 
+    def test_cancellation_during_staging_creation_cleans_owned_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);session,dest=self.setup_session(root)
+            (session/'stderr.log').write_bytes(b'unchanged')
+            original=logs.tempfile.mkdtemp
+            def cancel_after_mkdir(*args,**kwargs):
+                directory=original(*args,**kwargs)
+                logs.cancelled()
+                return directory
+            with patch.object(logs,'_cancel_requested',False), patch.object(logs.tempfile,'mkdtemp',cancel_after_mkdir):
+                with self.assertRaisesRegex(InterruptedError,'cancelled'):logs.export_logs(session,dest)
+            self.assertFalse(dest.exists());self.assertEqual(list(root.glob('.z8-log-export-*')),[])
+            self.assertEqual((session/'stderr.log').read_bytes(),b'unchanged')
+
     def test_cli_cancellation_cleans_staging_without_publishing(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);session,dest=self.setup_session(root)

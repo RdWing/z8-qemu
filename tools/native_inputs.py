@@ -11,11 +11,14 @@ CONTACTS={'menu':('mcu-contacts','23.6'),'down':('mcu-contacts','23.13'),
           'protect':('mcu-contacts','23.9'),'delete':('mcu-contacts','23.18')}
 
 class Inputs:
-    def __init__(self,qmp,*,allow_modes=False,allow_capture=False):
+    def __init__(self,qmp,*,allow_modes=False,allow_capture=False,allow_wake=False):
         self.qmp=qmp;self.allow_modes=allow_modes;self.held=None;self.release_at=0;self.next_at=0
-        self.allow_capture=allow_capture;self.capture=None;self.dial=None
+        self.allow_capture=allow_capture;self.capture=None;self.dial=None;self.allow_wake=allow_wake;self.wake=None
         self.by_offset={BUTTONS[name]:binding for name,binding in CONTACTS.items()}
     def release(self):
+        if self.wake:
+            self.qmp.command('qom-set',path='/machine',property='mcu-pins',value='G0=0')
+            self.wake['control'].finish_wake('Wake inputs cancelled.');self.wake=None
         if self.dial:
             self.dial.release();self.dial=None
         if self.capture:
@@ -28,6 +31,23 @@ class Inputs:
             self.qmp.command('qom-set',path='/machine',property=prop,value=contact+'=1')
             self.held=None
     def tick(self,control,virtual_seconds):
+        if self.wake:
+            current=self.wake
+            if not current['released'] and virtual_seconds>=current['at']+.5:
+                self.qmp.command('qom-set',path='/machine',property='mcu-pins',value='G0=0')
+                current['released']=True
+                return dict(kind='wake-release',virtual_seconds=virtual_seconds)
+            if (current['released'] and control.supply_resets>current['before'] and control.ready
+                    and not control.powered_down
+                    and control.info.get('sensor_frames',0)>current['raw']
+                    and control.info.get('display_frames',0)>current['lcd']):
+                control.finish_wake();self.wake=None;self.next_at=virtual_seconds+.25
+                return dict(kind='wake-complete',virtual_seconds=virtual_seconds)
+            if virtual_seconds>=current['at']+30:
+                self.release();control.finish_wake('Wake outcome is not confirmed. Check the camera display before retrying.')
+                self.next_at=virtual_seconds+.25
+                return dict(kind='wake-timeout',virtual_seconds=virtual_seconds)
+            return None
         if self.dial:
             event=self.dial.tick(virtual_seconds)
             if self.dial.finished:self.dial=None;self.next_at=virtual_seconds+.25
@@ -41,7 +61,8 @@ class Inputs:
                 self.qmp.command('qom-set',path='/machine',property='capture-gpio-input',value=main)
                 current['phase']+=1
                 return dict(kind='capture-contact',mcu_pins=pins,main_capture_gpio=main,virtual_seconds=virtual_seconds)
-            if current['phase']==4 and control.capture_completed_jobs>current['before']:
+            if (current['phase']==4 and control.capture_completed_jobs>current['before']
+                    and control.capture_retired):
                 control.finish_capture();self.capture=None;self.next_at=virtual_seconds+1
                 return dict(kind='capture-complete',virtual_seconds=virtual_seconds)
             if virtual_seconds>=current['at']+20:
@@ -63,6 +84,13 @@ class Inputs:
             self.dial=ModifiedDial(self.qmp,kind.removesuffix('-dial'),value,virtual_seconds)
             control.mark_sent()
             return dict(kind=kind+'-hold',virtual_seconds=virtual_seconds)
+        if kind=='wake':
+            if not self.allow_wake:raise ValueError('Native wake fixture is not enabled')
+            self.wake=dict(at=virtual_seconds,released=False,before=control.supply_resets,control=control,
+                           raw=control.info.get('sensor_frames',0),lcd=control.info.get('display_frames',0))
+            self.qmp.command('qom-set',path='/machine',property='mcu-pins',value='C5=0:G0=1')
+            control.mark_sent()
+            return dict(kind='wake-contact',virtual_seconds=virtual_seconds)
         if kind=='capture':
             if not self.allow_capture:raise ValueError('Native capture profile is not enabled')
             self.capture={'at':virtual_seconds,'phase':0,'before':control.capture_completed_jobs,'control':control}

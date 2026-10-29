@@ -33,7 +33,7 @@ class PlaybackResize(unittest.TestCase):
 #define BASE UINT64_C(0xa00000000)
 typedef uint64_t hwaddr;
 typedef struct {
- bool raw_pipeline_output_done,z8_e_armed,raw_histogram_luma;
+ bool raw_pipeline_output_done,z8_e_armed,raw_histogram_luma,wave5_host_decoder_diagnostic;
  uint32_t raw_histogram[3][256];uint64_t raw_histogram_samples,raw_histogram_frames;unsigned raw_histogram_source;
  bool z8_jdec_on,z8_playback_requested,z8_playback_active,z8_playback_output_valid,z8_jdec_output_valid[2];
  uint8_t *z8_playback_pixels;
@@ -45,6 +45,14 @@ typedef struct {
  uint64_t z8_playback_requests,z8_playback_jobs,z8_playback_bytes;
  unsigned z8_playback_outputs_armed;
 } NikonZ8State;
+/* This isolated suite exercises JPEG/NV16 only. Actual decoder ownership
+ * and NV12 DMA are covered by the actual-board controls. */
+static bool wave5_decoder_surface_valid(NikonZ8State*s,unsigned token,uint64_t epoch){
+ (void)s;(void)token;(void)epoch;return false;
+}
+static bool wave5_decoder_surface_find(NikonZ8State*s,uint64_t y,uint64_t uv,unsigned width,unsigned height,unsigned pitch,unsigned*token,uint64_t*epoch){
+ (void)s;(void)y;(void)uv;(void)width;(void)height;(void)pitch;(void)token;(void)epoch;return false;
+}
 static uint8_t ram[4096];
 static unsigned reads,writes,irq,invalid;
 static unsigned expected_reads,expected_writes,fail_write;

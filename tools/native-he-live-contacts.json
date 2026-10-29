@@ -1,0 +1,602 @@
+[
+  {
+    "at": 14.0,
+    "property": "mcu-contacts",
+    "value": "23.6=0"
+  },
+  {
+    "at": 14.25,
+    "property": "mcu-contacts",
+    "value": "23.6=1"
+  },
+  {
+    "at": 15.0,
+    "property": "mcu-contacts",
+    "value": "23.12=0"
+  },
+  {
+    "at": 15.25,
+    "property": "mcu-contacts",
+    "value": "23.12=1"
+  },
+  {
+    "at": 15.6,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 15.85,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 16.2,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 16.45,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 16.8,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 17.05,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 17.4,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 17.65,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 18.0,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 18.25,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 18.6,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 18.85,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 19.2,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 19.45,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 19.8,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 20.05,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 20.8,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 21.05,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 21.4,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 21.65,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 22.4,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 22.65,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 23.0,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 23.25,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 23.6,
+    "property": "mcu-contacts",
+    "value": "23.15=0"
+  },
+  {
+    "at": 23.85,
+    "property": "mcu-contacts",
+    "value": "23.15=1"
+  },
+  {
+    "at": 24.2,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 24.45,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 25.2,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 25.45,
+    "property": "mcu-pins",
+    "value": "G1=1"
+  },
+  {
+    "at": 26.100108,
+    "property": "mcu-contacts",
+    "value": "23.6=0"
+  },
+  {
+    "at": 26.700108,
+    "property": "mcu-contacts",
+    "value": "23.6=1"
+  },
+  {
+    "at": 28.109753,
+    "property": "mcu-pins",
+    "value": "G13=1:G1=1"
+  },
+  {
+    "at": 28.109753,
+    "property": "capture-gpio-input",
+    "value": "0"
+  },
+  {
+    "at": 30.109941,
+    "property": "mcu-contacts",
+    "value": "23.6=0"
+  },
+  {
+    "at": 30.709941,
+    "property": "mcu-contacts",
+    "value": "23.6=1"
+  },
+  {
+    "at": 32.110565,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 32.710565,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 33.610781,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 34.210781,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 35.11147,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 35.71147,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 36.61403,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 37.21403,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 38.115451,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 38.715451,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 39.618734,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 40.218734,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 41.120479,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 41.720479,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 42.623544,
+    "property": "mcu-contacts",
+    "value": "23.15=0"
+  },
+  {
+    "at": 43.223544,
+    "property": "mcu-contacts",
+    "value": "23.15=1"
+  },
+  {
+    "at": 44.125087,
+    "property": "mcu-contacts",
+    "value": "23.15=0"
+  },
+  {
+    "at": 44.725087,
+    "property": "mcu-contacts",
+    "value": "23.15=1"
+  },
+  {
+    "at": 45.627716,
+    "property": "mcu-contacts",
+    "value": "23.15=0"
+  },
+  {
+    "at": 46.227716,
+    "property": "mcu-contacts",
+    "value": "23.15=1"
+  },
+  {
+    "at": 47.128528,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 47.728528,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 48.629274,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 49.229274,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 50.138037,
+    "property": "mcu-contacts",
+    "value": "23.15=0"
+  },
+  {
+    "at": 50.738037,
+    "property": "mcu-contacts",
+    "value": "23.15=1"
+  },
+  {
+    "at": 51.640877,
+    "property": "mcu-contacts",
+    "value": "23.15=0"
+  },
+  {
+    "at": 52.240877,
+    "property": "mcu-contacts",
+    "value": "23.15=1"
+  },
+  {
+    "at": 53.141951,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 53.741951,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 54.644766,
+    "property": "mcu-contacts",
+    "value": "23.12=0"
+  },
+  {
+    "at": 55.244766,
+    "property": "mcu-contacts",
+    "value": "23.12=1"
+  },
+  {
+    "at": 56.147034,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 56.747034,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 57.648956,
+    "property": "mcu-contacts",
+    "value": "23.14=0"
+  },
+  {
+    "at": 58.248956,
+    "property": "mcu-contacts",
+    "value": "23.14=1"
+  },
+  {
+    "at": 59.151533,
+    "property": "mcu-contacts",
+    "value": "23.13=0"
+  },
+  {
+    "at": 59.751533,
+    "property": "mcu-contacts",
+    "value": "23.13=1"
+  },
+  {
+    "at": 60.653471,
+    "property": "mcu-contacts",
+    "value": "23.11=0"
+  },
+  {
+    "at": 61.253471,
+    "property": "mcu-contacts",
+    "value": "23.11=1"
+  },
+  {
+    "at": 62.15386,
+    "property": "mcu-contacts",
+    "value": "23.6=0"
+  },
+  {
+    "at": 62.75386,
+    "property": "mcu-contacts",
+    "value": "23.6=1"
+  },
+  {
+    "at": 64.155086,
+    "property": "mcu-pins",
+    "value": "G13=1:G1=1"
+  },
+  {
+    "at": 64.155086,
+    "property": "capture-gpio-input",
+    "value": "0"
+  },
+  {
+    "at": 67.155433,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 67.155433,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 69.158192,
+    "property": "mcu-pins",
+    "value": "G13=1:G1=1"
+  },
+  {
+    "at": 69.158192,
+    "property": "capture-gpio-input",
+    "value": "0"
+  },
+  {
+    "at": 72.159033,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 72.159033,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 74.16216,
+    "property": "mcu-pins",
+    "value": "G13=0"
+  },
+  {
+    "at": 74.16216,
+    "property": "capture-gpio-input",
+    "value": "3"
+  },
+  {
+    "at": 78.16223,
+    "property": "mcu-pins",
+    "value": "G13=1"
+  },
+  {
+    "at": 78.16223,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 80.164029,
+    "property": "mcu-pins",
+    "value": "G13=1:G1=1"
+  },
+  {
+    "at": 80.164029,
+    "property": "capture-gpio-input",
+    "value": "0"
+  },
+  {
+    "at": 85.165019,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 85.165019,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 87.165502,
+    "property": "mcu-pins",
+    "value": "G13=0"
+  },
+  {
+    "at": 87.165502,
+    "property": "capture-gpio-input",
+    "value": "3"
+  },
+  {
+    "at": 91.165617,
+    "property": "mcu-pins",
+    "value": "G13=1"
+  },
+  {
+    "at": 91.165617,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 93.165666,
+    "property": "mcu-pins",
+    "value": "G13=1:G1=1"
+  },
+  {
+    "at": 93.165666,
+    "property": "capture-gpio-input",
+    "value": "0"
+  },
+  {
+    "at": 103.168249,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 103.168249,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 105.169814,
+    "property": "mcu-pins",
+    "value": "G13=0"
+  },
+  {
+    "at": 105.169814,
+    "property": "capture-gpio-input",
+    "value": "3"
+  },
+  {
+    "at": 109.171053,
+    "property": "mcu-pins",
+    "value": "G13=1"
+  },
+  {
+    "at": 109.171053,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 111.173651,
+    "property": "mcu-pins",
+    "value": "G13=1:G1=1"
+  },
+  {
+    "at": 111.173651,
+    "property": "capture-gpio-input",
+    "value": "0"
+  },
+  {
+    "at": 116.175129,
+    "property": "mcu-pins",
+    "value": "G1=0"
+  },
+  {
+    "at": 116.175129,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 118.176422,
+    "property": "mcu-pins",
+    "value": "G13=0"
+  },
+  {
+    "at": 118.176422,
+    "property": "capture-gpio-input",
+    "value": "3"
+  },
+  {
+    "at": 122.178184,
+    "property": "mcu-pins",
+    "value": "G13=1"
+  },
+  {
+    "at": 122.178184,
+    "property": "capture-gpio-input",
+    "value": "1"
+  },
+  {
+    "at": 124.178211,
+    "property": "mcu-pins",
+    "value": "G13=1:G1=1"
+  },
+  {
+    "at": 124.178211,
+    "property": "capture-gpio-input",
+    "value": "0"
+  }
+]

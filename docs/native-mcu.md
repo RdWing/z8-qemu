@@ -47,7 +47,9 @@ The compatible MCU clock is 180 MHz, timer clocks 90 MHz, RTC starts at
 panel received one clear packet and zero line packets in the native run.
 The donor mechanical shutter is unarmed and its position pins are not driven.
 Exact physical chip identity/clock, remaining Z8 key/lens/power mappings, native
-continuous shooting, encoded recording, idle wake and physical top-panel timing remain unqualified.
+continuous shooting, encoded recording, physical wake wiring and top-panel timing
+remain unqualified. Functional idle wake with the explicit supply fixture is
+qualified below.
 Movie live view, normal Photo recovery and card-backed review have separate
 native acceptance below; the explicit HE profile also qualifies bounded full
 capture and recovery.
@@ -90,6 +92,7 @@ requires all five experimental Movie options below. Other buttons stay disabled.
 | Protect | expander `0x23`, bit 9 | `0x49` |
 | Delete | expander `0x23`, bit 18 | `0x45` |
 | Photo/Movie | expander `0x23`, bit 10; high/low | `0x57` |
+| Movie Record/Stop (replay) | expander `0x22`, bit 12 | `0x09` |
 
 Explicit idle inputs PG1/PG13/PG14/PG15 are high. Releasing PG14/PG15 clears
 report fields `0x6F/0x70`; leaving them low kept Menu blocked in the earlier
@@ -137,7 +140,9 @@ owner; attachment explicitly disables the host controller-GPIO reply model.
 A contact replay completed two 1,396,736-byte review transfers, with an early
 half-shutter return, Menu and a second half-shutter returning to fresh Photo
 frames. A later review entered UI mode 0 after about ten seconds; subsequent
-half/Menu contacts did not wake it. This is a separate idle-wake gap. Zoom, late-idle wake and full native controller parity remain unqualified.
+half/Menu contacts did not wake that unwired session. The explicit supply
+fixture below has separate idle-wake acceptance; review-specific late-idle wake,
+zoom and full native controller parity remain unqualified.
 The explicit HE still profile has separate repeated-capture acceptance below.
 
 Use `tools/native-movie-recovery-contacts.json` for the bounded Movie replay.
@@ -535,10 +540,10 @@ The finite check passes all 210 harness checks, with 429 MAIN / 396 EX frames,
 zero bad frames and clean owned shutdown. Before STOP clock gating, returning PC5 low does not resume
 MAIN, and the candidate wake pulse leaves the retained byte off. The STOP and
 explicit supply-fixture results below supersede that modeled limitation;
-physical power/reset wiring remains under investigation. No Power-on action or inferred reset wire is
-advertised. Use the separately qualified cold Session restart to start another
-workbench session. Electrical wake, fastboot and retained-memory behavior remain
-unqualified.
+physical power/reset wiring remains under investigation. Unwired sessions use
+the separately qualified cold Session restart. The explicit C1 fixture exposes
+a bounded Wake camera action below; it does not infer an electrical reset wire.
+Physical wake, fastboot and full retained-memory behavior remain unqualified.
 
 ## RTC alarm and wake events
 
@@ -614,8 +619,8 @@ PC assignment supplies restart; CPU reset uses the configured reset vector.
 
 The separately qualified cold Session restart remains available without this
 experimental connection. Physical wiring, complete MAIN peripheral-domain
-reset/retention and recording/capture across a power cycle retain separate
-gates.
+reset/retention and recording retain separate gates. Live-profile capture
+across one declared supply cycle is qualified below.
 
 A second original run uses the production CLI fixture for two cut/return cycles.
 Both architectural resets succeed; EX's startup reset count remains one. At
@@ -625,3 +630,175 @@ state responds to Menu after both restarts (6→1), and half returns it to 6 wit
 Photo/RAW recovery. Immediate contact snapshots do not independently qualify
 fully rendered Menu contents. The read-only counters report two supply cuts,
 two resets and four STOP entries/exits.
+
+### Desktop live-profile idle wake and recapture
+
+The desktop now forwards an explicit `experimental_main_supply_pin` through
+the native CLI validator. Only the C1 fixture enables the shared Wake camera
+button and AppKit command. Fresh observed supply-off admits one request:
+`C5=0:G0=1`, then `G0=0` after 0.5 virtual seconds. Ordinary controls remain
+paused until a newer supply reset, firmware readiness and both RAW/LCD frame
+counters advance beyond their pre-wake values. Cancel releases the pulse;
+a 30-virtual-second host deadline reports an unconfirmed outcome without retry.
+Unwired terminal pause remains sticky. Cold Session restart is separate.
+
+A native AppKit run at default timing completes HE★ → Movie → Photo, then
+idles into supply cut at 124.503192775 virtual seconds. Camera → Wake camera
+issues its contact at 141.419851278; original EX returns the supply at
+141.430237427 and MAIN boots through its architectural reset vector. RAW
+advances by 150.33544133 and LCD by 153.335520923 seconds, before the ordinary
+half-shutter contact at 153.734253573. No extra half-key is needed to produce
+those first fresh frames. The initial host gate had unlocked at 147.38605682
+on general firmware readiness; the final gate additionally requires fresh
+RAW/LCD progress so retained counters cannot unlock it early.
+
+Two further HE★ captures surround another Movie/Photo interval after wake.
+The last capture lease completes at 199.897558623 seconds. All three files
+pass complete RAW/three-JPEG, producer and receiver audits, with zero input
+mismatches and the established 26/3.0295569033116294 maximum/mean synthetic
+error. All 1,041 runtime checks pass. At clean native Stop the run retains one
+EX startup reset, one MAIN supply cut/reset, two STOP entries/wakes, zero bad
+frames, 2,946 RAW / 4,401 LCD frames and 362 functional Movie frames. Camera
+menu capture/mode/wake actions, Cmd-1/Cmd-2, the capture button and busy/stop
+control disabling were exercised. Physical power wiring, complete peripheral
+reset retention, recording and physical codec/timing equivalence remain open.
+
+A separate production replay verifies the final fresh-frame gate: idle-off at
+45.441170446 virtual seconds retains 999 RAW / 934 LCD frames. Wake is delivered
+at 45.816677446 and its contact released at 46.31753579. Controls remain paused
+through reset and firmware readiness until fresh counters reach 1,092 RAW /
+936 LCD frames; the lease completes at 57.758548423. All 347 checks pass with
+one supply cut/reset, one EX startup reset, zero bad frames and clean stop.
+This final-gate control makes no exposure and retains separate scope from the
+three audited desktop HE★ files.
+
+## Movie recording and saved-file playback
+
+`tools/native-movie-recording-contacts.json` enters Movie, presses/releases its
+Record key at virtual 30/30.4 seconds, sends a second press/release at 40/40.4
+and returns the selector to Photo at 50. The original EX input is expander
+`0x22` bit 12, serialized at report byte nine. Original MAIN consumes it into
+SW1 mask `0x2000` (`ID_SW1_MOVIE`). The bounded native input check observes
+press at 30.007462813 and release at 30.417624705 seconds.
+
+Recording preparation needs an additional explicit ROM input:
+`--experimental-movie-selector10` with all five Movie-profile options. It
+supplies index ten as one, without factory calibration. The original lookup
+uses a mode-derived index; its incoming argument five is a different value.
+Supplying the HE index-five byte does not repair the recording lookup. Without
+the index-ten input, CAPTG faults at `0x41170D84`; the later `0x15080014`
+unknown read is part of its diagnostic dump.
+
+With index ten supplied, the original driver reaches a 3840×2160 RGB header
+START. It programs all four rows with the same paired internal port tokens
+`0xE0000000` and `0xE0001680`, matching half the 11,520-byte supplier pitch.
+The model now admits this observed layout with strict geometry, complete
+configuration and paired-plane checks. The original `0x103` to `0x101` control
+RMW remains unchanged. The native continuation passes this header and reaches
+NR reset ID `0x4A`, bank eight bit 23. The explicit NR initialization/reset
+profile has separate continuation checks; no encoded movie, card closure or
+saved-file playback is qualified by these preparation results. The optional
+host codec receives zero commands in the earlier failed controls.
+
+
+The optional Wave5-compatible device now uses the original Z8 codec GIC
+interrupt, INTID 120. `wave5-irq=0` explicitly selects polling-only diagnostics;
+the binding cannot change after machine realization. This connection does not
+assert an interrupt until the device owns a completed command and enabled
+pending reason. The device and diagnostic host-codec backend remain opt-in.
+
+With the separate NR initialization/reset/configuration models and host codec
+enabled, native original MAIN/EX uploads a nonzero 1 MiB program buffer and
+configures 3840×2160 eight-bit HEVC at 30000/1001 fps with a 15-frame keyframe
+period. The connected original handler consumes nine completed commands and
+88 bytes of sequence headers. The comparison with no interrupt connection
+stops after sequence setup and later faults in the header consumer. Original
+code DMA does not establish vendor microcode execution: encoding is an
+explicit functional host backend.
+
+Two normal-clock, interrupt-connected controls stop cleanly at virtual 58
+seconds, but submit zero pictures and save no movie. Registering RAW-derived
+recording surfaces alone does not change that result. Header completion,
+encoded pictures, Stop/file finalization and native playback are separate
+acceptance boundaries; the latter three remain open.
+
+
+The opt-in `event1508-programmed-clock-model` now also admits the committed
+`0x00011000/0x00011020` waveform class. This uses the explicit source period,
+channel/group enables and independent pending/W1C ownership, just as the
+existing class does. Physical waveform phases remain unverified. Original
+recording uses channel 13; without its event the encoder input count remains
+zero even when recording surfaces exist.
+
+A normal-clock native comparison with this clock and the registered main
+output model reaches 112 actual 3840×2160 HEVC pictures by virtual 37 seconds,
+with 905,387 output bytes and zero codec rejections. The original firmware
+submits the picture requests; the explicit host codec reads the produced
+surfaces and writes its output ring. No file or task state is injected.
+The comparison subsequently stops on a finite preview START with the separate
+`video-preview-ram-model` disabled. Its stopped card has no movie file.
+Picture encoding is therefore a bounded functional result; thumbnail
+preparation, Record/Stop completion, card finalization and saved-file playback
+remain under test.
+
+
+Enabling the existing `video-preview-ram-model` passes that finite transfer
+boundary. A repeated-contact control completes two preview jobs and the
+original writer creates two fully initialized 524,304-byte MOV containers.
+Read-only extraction and independent `ffprobe` find zero media streams in
+both files. A shorter control sends Stop at virtual 34.5/34.9 seconds,
+encodes 58 pictures, completes one preview transfer and returns to Photo
+before a clean owned stop at 58 seconds; its saved MOV also has zero streams.
+These are original card writes, but neither file is playable.
+
+Tracing distinguishes video groups reaching the synchronization worker from
+its empty audio-source queue. The original source-miss limit remains intact
+and is reached during drain even in the shorter control. The on-chip LPCM
+conversion path has an earlier initialization failure in that profile.
+
+The optional `lpcm-host-conversion-model=on` implements its boot/message
+interface and actual signed little-endian sample-width conversion, with
+original TX/RX interrupts and acknowledgement ownership. It requires the
+separate `lpcm-ram-aperture-fixture=on`: the default 128 MiB windows miss the
+originally allocated conversion buffers. That fixture extends only the first
+read/write pairs to work-RAM size. It is declared boot input, not a measured
+camera map. Both properties are fixed at realization and default off.
+Original on-chip instructions are not executed.
+
+Audio remains an explicit external input. Enable `serial5-audio-config-model`
+and declare sample-register values through `serial5-audio-sample-input` after
+configuration is enabled. `serial5-pcm-state` identifies each ready original
+RX descriptor. Complete stereo LE32 blocks enter through
+`serial5-pcm-input=channel:phase:local:word-count:left:right`, with matching
+address, phase and length. The input writes real bytes before native DMA
+completion; absent input produces no audio packet. The tested source was
+48 kHz stereo with alternating signed constant blocks, not microphone audio.
+
+With these models, finite preview enabled and the existing recording profile,
+original EX Record/Stop completes six LPCM conversions and 31 encoded pictures.
+The original writer closes a fully initialized 976,533-byte MOV. Read-only
+extraction and independent full decoding find 30 HEVC frames at
+3840×2160, 30000/1001 fps, plus 48,048 stereo 24-bit PCM sample frames at
+48 kHz. Both tracks last 1.001 seconds. Every decoded audio pair matches the
+declared source. The stopped exFAT card passes its read-only filesystem check;
+Photo recovery and clean owned shutdown complete at virtual 58 seconds.
+A second cold boot of the publication-ready source repeats the same file size,
+track counts, duration and successful full decode/filesystem checks.
+This qualifies two short functional recordings, with synthetic image/audio and
+host codec/conversion backends. Longer/repeated recording, physical codec
+behavior and microphone/audio-output integration remain separate checks.
+
+Playback checks of the earlier Main-tier files recognize the MOV and its
+duration. The picture is black: the VPU trace reaches boot and capability query, with no
+created decode instance or decoded frame. The model advertises its implemented
+encoders only. Independent file decoding does not qualify native Movie
+playback. The later [saved-Movie profile](native-he-stills.md#saved-movie-video-playback) supplies separately validated native video and stereo PCM output; arbitrary formats remain unqualified.
+
+HEVC sequence configuration now preserves the requested tier and level in
+the host encoder's actual VPS/SPS. Earlier saved files used the host's Main-tier
+default, which the native Movie configuration parser rejects. The native
+recording request uses High tier at level 5.2. A fresh original Record/Stop
+saves a 976,632-byte MOV with that header, 30 decoded HEVC frames and 48,048
+stereo PCM sample frames. Both tracks last 1.001 seconds, full external
+decoding passes, every audio pair matches its declared input, and read-only
+exFAT checking passes. The later [saved-Movie profile](native-he-stills.md#saved-movie-video-playback) qualifies native parser admission, decoded display and stereo PCM output independently; two complete Record/save/play-with-audio/Photo cycles now pass 650 native checks; long recordings and physical audio remain unqualified.

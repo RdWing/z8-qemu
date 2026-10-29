@@ -74,8 +74,10 @@ int main(void) {
 #include <assert.h>
 #include <stdio.h>
 #include <inttypes.h>
-typedef struct { bool z8_timed_single_model,primary_d980_single_armed; uint32_t event_control_1508[4]; uint64_t primary_d980_frames,primary_d980_bytes,primary_d980_single_epoch; bool z8_still,video,finite; unsigned receives; } NikonZ8State;
+typedef struct { bool z8_timed_single_model,primary_d980_single_armed; uint32_t event_control_1508[4]; unsigned primary_d980_single_attempts;uint64_t primary_d980_frames,primary_d980_bytes,primary_d980_single_epoch; bool z8_still,video,finite; unsigned receives; } NikonZ8State;
 static void primary_d980_single_complete(NikonZ8State*s){(void)s;}
+static bool primary_d980_native_live_source(NikonZ8State*s){(void)s;return false;}
+static void primary_d980_single_cancel(NikonZ8State*s){(void)s;}
 static bool video_raw_descriptor(NikonZ8State*s) { return s->video; }
 static bool primary_d980_finite_input_owned(NikonZ8State*s) { return s->finite; }
 static bool primary_d980_receive(NikonZ8State*s,bool single)

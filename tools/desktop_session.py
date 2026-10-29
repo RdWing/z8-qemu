@@ -12,15 +12,17 @@ import threading
 import time
 import trace_plugin
 import native_adc
+from native_power import validate_supply_pin
 import qemu_preflight
+import movie_playback
 
 ROOT = Path(__file__).resolve().parents[1]
-FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
-         'experimental_yuv_channels', 'experimental_movie_selector16', 'experimental_sensor_source_clock')
+FLAGS = ('experimental_movie_playback', 'experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
+         'experimental_yuv_channels', 'experimental_movie_selector16', 'experimental_sensor_source_clock', 'experimental_movie_selector10')
 
 
 def command(config):
-    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'mcu_adc_inputs', 'seconds', *FLAGS, *trace_plugin.KEYS}
+    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'experimental_he_live_preview', 'mcu_adc_inputs', 'experimental_main_supply_pin', 'seconds', 'movie_audio_output', *FLAGS, *trace_plugin.KEYS}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Unknown desktop configuration fields')
     native=bool(config.get('mcu'))
@@ -34,12 +36,19 @@ def command(config):
         if type(config.get('native_controls',False)) is not bool:raise ValueError('native_controls must be true or false')
         args += ['--mcu',mcu]
         if config.get('native_controls'):args += ['--native-controls']
+    if 'experimental_main_supply_pin' in config:
+        if not native:raise ValueError('experimental_main_supply_pin requires an mcu component')
+        args += ['--experimental-main-supply-pin',validate_supply_pin(config['experimental_main_supply_pin'])]
     if 'mcu_adc_inputs' in config:
         if not native:raise ValueError('mcu_adc_inputs requires an mcu component')
         args += ['--mcu-adc-inputs',native_adc.validate(config['mcu_adc_inputs'])]
     if config.get('native_controls') and not native:raise ValueError('native_controls requires an mcu component')
     if type(config.get('experimental_native_he',False)) is not bool:
         raise ValueError('experimental_native_he must be true or false')
+    if type(config.get('experimental_he_live_preview',False)) is not bool:
+        raise ValueError('experimental_he_live_preview must be true or false')
+    if config.get('experimental_he_live_preview') and not config.get('experimental_native_he'):
+        raise ValueError('HE live preview requires experimental_native_he')
     if config.get('experimental_native_he'):
         movie=('experimental_shared221','experimental_boundary_inputs','experimental_yuv_channels',
                'experimental_movie_selector16','experimental_sensor_source_clock')
@@ -47,6 +56,8 @@ def command(config):
             raise ValueError('Native HE requires original EX contacts, a card and the complete experimental Movie profile')
         args += ['--experimental-he-still','--experimental-preparation-profile',
                  '--experimental-capture-selector5','--experimental-timed-single']
+        if config.get('experimental_he_live_preview'):
+            args += ['--experimental-he-live-preview']
 
     for key in ('firmware', 'qemu', 'raw', 'output'):
         value = config.get(key)
@@ -74,6 +85,16 @@ def command(config):
     for flag in ('experimental_boundary_inputs','experimental_sensor_source_clock'):
         if config.get(flag) and not config.get('experimental_shared221'):
             raise ValueError(flag+' requires experimental_shared221')
+    if config.get('experimental_movie_selector10') and not all(config.get(key) for key in (
+            'experimental_shared221','experimental_boundary_inputs','experimental_sensor_source_clock',
+            'experimental_yuv_channels','experimental_movie_selector16')):
+        raise ValueError('Recording selector10 requires the complete experimental Movie profile')
+    if 'movie_audio_output' in config:
+        if not (native and config.get('experimental_movie_playback')):
+            raise ValueError('Movie audio output requires native Movie playback')
+        args += ['--movie-audio-output',movie_playback.validate_audio_output(config['movie_audio_output'])]
+    if config.get('experimental_movie_playback') and not (native and config.get('experimental_playback')):
+        raise ValueError('Movie playback requires original EX and experimental_playback')
     if config.get('experimental_playback') and not config.get('card'):
         raise ValueError('Playback requires an existing card image')
     args += trace_plugin.cli_args(trace_plugin.configuration(config))

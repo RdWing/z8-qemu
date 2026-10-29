@@ -19,6 +19,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--qemu',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--polling-codec',action='store_true',help='Verify explicit irq=0 diagnostic override')
     args=p.parse_args();out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
     bios=out/'synthetic-a53.bin';bios.write_bytes(bytes.fromhex('00000014'))
     raw=out/'synthetic.raw'
@@ -33,6 +34,7 @@ def main():
     values['service-core-event-model']='off'
     values.update({k:'on' for k in json.loads((Path(__file__).resolve().parents[1]/'tools/capture-model-options.json').read_text())})
     values['capture-stream-rearm-model']='on'
+    if args.polling_codec:values['wave5-irq']='0'
     props=','.join(k+'='+v for k,v in values.items())
     q=proc=sock=stream=None
     report={'original_firmware_loaded':False,'qemu_sha256':hashlib.sha256(args.qemu.read_bytes()).hexdigest(),'checks':[]}
@@ -102,6 +104,14 @@ def main():
             verify('programmed clock available',state('event1508-programmed-clock-state')['enabled'])
             verify('Wave5 compatible identity',read(0x16011044)==0x5210)
             verify('Wave5 authored profile identity',read(0x16011040)==0x574c3556)
+            codec=state('wave5-vpu-state')
+            verify('codec binding creates no work or completion',
+                   codec['irq_number']==(0 if args.polling_codec else 120) and codec['commands']==0 and
+                   codec['completions']==0 and codec['pending']==0 and not codec['irq_asserted'])
+            rejected=False
+            try:q.command('qom-set',path='/machine',property='wave5-irq',value='121')
+            except RuntimeError:rejected=True
+            verify('codec interrupt binding is immutable after attachment',rejected)
             write(0x16010050,1)
             verify('Wave5 reset reaches device',read(0x16010050)==1 and not state('wave5-vpu-state')['booted'])
             # Upload only synthetic nonzero bytes to board-owned DSP load RAM.

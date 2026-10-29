@@ -123,12 +123,19 @@ class DesktopSession(unittest.TestCase):
             for changes in [dict(output=str(source)),dict(seconds=True),dict(seconds=3601),
                             dict(raw='relative'),dict(extra='unowned'),dict(experimental_playback=True),
                             dict(experimental_shared221='yes'),dict(native_controls=True),
-                            dict(experimental_sensor_source_clock=True),dict(experimental_boundary_inputs=True)]:
+                            dict(experimental_sensor_source_clock=True),dict(experimental_boundary_inputs=True),
+                            dict(experimental_main_supply_pin="C1"),dict(experimental_movie_selector10=True)]:
                 with self.subTest(changes=changes),self.assertRaises(ValueError):desktop.command(dict(config,**changes))
             args=desktop.command(dict(config,card=str(source),experimental_playback=True))
             self.assertIn('--experimental-playback',args)
             args=desktop.command(dict(config,mcu=str(source)))
             self.assertIn('--mcu',args);self.assertTrue(args[2].endswith('run_native.py'))
+            self.assertNotIn('--experimental-main-supply-pin',args)
+            args=desktop.command(dict(config,mcu=str(source),experimental_main_supply_pin='C1'))
+            self.assertEqual(args[args.index('--experimental-main-supply-pin')+1],'C1')
+            for pin in ('C16',True,None,'C1,other=on'):
+                with self.subTest(pin=pin),self.assertRaises(ValueError):
+                    desktop.command(dict(config,mcu=str(source),experimental_main_supply_pin=pin))
             args=desktop.command(dict(config,mcu=str(source),card=str(source)))
             self.assertIn('--card',args)
             with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True))
@@ -143,8 +150,19 @@ class DesktopSession(unittest.TestCase):
             args=desktop.command(dict(config,mcu=str(source),native_controls=True,**movie))
             self.assertIn('--native-controls',args)
             self.assertIn('--experimental-movie-selector16',args)
+            args=desktop.command(dict(config,mcu=str(source),native_controls=True,experimental_movie_selector10=True,**movie))
+            self.assertIn('--experimental-movie-selector10',args)
             args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,**movie))
             self.assertIn('--experimental-playback',args)
+            args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,experimental_movie_playback=True,**movie))
+            self.assertIn('--experimental-movie-playback',args)
+            audio=dict(config,mcu=str(source),card=str(source),experimental_playback=True,experimental_movie_playback=True,**movie)
+            args=desktop.command(dict(audio,movie_audio_output='none'))
+            self.assertEqual(args[args.index('--movie-audio-output')+1],'none')
+            for value in (True,'bad.wav,other=on'):
+                with self.subTest(audio=value),self.assertRaises(ValueError):desktop.command(dict(audio,movie_audio_output=value))
+            with self.assertRaises(ValueError):desktop.command(dict(config,movie_audio_output='none'))
+            with self.assertRaises(ValueError):desktop.command(dict(config,experimental_movie_playback=True))
             with self.assertRaises(ValueError):desktop.command(dict(config,experimental_native_he=True))
             for changes in [dict(native_controls=False),dict(card=None),dict(experimental_yuv_channels=False)]:
                 candidate=dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie)
@@ -153,6 +171,13 @@ class DesktopSession(unittest.TestCase):
             args=desktop.command(dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie))
             for flag in ('he-still','preparation-profile','capture-selector5','timed-single'):
                 self.assertIn('--experimental-'+flag,args)
+            self.assertNotIn('--experimental-he-live-preview',args)
+            capture=dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie)
+            args=desktop.command(dict(capture,experimental_he_live_preview=True))
+            self.assertIn('--experimental-he-live-preview',args)
+            for changes in [dict(experimental_native_he=False),dict(experimental_he_live_preview='yes')]:
+                candidate=dict(capture,experimental_he_live_preview=True);candidate.update(changes)
+                with self.subTest(changes=changes),self.assertRaises(ValueError):desktop.command(candidate)
 
     def test_explicit_application_log_hook_forwards_to_both_launchers(self):
         with tempfile.TemporaryDirectory() as temp:

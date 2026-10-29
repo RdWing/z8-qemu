@@ -6,7 +6,11 @@ def arguments(parser):
     parser.add_argument('--experimental-yuv-channels', action='store_true', help='Acknowledge empty YUV arm as ready, without DMA or completion')
     parser.add_argument('--experimental-movie-selector16', action='store_true', help='Synthetic external ROM selector16=index1; not factory coefficients')
 
+    parser.add_argument('--experimental-movie-selector10', action='store_true', help='Declared recording-preparation selector10=index1; requires complete Movie profile, not factory coefficients')
+
 def validate(args):
+    if getattr(args,'experimental_movie_selector10',False) and not native_modes_enabled(args):
+        raise ValueError('Recording selector10 requires the complete experimental Movie profile')
     for name in ('experimental_sensor_source_clock','experimental_boundary_inputs'):
         if getattr(args,name,False) and not args.experimental_shared221:
             raise ValueError('--'+name.replace('_','-')+' requires --experimental-shared221')
@@ -22,6 +26,11 @@ def attach(guest,args):
         selector=guest.out/'experimental-selector16.bin';selector.write_bytes(b'\x01')
         guest.command+=['-device',f'loader,file={selector},addr=0x47f5af50,force-raw=on']
         guest.data['experimental_movie_selector16']={'address':'0x47f5af50','value':1,'factory_calibration':False,'basis':'native selector16 underflows absent table record at 41170d84'}
+    if getattr(args,'experimental_movie_selector10',False):
+        guest.command[index]+=',backend-program-epoch-model=on'
+        selector=guest.out/'experimental-selector10.bin';selector.write_bytes(b'\x01')
+        guest.command+=['-device',f'loader,file={selector},addr=0x47f5af4a,force-raw=on']
+        guest.data['experimental_movie_selector10']={'address':'0x47f5af4a','value':1,'factory_calibration':False,'basis':'original recording preparation indexes external selector10 at 41170d5c'}
 
 def native_modes_enabled(args):
     return all(getattr(args,name,False) for name in ('experimental_shared221',

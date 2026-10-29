@@ -8,7 +8,7 @@ from test_shared221 import check
 class HEStop(unittest.TestCase):
     def test_stop_ownership(self):
         text=(ROOT/'qemu/nikon-z8-lab.c').read_text()
-        production='\n'.join(function(text,n) for n in ['engine152c_he_stop_control','engine152c_he_stop_tick'])
+        production='\n'.join(function(text,n) for n in ['engine152c_he_source_drained','engine152c_he_stop_control','engine152c_he_stop_tick'])
         check('''#include <stdbool.h>
 #include <stdint.h>
 #include <assert.h>
@@ -19,6 +19,9 @@ uint32_t engine152c_config[2][384],engine152c_stream_pending,engine150c_active;
 uint64_t engine152c_stream_timer;
 uint64_t engine152c_he_acks,engine152c_he_stop_requests,engine152c_he_stop_events;} NikonZ8State;
 static int rejects,irqs;
+static bool finite_owned,finite_clock;
+static bool primary_d980_finite_input_owned(NikonZ8State*s){(void)s;return finite_owned;}
+static bool primary_d980_channel_clock_ready(NikonZ8State*s){(void)s;return finite_clock;}
 #define QEMU_CLOCK_VIRTUAL 0
 static uint64_t qemu_clock_get_ns(int x){(void)x;return 0;}
 static void timer_mod(uint64_t t,uint64_t n){(void)t;(void)n;}
@@ -43,5 +46,17 @@ engine152c_he_stop_control(&s,0x152c000c,1,4);assert(rejects==5);
 s.engine152c_stream_pending=2;engine152c_he_stop_tick(&s);assert(!irqs&&s.engine152c_stream_pending==2);
 s.engine152c_stream_pending=0;engine152c_he_stop_tick(&s);assert(irqs==1&&s.engine152c_he_stop_events==1&&s.engine152c_stream_pending==8&&s.engine152c_config[0][3]==0);
 engine152c_he_stop_tick(&s);assert(irqs==1);
+/* Live preview enable is not an unfinished finite capture input. */
+s.engine150c_active=0x4000;finite_clock=true;
+assert(!engine152c_he_source_drained(&s));finite_owned=true;
+assert(engine152c_he_source_drained(&s));finite_clock=false;
+assert(!engine152c_he_source_drained(&s));finite_clock=true;
+s.engine152c_he_stop_done=false;s.engine152c_he_stop_pending=false;s.engine152c_stream_pending=0;
+s.engine152c_config[0][0x404/4]=1;s.engine152c_config[0][2]=1;
+s.engine152c_he_acks=2;
+engine152c_he_stop_control(&s,0x152c000c,1,4);
+assert(s.engine152c_he_stop_requests==2&&s.engine152c_he_stop_pending);
+engine152c_he_stop_tick(&s);assert(irqs==2&&s.engine152c_stream_pending==8);
+assert(s.engine150c_active==0x4000);
 return 0;}
 ''')

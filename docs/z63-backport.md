@@ -523,3 +523,15 @@ shutdown acceptance through explicit contact replay. Returning its level does
 not restart MAIN; a separate EX wake-candidate output response does not join a
 reset/power domain. The [native power boundary](native-mcu.md#native-main-switch-shutdown-input)
 keeps this result separate from cold workbench restart and full power parity.
+
+
+The opt-in ordinary-HE live-preview profile now passes eight consecutive
+captures and a separate four-capture default-timing replay. Source-ready
+notifications follow capture cleanup, and upper source boundaries resume after
+the current finite HE/STOP retires. The narrow held-Photo reset also cancels its
+own masked completed-writer status, allowing capture after a 30-second idle.
+All fifteen files across the three controls pass full RAW, preview and matching
+producer/receiver audits. The idle control records an extra EX system reset;
+uninterrupted MCU continuity, default-timing idle, HE★ live preview and Movie
+transition/recovery remain open. See the
+[control scope and reproduction](native-he-stills.md#source-readiness-after-capture-cleanup).
