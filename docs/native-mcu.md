@@ -92,6 +92,7 @@ requires all five experimental Movie options below. Other buttons stay disabled.
 | Protect | expander `0x23`, bit 9 | `0x49` |
 | Delete | expander `0x23`, bit 18 | `0x45` |
 | Photo/Movie | expander `0x23`, bit 10; high/low | `0x57` |
+| Movie Record/Stop (replay) | expander `0x22`, bit 12 | `0x09` |
 
 Explicit idle inputs PG1/PG13/PG14/PG15 are high. Releasing PG14/PG15 clears
 report fields `0x6F/0x70`; leaving them low kept Menu blocked in the earlier
@@ -670,3 +671,31 @@ through reset and firmware readiness until fresh counters reach 1,092 RAW /
 one supply cut/reset, one EX startup reset, zero bad frames and clean stop.
 This final-gate control makes no exposure and retains separate scope from the
 three audited desktop HE★ files.
+
+## Movie recording preparation frontier
+
+`tools/native-movie-recording-contacts.json` enters Movie, presses/releases its
+Record key at virtual 30/30.4 seconds, sends a second press/release at 40/40.4
+and returns the selector to Photo at 50. The original EX input is expander
+`0x22` bit 12, serialized at report byte nine. Original MAIN consumes it into
+SW1 mask `0x2000` (`ID_SW1_MOVIE`). The bounded native input check observes
+press at 30.007462813 and release at 30.417624705 seconds.
+
+Recording preparation needs an additional explicit ROM input:
+`--experimental-movie-selector10` with all five Movie-profile options. It
+supplies index ten as one, without factory calibration. The original lookup
+uses a mode-derived index; its incoming argument five is a different value.
+Supplying the HE index-five byte does not repair the recording lookup. Without
+the index-ten input, CAPTG faults at `0x41170D84`; the later `0x15080014`
+unknown read is part of its diagnostic dump.
+
+With index ten supplied, the original driver reaches a 3840×2160 RGB header
+START. It programs all four rows with the same paired internal port tokens
+`0xE0000000` and `0xE0001680`, matching half the 11,520-byte supplier pitch.
+The model now admits this observed layout with strict geometry, complete
+configuration and paired-plane checks. The original `0x103` to `0x101` control
+RMW remains unchanged. The native continuation passes this header and reaches
+NR reset ID `0x4A`, bank eight bit 23. The explicit NR initialization/reset
+profile has separate continuation checks; no encoded movie, card closure or
+saved-file playback is qualified by these preparation results. The optional
+host codec receives zero commands in the earlier failed controls.

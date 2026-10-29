@@ -464,3 +464,10 @@ another live-browser increase, with all contacts released and clean shutdown.
 The shared cancellation tests, 640px layout, disconnected state and signed app
 build pass. The new Camera-menu actions have build/bridge checks; their own
 native runtime clicks and restart persistence remain unqualified.
+
+
+The optional `experimental_movie_selector10` field forwards the additional
+synthetic recording-preparation input and requires all five Movie options.
+Its current [Record/Stop replay](../docs/native-mcu.md#movie-recording-preparation-frontier)
+qualifies input and preparation boundaries; saved-movie output and playback
+remain under development.

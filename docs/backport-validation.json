@@ -609,5 +609,50 @@
       "captures": 0,
       "scope": "Final production gate holds ordinary controls until reset, readiness and both frame counters advance"
     }
+  },
+  "original_ex_movie_recording_preparation": {
+    "record_input": {
+      "expander": "0x22",
+      "bit": 12,
+      "report_byte": "0x09",
+      "main_switch_mask": "0x2000",
+      "press_virtual_seconds": 30.007462813,
+      "release_virtual_seconds": 30.417624705
+    },
+    "selector_input": {
+      "option": "experimental_movie_selector10",
+      "address": "0x47f5af4a",
+      "value": 1,
+      "actual_mode_index": 10,
+      "factory_calibration": false
+    },
+    "header": {
+      "width": 3840,
+      "height": 2160,
+      "rgb_pitch": 11520,
+      "internal_planes": [
+        "0xe0000000",
+        "0xe0001680"
+      ],
+      "same_ports_in_all_four_rows": true,
+      "strict_owner_checks": true,
+      "native_continuation_verified": true
+    },
+    "next_boundary": {
+      "pc": "0x40c2d90c",
+      "address": "0x0d154248",
+      "value": "0x800000",
+      "reset_id": "0x4a",
+      "bank": 8,
+      "bit": 23,
+      "host_codec_commands": 0
+    },
+    "host_tests": 105,
+    "host_passed": 104,
+    "host_optional_skips": 1,
+    "record_stop_replay": "tools/native-movie-recording-contacts.json",
+    "encoded_output_qualified": false,
+    "saved_file_playback_qualified": false,
+    "scope": "Original Record input and preparation/header admission only; native NR reset continuation is being investigated"
   }
 }

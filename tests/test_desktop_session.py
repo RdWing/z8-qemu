@@ -124,7 +124,7 @@ class DesktopSession(unittest.TestCase):
                             dict(raw='relative'),dict(extra='unowned'),dict(experimental_playback=True),
                             dict(experimental_shared221='yes'),dict(native_controls=True),
                             dict(experimental_sensor_source_clock=True),dict(experimental_boundary_inputs=True),
-                            dict(experimental_main_supply_pin="C1")]:
+                            dict(experimental_main_supply_pin="C1"),dict(experimental_movie_selector10=True)]:
                 with self.subTest(changes=changes),self.assertRaises(ValueError):desktop.command(dict(config,**changes))
             args=desktop.command(dict(config,card=str(source),experimental_playback=True))
             self.assertIn('--experimental-playback',args)
@@ -150,6 +150,8 @@ class DesktopSession(unittest.TestCase):
             args=desktop.command(dict(config,mcu=str(source),native_controls=True,**movie))
             self.assertIn('--native-controls',args)
             self.assertIn('--experimental-movie-selector16',args)
+            args=desktop.command(dict(config,mcu=str(source),native_controls=True,experimental_movie_selector10=True,**movie))
+            self.assertIn('--experimental-movie-selector10',args)
             args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,**movie))
             self.assertIn('--experimental-playback',args)
             with self.assertRaises(ValueError):desktop.command(dict(config,experimental_native_he=True))

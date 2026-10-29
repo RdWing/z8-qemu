@@ -17,7 +17,7 @@ import qemu_preflight
 
 ROOT = Path(__file__).resolve().parents[1]
 FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
-         'experimental_yuv_channels', 'experimental_movie_selector16', 'experimental_sensor_source_clock')
+         'experimental_yuv_channels', 'experimental_movie_selector16', 'experimental_sensor_source_clock', 'experimental_movie_selector10')
 
 
 def command(config):
@@ -84,6 +84,10 @@ def command(config):
     for flag in ('experimental_boundary_inputs','experimental_sensor_source_clock'):
         if config.get(flag) and not config.get('experimental_shared221'):
             raise ValueError(flag+' requires experimental_shared221')
+    if config.get('experimental_movie_selector10') and not all(config.get(key) for key in (
+            'experimental_shared221','experimental_boundary_inputs','experimental_sensor_source_clock',
+            'experimental_yuv_channels','experimental_movie_selector16')):
+        raise ValueError('Recording selector10 requires the complete experimental Movie profile')
     if config.get('experimental_playback') and not config.get('card'):
         raise ValueError('Playback requires an existing card image')
     args += trace_plugin.cli_args(trace_plugin.configuration(config))

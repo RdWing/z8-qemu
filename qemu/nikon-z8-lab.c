@@ -15167,11 +15167,16 @@ static bool engine1543_video_ready(NikonZ8State *s, unsigned j)
      * RGB row 5760 / aligned supplier pitch 5888. All four low/high pairs
      * still must match; these tokens remain internal ports, never CPU RAM. */
     if (alternate != UINT64_C(0xe000f780) && alternate != UINT64_C(0xe0043800) &&
-        alternate != UINT64_C(0xe000e100)) {
+        alternate != UINT64_C(0xe000e100) && alternate != UINT64_C(0xe0000000)) {
         return false;
     }
     if (alternate==UINT64_C(0xe000e100) &&
         (a[0x4c/4]!=1920 || a[0x50/4]!=1080 || a[0x38/4]!=5888)) { return false; }
+    /* Original C3.11 Record preparation programs one shared internal port
+     * across all four rows at 3840x2160. These are FIFO tokens, not aliased
+     * CPU DMA buffers; keep every plane pair and supplier/source guard. */
+    if (alternate==UINT64_C(0xe0000000) &&
+        (a[0x4c/4]!=3840 || a[0x50/4]!=2160 || a[0x38/4]!=11520)) { return false; }
     const uint64_t bases[4] = {
         UINT64_C(0xe0000000), alternate, UINT64_C(0xe0000000), alternate
     };
