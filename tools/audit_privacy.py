@@ -21,7 +21,7 @@ COMPILED = {name: re.compile(pattern) for name, pattern in PATTERNS.items()}
 PRIVATE_SUFFIXES = {'.bi', '.bin', '.raw', '.nef', '.dng', '.jpg', '.jpeg', '.png',
                     '.ppm', '.mov', '.mp4', '.pcap', '.pcapng', '.p12', '.pfx',
                     '.key', '.pem', '.zip', '.dmg', '.cdr', '.sqlite', '.db', '.log',
-                    '.so', '.dylib', '.dll', '.a', '.exe', '.lib'}
+                    '.wav', '.s32le', '.s24le', '.so', '.dylib', '.dll', '.a', '.exe', '.lib'}
 PRIVATE_PARTS = {'.local', '.aws', '.ssh', '.codex', '.env', '.git-credentials', 'AGENTS.md'}
 
 

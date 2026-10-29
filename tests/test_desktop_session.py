@@ -156,6 +156,12 @@ class DesktopSession(unittest.TestCase):
             self.assertIn('--experimental-playback',args)
             args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,experimental_movie_playback=True,**movie))
             self.assertIn('--experimental-movie-playback',args)
+            audio=dict(config,mcu=str(source),card=str(source),experimental_playback=True,experimental_movie_playback=True,**movie)
+            args=desktop.command(dict(audio,movie_audio_output='none'))
+            self.assertEqual(args[args.index('--movie-audio-output')+1],'none')
+            for value in (True,'bad.wav,other=on'):
+                with self.subTest(audio=value),self.assertRaises(ValueError):desktop.command(dict(audio,movie_audio_output=value))
+            with self.assertRaises(ValueError):desktop.command(dict(config,movie_audio_output='none'))
             with self.assertRaises(ValueError):desktop.command(dict(config,experimental_movie_playback=True))
             with self.assertRaises(ValueError):desktop.command(dict(config,experimental_native_he=True))
             for changes in [dict(native_controls=False),dict(card=None),dict(experimental_yuv_channels=False)]:

@@ -7,6 +7,8 @@
  * Deliberately independent of the frozen Z7 board and its CPU/GIC patches.
  */
 #include "qemu/osdep.h"
+#include "qemu/audio.h"
+#include "system/system.h"
 #include "qemu/cutils.h"
 #include <math.h>
 #include "qapi/error.h"
@@ -412,6 +414,16 @@ struct NikonZ8State {
     unsigned serial5_pcm_phase[5];
     uint64_t serial5_pcm_blocks[5], serial5_pcm_words[5], serial5_pcm_irqs[5];
     bool serial5_tx_drain_model;
+    unsigned serial5_tx_drain_phase;
+    bool serial5_tx_drain_prefilled;
+    GByteArray *serial5_pcm_capture;
+    char *serial5_audio_output_id;
+    Notifier serial5_audio_exit;
+    bool serial5_audio_exit_registered;
+    AudioBackend *serial5_audio_backend;
+    SWVoiceOut *serial5_audio_voice;
+    GByteArray *serial5_host_pcm;
+    uint64_t serial5_host_pcm_bytes;
     QEMUTimer *serial5_tx_drain_timer;
     GChecksum *serial5_tx_drain_hash;
     uint64_t serial5_tx_drain_bytes, serial5_tx_drain_jobs;
@@ -1117,6 +1129,7 @@ struct NikonZ8State {
     uint32_t core1b_config[0x44 / 4];
     bool lpcm_host_conversion_model, lpcm_realized;
     bool lpcm_ram_aperture_fixture;
+    bool serial5_playback_ram_aperture_fixture;
     QEMUTimer *core1b_boot_timer;
     uint64_t core1b_boot_requests,core1b_boot_responses;
     uint64_t general_dma_fill[8];
@@ -1687,6 +1700,13 @@ static void provision_bus_windows(NikonZ8State *s)
                  * This is boot input, not a measured physical-camera map. */
                 if (group == 0 && entry >= 14) {
                     words[1] = UINT64_C(0xfe0000000);
+                }
+                /* Explicit lab boot map: retain main-RAM receive/tone aliases
+                 * while reserving one read/write port for playback buffers.
+                 * ARM constructs its own software table from these registers.
+                 * No physical-camera aperture identity is asserted. */
+                if(s->serial5_playback_ram_aperture_fixture && group==0 && bank==1) {
+                    words[2]=(entry==12 || entry==13)?UINT64_C(0x78000000):UINT64_C(0x200000000);
                 }
                 if (s->lpcm_ram_aperture_fixture && group==10 && entry<4) {
                     words[1]=(UINT64_C(1)<<36)-MACHINE(s)->ram_size;
@@ -5921,6 +5941,10 @@ static void core1b_boot_written(NikonZ8State *s,unsigned off)
     fprintf(stderr,"Z8_LPCM_BOOT request=%"PRIu64" program_nonzero=%u; functional ABI, no ISA execution\n",s->core1b_boot_requests,nonzero);
     timer_mod(s->core1b_boot_timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+1000000);
 }
+static bool get_serial5_playback_aperture(Object *obj,Error **errp)
+{ return NIKON_Z8_LAB(obj)->serial5_playback_ram_aperture_fixture; }
+static void set_serial5_playback_aperture(Object *obj,bool value,Error **errp)
+{ NikonZ8State*s=NIKON_Z8_LAB(obj);if(s->lpcm_realized) { error_setg(errp,"immutable playback RAM aperture");return; }s->serial5_playback_ram_aperture_fixture=value; }
 static bool get_lpcm_ram_aperture(Object *obj,Error **errp)
 { return NIKON_Z8_LAB(obj)->lpcm_ram_aperture_fixture; }
 static void set_lpcm_ram_aperture(Object *obj,bool value,Error **errp)
@@ -21965,6 +21989,12 @@ static void nikon_z8_init(MachineState *machine)
     if (s->lpcm_ram_aperture_fixture && (!s->bootstrap_fixtures || !s->bus_window_fixture)) {
         error_report("LPCM RAM aperture requires explicit bootstrap and bus-window fixtures"); exit(1);
     }
+    if(s->serial5_playback_ram_aperture_fixture && (!s->bootstrap_fixtures || !s->bus_window_fixture)) {
+        error_report("playback RAM aperture requires bootstrap and bus-window fixtures");exit(1);
+    }
+    if(s->serial5_audio_output_id && !s->serial5_tx_drain_model) {
+        error_report("host audio output requires the explicit TX model");exit(1);
+    }
     s->lpcm_realized=true;
     if (s->bus_window_fixture) {
         if (!s->bootstrap_fixtures) {
@@ -23509,6 +23539,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "capture-thumbnail-nv16-model", get_capture_thumbnail_model, set_capture_thumbnail_model);
     object_class_property_add_bool(oc,"video-preview-ram-model",get_video_preview_model,set_video_preview_model);
     object_class_property_add_bool(oc,"lpcm-ram-aperture-fixture",get_lpcm_ram_aperture,set_lpcm_ram_aperture);
+    object_class_property_add_bool(oc,"serial5-playback-ram-aperture-fixture",get_serial5_playback_aperture,set_serial5_playback_aperture);
     object_class_property_add_bool(oc,"lpcm-host-conversion-model",get_lpcm_host_conversion_model,set_lpcm_host_conversion_model);
     object_class_property_add_str(oc,"lpcm-host-state",get_lpcm_host_state,NULL);
     object_class_property_add_str(oc,"video-preview-ram-state",get_video_preview_state,NULL);
@@ -23572,6 +23603,8 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc,"serial5-pcm-state",get_serial5_pcm_state,NULL);
     object_class_property_add_bool(oc,"serial5-tx-drain-model",get_serial5_tx_drain_model,set_serial5_tx_drain_model);
     object_class_property_add_str(oc,"serial5-tx-drain-state",get_serial5_tx_drain_state,NULL);
+    object_class_property_add_str(oc,"serial5-tx-pcm-capture",get_serial5_pcm_capture,NULL);
+    object_class_property_add_str(oc,"serial5-audio-output",get_serial5_audio_output,set_serial5_audio_output);
     object_class_property_add_str(oc, "graphics-state", get_graphics_state, NULL);
 };
 
@@ -23585,6 +23618,11 @@ static void nikon_z8_finalize(Object *obj)
     if (s->serial_write_peer_timer) { timer_free(s->serial_write_peer_timer); }
     if (s->serial5_tx_drain_timer) { timer_free(s->serial5_tx_drain_timer); }
     if (s->serial5_tx_drain_hash) { g_checksum_free(s->serial5_tx_drain_hash); }
+    if(s->serial5_pcm_capture) { g_byte_array_unref(s->serial5_pcm_capture); }
+    if(s->serial5_audio_exit_registered) { qemu_remove_exit_notifier(&s->serial5_audio_exit); }
+    if(s->serial5_audio_voice) { audio_be_close_out(s->serial5_audio_backend,s->serial5_audio_voice); }
+    if(s->serial5_host_pcm) { g_byte_array_unref(s->serial5_host_pcm); }
+    g_free(s->serial5_audio_output_id);
     if (s->audio_register_map) { g_hash_table_destroy(s->audio_register_map); }
     if (s->serial_write_peer_source_hash) { g_checksum_free(s->serial_write_peer_source_hash); }
     if (s->serial_write_peer_wire_hash) { g_checksum_free(s->serial_write_peer_wire_hash); }

@@ -173,3 +173,22 @@ sets a cancellation flag; the exporter checks it after entering the staging
 cleanup scope and between copy chunks, before atomic publication. A test
 requests cancellation immediately after the staging directory is created,
 verifying that it is removed and neither the source log nor destination changes.
+
+
+Audio output and repeated program loading have separate firmware-free actual-board checks:
+
+```sh
+python3 tests/check_audio_tx.py --qemu /path/to/qemu-system-aarch64 --output .local/new-audio-tx
+python3 tests/check_host_audio_output.py --qemu /path/to/qemu-system-aarch64 --output .local/new-host-audio
+python3 tests/check_backend_program.py --qemu /path/to/qemu-system-aarch64 --output .local/new-program-check
+```
+
+The 83 DMA assertions cover legacy and paired requests, actual source bytes,
+phase order, precise prefill/sample deadlines, cancellation, invalid descriptors
+and immutable boot mapping. The 11 host-output assertions check stereo 48-kHz
+WAV samples and file closure; `--backend auto` instead performs nine backend
+admission/ownership checks on the current host. The 53 program assertions
+exercise eight reset/replacement epochs, retained opaque words, no invented
+pixels/completions and strict default-off overflow. Native repeated workflows
+remain a separate gate. Publication checks reject WAV and raw PCM captures in
+tracked files and reachable history.

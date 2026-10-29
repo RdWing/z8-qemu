@@ -22,6 +22,7 @@ class MovieProfile(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             guest=SimpleNamespace(out=Path(temp),command=['qemu','-M','nikon-z8-full-lab'],data={})
             movie_inputs.attach(guest,args)
+            self.assertIn('backend-program-epoch-model=on',guest.command[guest.command.index('-M')+1])
             self.assertEqual((guest.out/'experimental-selector10.bin').read_bytes(),b'\x01')
             self.assertIn('addr=0x47f5af4a',guest.command[-1])
             self.assertFalse(guest.data['experimental_movie_selector10']['factory_calibration'])

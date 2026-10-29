@@ -889,5 +889,21 @@
       "flush_reset_cancel_pending": true
     },
     "default_off_board_checks": 7
+  },
+  "saved_movie_audio_output": {
+    "default_enabled": false,
+    "native_cli_profile": "--experimental-movie-playback",
+    "host_output_option": "--movie-audio-output auto|none|NEW.wav",
+    "format": "48000 Hz stereo signed LE32 peripheral PCM; host WAV PCM16 mixer output",
+    "synthetic_dma_checks": 83,
+    "synthetic_wav_checks": 11,
+    "mac_auto_backend_checks": 9,
+    "program_replacement_checks": 53,
+    "saved_file_audio_bytes_exact": 384384,
+    "native_new_recording_audio_prefix_exact": true,
+    "native_final_dma_padding": "original player supplies zero padding",
+    "repeated_record_play_photo_cycles_qualified": false,
+    "remaining_gate": "public-profile fresh-card repeated cycles running",
+    "physical_audio_verified": false
   }
 }

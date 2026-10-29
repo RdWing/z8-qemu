@@ -30,6 +30,8 @@ class Privacy(unittest.TestCase):
                 self.assertIn(expected, [x[0] for x in findings])
                 self.assertNotIn(data.decode(errors='replace'), repr(findings))
         self.assertIn(('private input/output filename', 0), inspect('removed.NEF', b''))
+        for name in ('host.wav','capture.s32le','capture.s24le'):
+            self.assertIn(('private input/output filename',0),inspect(name,b''))
         self.assertEqual(inspect('example.json', b'{"sha256":"' + b'a'*64 + b'"}'), [])
 
     def test_removed_content_and_historical_payload_names_are_still_checked(self):

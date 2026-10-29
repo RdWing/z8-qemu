@@ -27,6 +27,7 @@ def attach(guest,args):
         guest.command+=['-device',f'loader,file={selector},addr=0x47f5af50,force-raw=on']
         guest.data['experimental_movie_selector16']={'address':'0x47f5af50','value':1,'factory_calibration':False,'basis':'native selector16 underflows absent table record at 41170d84'}
     if getattr(args,'experimental_movie_selector10',False):
+        guest.command[index]+=',backend-program-epoch-model=on'
         selector=guest.out/'experimental-selector10.bin';selector.write_bytes(b'\x01')
         guest.command+=['-device',f'loader,file={selector},addr=0x47f5af4a,force-raw=on']
         guest.data['experimental_movie_selector10']={'address':'0x47f5af4a','value':1,'factory_calibration':False,'basis':'original recording preparation indexes external selector10 at 41170d5c'}

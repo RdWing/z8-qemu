@@ -593,10 +593,33 @@ frame delivery reports input `0x11`; its later explicit STOP reports
 MOV; the correctly derived volume passes read-only exFAT checking. These
 results use declared synthetic imaging/audio inputs and optional models.
 
-Native audio TX remains open. The saved MOV's audio decodes externally and
-the native player completes two LPCM conversions per play, but its alternate
-FIFO descriptors currently submit a zero source address. The bounded TX sink
-consumes no bytes for that unsupported request. No audible native playback,
-physical codec behavior, or general acceptance of arbitrary Movie formats is
-claimed. The decoder's default-off gate and video acceptance do not qualify
-that remaining audio path.
+The same explicit profile now enables native stereo PCM output. A declared
+boot aperture lets the original driver translate its playback buffers while
+preserving recording and sound-buffer aliases. Independent DMA requests
+27/28 consume actual mapped RAM in phase order. The first block prefills after
+one virtual millisecond; subsequent blocks use their declared 48-kHz stereo
+LE32 duration. STOP resets phase/prefill ownership. Invalid, duplicate,
+missing-phase or unmapped descriptors produce no completion. This is a
+functional output clock, not measured silicon timing or FIFO capacity.
+
+The one-second saved-file control transmits all 384,384 decoded audio bytes
+bit-exact. A fresh Record/Stop/save/play/Photo cycle also delivers every saved
+audio sample unchanged; the original player zero-pads its final DMA block.
+Its host WAV contains all nonzero saved samples in the original stereo order.
+Repeated recording exposed an unrelated cumulative program-inspection buffer;
+the Movie profile now enables the existing bounded reset/replacement model
+instead of appending programs across resets. Full repeated-cycle acceptance
+is being rerun before merge.
+
+`--movie-audio-output auto` selects QEMU's default host backend. Use `none` for
+peripheral-only checks, or a new `.wav` path in an existing directory for
+repeatable host output. Existing files and symlinks are rejected. Desktop
+session configuration accepts the equivalent `movie_audio_output` field.
+The host queue is bounded to 2 MiB; unavailable output does not retire the DMA.
+The session's finite TX budget remains 16 MiB and 1,024 descriptors. Raw PCM
+capture is available only through an explicit diagnostic getter and is excluded
+from normal state snapshots. Keep captured audio private.
+
+Generated-input checks verify actual WAV sample order and exit finalization;
+a separate Mac check opens the automatic host backend. No physical codec,
+microphone, speaker-quality or arbitrary Movie-format qualification is claimed.
