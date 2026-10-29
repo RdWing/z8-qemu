@@ -18063,7 +18063,9 @@ static bool engine152c_stream_start(NikonZ8State *s)
     if (!s->engine152c_stream_model || s->engine152c_stream_requested ||
         s->engine152c_stream_pending || s->engine152c_request_pending ||
         c[0] || c[1] || c[2] || c[0x404/4] || c[0x14/4]!=1 || d[0x38/4]!=1 ||
-        c[0x52c/4] || c[0x530/4] || c[0x534/4] || c[0x544/4] ||
+        c[0x52c/4] ||
+        (c[0x530/4] && !(c[0x530/4]==1 && s->video_raw_he_codec_model)) ||
+        c[0x534/4] || c[0x544/4] ||
         c[0x100/4]!=1 || c[0x104/4]!=1 || c[0x108/4] ||
         !c[0x548/4] || !c[0x54c/4] || ((c[0x548/4]|c[0x54c/4])&1) ||
         d[0x14/4]!=c[0x548/4] || d[0x1c/4]!=c[0x54c/4] ||
@@ -23589,6 +23591,10 @@ static void z8_sensor_source_tick(NikonZ8State *s)
      * decide whether anything is produced. Never re-enable the capture group. */
     s->z8_sensor_source_ticks++;
     raw_source_boundary_tick(s);primary_d980_tick(s);
+    if (!primary_d980_finite_input_owned(s)) {
+        engine150c_bit2_pulse(s);
+        engine150c_bit6_pulse(s);
+    }
     if (s->raw_pipeline_output_done && s->raw_pipeline_model) {
         if (s->z8_raw_owed<2) { s->z8_raw_owed++; }
         raw_pipeline_tick(s);

@@ -507,8 +507,34 @@ enables. `event1508-channel-state.timer_armed` distinguishes scheduling from
 configured source eligibility. The repaired run completes and fully audits two
 HE★ files, passes 605 transport checks and stops cleanly. Source ticks resume,
 but Movie still receives no receiver START and Photo readiness does not return.
-The third exposure is therefore not attempted. This fixes clock rearming;
-post-HE Movie recovery remains open and its interactive controls stay gated.
+The third exposure was therefore not attempted in that timer-only control.
+
+The next normal-clock control reaches the original encoder START, exposing a
+separate admission error: Movie explicitly programs continuous mode zero with
+encoder selector one, while the model accepted only selector zero. Selector
+one is now admitted only with the experimental functional HE transport. The
+existing geometry, buffer-range/non-overlap, fresh-input and ownership checks
+remain. Configured primary bit2/bit6 notifications also follow the surviving
+source clock outside finite HE ownership; they remain explicit functional
+inputs, not measured sensor signals. A paired-global-boundary alternative
+failed to recover Movie and is excluded.
+
+With both corrections, a fresh original-MAIN/EX run at default `shift=0`
+completes two HE★ captures, enters Movie, returns to ready Photo and completes
+a third HE★ capture with advancing preview. It passes all 757 checks. Movie
+has 95 encoded/decoded frames at 111.118335384 virtual seconds and 97 by
+Photo return at 119.118466843 seconds, with zero encoder/decoder rejects.
+After the third release at 132.121557543 seconds, Photo is ready, all three
+finite inputs and HE data/STOP acknowledgments are retired, and RAW/LCD frame
+counts are 1,941/3,414. There is one startup EX reset, zero bad frames and a
+clean owned-process stop. All three HE★ files pass the full RAW, three-JPEG,
+producer and receiver audits above, with the same bounded synthetic-input
+error. No guest instruction, RAM flag, timeout or response is patched.
+
+This qualifies one post-HE Movie/Photo cycle followed by recapture under the
+explicit experimental profile. Repeated mixed-mode cycles, desktop combined
+mode controls, MAIN supply/wake integration, playable recording and physical
+codec/timing equivalence remain open. Interactive HE mode controls stay gated.
 
 Desktop sessions can select this profile with `experimental_he_live_preview: true`
 alongside `experimental_native_he: true` and its existing dependencies. The
