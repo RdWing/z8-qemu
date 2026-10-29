@@ -6,6 +6,7 @@ No host MCU messages, firmware instruction patches or register redirection.
 Board peripherals, sensor data and declared external-ROM inputs are functional
 models. This experimental path has separate acceptance from the host-peer run.
 """
+import movie_playback
 from pathlib import Path
 import hashlib
 import json
@@ -39,6 +40,7 @@ p.add_argument('--seconds',type=int,default=180)
 p.add_argument('--experimental-shared221',action='store_true')
 p.add_argument('--card',type=Path,help='Existing virtual exFAT card; guest writes persist')
 p.add_argument('--experimental-playback',action='store_true',help='Functional decoder/finite transfer; original EX workflow has separate acceptance')
+p.add_argument('--experimental-movie-playback',action='store_true',help='Opt-in host HEVC/AVC saved-Movie video playback; audio TX remains unqualified')
 movie_inputs.arguments(p)
 native_he.arguments(p)
 trace_plugin.arguments(p)
@@ -57,6 +59,7 @@ if a.card:
 if a.experimental_playback and not a.card:p.error('--experimental-playback requires --card')
 if a.experimental_playback and not (a.experimental_shared221 and a.experimental_boundary_inputs and a.experimental_sensor_source_clock):
  p.error('Native EX playback requires shared profile, boundary inputs and sensor source clock')
+if a.experimental_movie_playback and not a.experimental_playback:p.error('--experimental-movie-playback requires --experimental-playback')
 if not 1<=a.seconds<=3600:p.error('Duration must be 1..3600 seconds')
 if a.virtual_seconds is not None and not 1<=a.virtual_seconds<=3600:p.error('Virtual duration must be finite within 1..3600 seconds')
 if ',' in a.mcu_pins:p.error('Use colon-separated MCU contacts')
@@ -99,6 +102,7 @@ g.command+=['-device',f'loader,file={firmware},addr=0x40160000,force-raw=on,cpu-
 attach(g);movie_inputs.attach(g,a)
 if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_mcu=True)
 native_he.attach(g,a)
+if a.experimental_movie_playback:movie_playback.attach(g)
 mode_controls=a.native_controls and native_he.control_modes_enabled(a)
 g.data.update(native_mode_controls=mode_controls,native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
 control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls,native_dials=a.native_controls,native_supply=bool(a.experimental_main_supply_pin),native_wake=a.native_controls and a.experimental_main_supply_pin=='C1') if a.port is not None else None

@@ -154,6 +154,9 @@ class DesktopSession(unittest.TestCase):
             self.assertIn('--experimental-movie-selector10',args)
             args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,**movie))
             self.assertIn('--experimental-playback',args)
+            args=desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True,experimental_movie_playback=True,**movie))
+            self.assertIn('--experimental-movie-playback',args)
+            with self.assertRaises(ValueError):desktop.command(dict(config,experimental_movie_playback=True))
             with self.assertRaises(ValueError):desktop.command(dict(config,experimental_native_he=True))
             for changes in [dict(native_controls=False),dict(card=None),dict(experimental_yuv_channels=False)]:
                 candidate=dict(config,mcu=str(source),card=str(source),native_controls=True,experimental_native_he=True,**movie)

@@ -564,3 +564,39 @@ automatic HE★ setup is the validated replay prefix ending with released
 contacts; exposures still require **Capture photo**. Configuration and setup
 contract tests cover forwarding, dependency checks and absence of a full-shutter
 action during setup.
+
+## Saved-Movie video playback
+
+`tools/run_native.py --experimental-movie-playback` explicitly enables the
+host HEVC/AVC decoder and its finite NV12 display transfer. It requires
+`--experimental-playback`, an existing card, and the native shared profile,
+boundary inputs and sensor source clock. The desktop session configuration
+accepts `experimental_movie_playback: true` with the same requirements.
+This option stays off by default. The build requires FFmpeg `libavcodec` and
+`libavutil` development libraries in addition to the encoder dependencies.
+
+The functional model supports 8-bit 4:2:0 linear output. It preserves each
+submitted command's arguments and timestamp in the guest-programmed one- to
+four-entry queue. A held display/reference lease blocks work without creating
+pixels or an interrupt; actual decode and checked RAM writes precede picture
+completion. Flush/reset cancel pending work and invalidate released display
+ownership. Compressed reference storage is internal to the host codec; physical
+FBC layout and silicon timing remain unqualified. The one-millisecond deferred
+event is a functional scheduling choice.
+
+Original-firmware validation of a native-written one-second HEVC/LPCM MOV
+plays all 30 saved frames, returns to `OK Play`, repeats playback and returns
+to Photo live view. The final public CLI profile passes 300 transport checks with no
+runtime error, 312 VPU commands, zero rejects and 65 image transfers. Movie
+frame delivery reports input `0x11`; its later explicit STOP reports
+`0x10000`, keeping the native interrupt-handler lifetime separate. A stopped-card read-only extraction preserves the exact saved
+MOV; the correctly derived volume passes read-only exFAT checking. These
+results use declared synthetic imaging/audio inputs and optional models.
+
+Native audio TX remains open. The saved MOV's audio decodes externally and
+the native player completes two LPCM conversions per play, but its alternate
+FIFO descriptors currently submit a zero source address. The bounded TX sink
+consumes no bytes for that unsupported request. No audible native playback,
+physical codec behavior, or general acceptance of arbitrary Movie formats is
+claimed. The decoder's default-off gate and video acceptance do not qualify
+that remaining audio path.

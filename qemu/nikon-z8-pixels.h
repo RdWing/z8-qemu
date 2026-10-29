@@ -52,7 +52,7 @@ static char *get_raw_pipeline_source_boundary_state(Object *obj, Error **errp)
 static void raw_pipeline_irq_update(NikonZ8State *s)
 {
     uint32_t pending = 0;
-    if (!s->engine1542_irq || !(s->raw_pipeline_model || s->video_preview_model)) { return; }
+    if (!s->engine1542_irq || !(s->raw_pipeline_model || s->video_preview_model || s->wave5_host_decoder_diagnostic)) { return; }
     for (unsigned i = 0; i < 15; i++) {
         unsigned off = i < 10 ? 0x18 : i < 13 ? 0x10 : i == 13 ? 0x14 : 0x50;
         pending |= s->engine1542_pending[i] & s->engine1542_config[i][off / 4];

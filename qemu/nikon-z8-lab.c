@@ -582,6 +582,7 @@ struct NikonZ8State {
     bool video_peripheral_control_model, video_peripheral_pending;
     bool wave5_model, wave5_busy, wave5_lossless_requested, wave5_realized;
     bool wave5_host_codec_diagnostic;
+    bool wave5_host_decoder_diagnostic;
     uint32_t wave5_irq_number;
     struct WlWave5State *wave5;
     bool video_raw_transport_model, video_raw_packet_owned, video_raw_frame_ready, video_raw_ring_latched;
@@ -14945,6 +14946,8 @@ static const uint32_t engine1542_bases[40] = {
 
 #include "nikon-expeed-capture-pool.h"
 #include "nikon-z8-capture-nv16.h"
+static bool wave5_decoder_surface_find(NikonZ8State *s,uint64_t y,uint64_t uv,unsigned width,unsigned height,unsigned pitch,unsigned *token,uint64_t *epoch);
+static bool wave5_decoder_surface_valid(NikonZ8State *s,unsigned token,uint64_t epoch);
 #include "nikon-z8-playback.h"
 
 static int engine1542_instance(NikonZ8State *s, hwaddr addr, unsigned size,
@@ -15130,7 +15133,7 @@ static bool engine1542_read(NikonZ8State *s, hwaddr addr, unsigned size,
     if (i < 0) {
         return false;
     }
-    if (s->raw_pipeline_output_done && i == 14 && z8_e_histogram_mask(off)) {
+    if ((s->raw_pipeline_output_done || s->wave5_host_decoder_diagnostic) && i == 14 && z8_e_histogram_mask(off)) {
         *value = s->engine1542_config[i][off / 4];
         return true;
     }
@@ -15603,7 +15606,7 @@ static bool engine1542_write(NikonZ8State *s, hwaddr addr, uint64_t value,
         s->z8_playback_requests) {
         return z8_playback_output_control(s, i, addr, value);
     }
-    if (s->z8_jdec_on && i == 1 && off == 4 &&
+    if ((s->z8_jdec_on || s->wave5_host_decoder_diagnostic) && i == 1 && off == 4 &&
         (value == 0x5001 || value == 0x5000 || value == 0x1001 ||
          (value == 0x1000 && (s->z8_playback_active || s->z8_playback_requested ||
           ((s->engine1542_config[1][1] & ~3u) == 0x1000 &&
@@ -15624,7 +15627,7 @@ static bool engine1542_write(NikonZ8State *s, hwaddr addr, uint64_t value,
             unknown_access(s, addr, value, size, true); return true;
         }
     }
-    if (s->raw_pipeline_output_done && i == 14 && z8_e_histogram_mask(off)) {
+    if ((s->raw_pipeline_output_done || s->wave5_host_decoder_diagnostic) && i == 14 && z8_e_histogram_mask(off)) {
         /* z8-lv-frame-done: a start arms E's next frame end, as its
          * enable does; storage otherwise. */
         if (value & ~(uint64_t)z8_e_histogram_mask(off)) {
@@ -23377,6 +23380,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "dsp-correction-init-model", get_dsp_correction_init_model, set_dsp_correction_init_model);
     object_class_property_add_str(oc, "dsp-correction-state", get_dsp_correction_state, NULL);
     object_class_property_add_bool(oc, "wave5-host-codec-diagnostic", get_wave5_diagnostic, set_wave5_diagnostic);
+    object_class_property_add_bool(oc,"wave5-host-decoder-diagnostic",get_wave5_decode,set_wave5_decode);
     object_class_property_add_str(oc, "wave5-vpu-state", get_wave5_state, NULL);
     object_class_property_add_str(oc, "wave5-irq", get_wave5_irq, set_wave5_irq);
     object_class_property_add_bool(oc,"video-processing-config-model",get_video_processing_config_model,set_video_processing_config_model);
@@ -23575,6 +23579,7 @@ static void nikon_z8_finalize(Object *obj)
 {
     NikonZ8State *s = NIKON_Z8_LAB(obj);
     dsp_boot_finalize(s);
+    wave5_decoder_finalize(s);
     g_clear_pointer(&s->nand_pages, g_hash_table_unref);
     g_clear_pointer(&s->serial_last_tx, g_free);
     if (s->serial_write_peer_timer) { timer_free(s->serial_write_peer_timer); }

@@ -135,3 +135,35 @@ backward partial overlaps, unmapped endpoints, an oversized identity span and
 an invalid source mode must leave memory unchanged and produce no completion.
 An identity transfer uses the same checked memory reads/writes as an ordinary
 copy. These checks do not establish native Movie playback or physical DMA timing.
+
+The opt-in saved-Movie decoder uses installed FFmpeg development libraries
+(`libavcodec` and `libavutil`). `tests/verify_video_decode.c` generates lossless
+HEVC and AVC streams from declared pixels and checks every decoded sample,
+parser drain and input bounds. It runs in the source suite.
+
+The actual-board regression requires an installed `ffmpeg` with `libx265`:
+
+```sh
+python3 tests/check_video_decode.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-video-decode-check
+```
+
+Its 457 checks generate their own 30-frame lossless stream. They verify actual
+RAM CRCs against the original pixels, row padding/canaries, absent auxiliary
+metadata, submission/completion timestamps, a programmed four-entry command
+queue, genuine queue-full rejection, display/reference backpressure, real
+stream end, replay and cancellation of all queued work by flush/reset. No
+Nikon inputs or saved media are required. Native workflow acceptance remains
+separate from these synthetic checks.
+
+`tests/check_video_playback.py` additionally needs NumPy. Its 44 actual-board
+checks generate a 4K lossless pattern, verify NV12 plane bytes and independent
+resize coordinates, preserve destination canaries and invalidate stale leases.
+Frame delivery reports input `0x11` plus the completed writer cause; only the
+subsequent explicit STOP reports `0x10000`. Flush/reset cancel blocked decoder
+work without a later DMA or interrupt. This keeps Movie frame and STOP
+ownership separate from the existing JPEG/NV16 contract.
+
+`tests/check_video_decode_disabled.py` needs no media generator. Its seven
+checks verify encoder-only advertised capabilities, immutable default-off
+decoding, rejected decoder creation, no instance, no DMA and no completion.

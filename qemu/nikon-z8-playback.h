@@ -9,6 +9,12 @@ static bool z8_playback_span(NikonZ8State *s, uint64_t p, uint64_t n)
     return n && n <= 64 * MiB && !(p & 31) && dma_ram_range(s, p, n);
 }
 
+static bool z8_playback_owner_valid(NikonZ8State *s)
+{
+    unsigned core=s->z8_playback_decode_core;
+    if(core>=2) { return wave5_decoder_surface_valid(s,core-2,s->z8_playback_decode_epoch); }
+    return s->z8_jdec_output_valid[core] && s->z8_playback_decode_epoch==s->z8_jdec_output_epoch[core];
+}
 static bool z8_playback_prepare(NikonZ8State *s)
 {
     const uint32_t *a = s->engine1542_config[1];
@@ -19,19 +25,22 @@ static bool z8_playback_prepare(NikonZ8State *s)
     unsigned w = a[0x4c/4], h = a[0x50/4], ip = a[0x38/4];
     unsigned ow = f[0x2c/4], oh = f[0x30/4], op = b[0x38/4];
     unsigned selector = a[1] & ~3u;
+    bool nv12=a[3]==0x31000000 && b[3]==0x11000000;
+    uint64_t movie_epoch=0;
     uint64_t n[4] = {(uint64_t)ip*h, (uint64_t)ip*h,
                      (uint64_t)op*oh, (uint64_t)op*oh};
+    if(nv12) { if((h|oh)&1) { return false; }n[1]/=2;n[3]/=2; }
     int owner = -1;
     bool cropped_output = false;
-    if (!s->z8_jdec_on || s->z8_playback_requested ||
+    if (!(s->z8_jdec_on || s->wave5_host_decoder_diagnostic) || s->z8_playback_requested ||
         (s->engine1542_pending[1] & 0x10011) || (s->engine1542_pending[7] & 0x1000) || (s->engine1542_pending[14]&0x11) || (s->engine1542_pending[11] & 0x20) ||
         /* Original Z8 preview and zoom select 0x50/0x10 in both A1
          * command words. Only their matched, stopped configurations
          * admit the same owned decoded-NV16 transfer. */
         (selector != 0x5000 && selector != 0x1000) || (a[1] & 1) ||
         a[2] != (selector << 16) ||
-        a[3] != 0x71000010 || a[4] != 1 || a[0x40/4] != 0x22 ||
-        b[0xc/4] != 0x41400010 || b[0x10/4] != 1 || b[0x40/4] != 0x22 ||
+        (!nv12 && a[3] != 0x71000010) || a[4] != 1 || a[0x40/4] != 0x22 ||
+        (!nv12 && b[0xc/4] != 0x41400010) || b[0x10/4] != 1 || b[0x40/4] != 0x22 ||
         a[0x3c/4] != ip || b[0x3c/4] != op ||
         !w || (w & 1) || w > 16384 || !h || h > 8192 || ip < w || ip > 32768 ||
         !ow || (ow & 1) || ow > 16384 || !oh || oh > 8192 || op < ow || op > 32768 ||
@@ -49,7 +58,7 @@ static bool z8_playback_prepare(NikonZ8State *s)
     /* The observed Z8 zoom route follows its 0x10 transfer with a 0x50
      * crop of the just-produced B4 planes. Keep this single checked join
      * separate from arbitrary RAM or recursive resize-chain admission. */
-    if (owner < 0 && selector == 0x5000 && s->z8_playback_output_valid &&
+    if (!nv12 && owner < 0 && selector == 0x5000 && s->z8_playback_output_valid &&
         (s->z8_playback_input[1] & ~3u) == 0x1000) {
         const uint32_t *previous_b=s->z8_playback_output;
         const uint32_t *previous_f=s->z8_playback_geometry;
@@ -77,6 +86,11 @@ static bool z8_playback_prepare(NikonZ8State *s)
             }
         }
     }
+    if(nv12) {
+        unsigned token;
+        if(!wave5_decoder_surface_find(s,p[0],p[1],w,h,ip,&token,&movie_epoch)) { return false; }
+        owner=token+2;
+    }
     if (owner < 0) { return false; }
     for (unsigned k = 0; k < 4; k++) {
         if (k < 2 && cropped_output) {
@@ -87,7 +101,7 @@ static bool z8_playback_prepare(NikonZ8State *s)
         }
     }
     size_t input_bytes = (size_t)ip*h;
-    uint8_t *pixels = g_malloc(input_bytes*2);
+    uint8_t *pixels = g_malloc(input_bytes+(nv12?input_bytes/2:input_bytes));
     bool received = true;
     if (cropped_output) {
         /* The producer owns active pixels only. Do not read its row
@@ -99,7 +113,7 @@ static bool z8_playback_prepare(NikonZ8State *s)
         }
     } else {
         received=address_space_read(&address_space_memory,p[0],MEMTXATTRS_UNSPECIFIED,pixels,input_bytes)==MEMTX_OK &&
-            address_space_read(&address_space_memory,p[1],MEMTXATTRS_UNSPECIFIED,pixels+input_bytes,input_bytes)==MEMTX_OK;
+            address_space_read(&address_space_memory,p[1],MEMTXATTRS_UNSPECIFIED,pixels+input_bytes,nv12?input_bytes/2:input_bytes)==MEMTX_OK;
     }
     if (!received) { g_free(pixels);return false; }
     s->z8_playback_output_valid=false;
@@ -109,7 +123,7 @@ static bool z8_playback_prepare(NikonZ8State *s)
     memcpy(s->z8_playback_output, b, sizeof(s->z8_playback_output));
     memcpy(s->z8_playback_geometry, f, sizeof(s->z8_playback_geometry));
     s->z8_playback_decode_core = owner;
-    s->z8_playback_decode_epoch = s->z8_jdec_output_epoch[owner];
+    s->z8_playback_decode_epoch = nv12?movie_epoch:s->z8_jdec_output_epoch[owner];
     s->z8_playback_outputs_armed = 0;
     s->z8_playback_requested = true;
     s->z8_playback_requests++;
@@ -125,48 +139,54 @@ static void z8_playback_run(NikonZ8State *s)
     uint64_t oy = capture_nv16_address(b, 0x20), ouv = capture_nv16_address(b, 0x28);
     if (!s->z8_playback_requested || s->z8_playback_outputs_armed != 2 || !s->z8_playback_pixels) { return; }
     s->z8_playback_output_valid=false;
-    unsigned core=s->z8_playback_decode_core;
-    if (core>=2 || !s->z8_jdec_output_valid[core] ||
-        s->z8_playback_decode_epoch!=s->z8_jdec_output_epoch[core]) {
+    if (!z8_playback_owner_valid(s)) {
         s->z8_playback_requested=false;s->z8_playback_active=false;
         g_free(s->z8_playback_pixels);s->z8_playback_pixels=NULL;
         unknown_access(s,0x15421104,(a[1]&~3u)|1,4,true);return;
     }
     size_t ni = (size_t)ip*ih, no = (size_t)ow*oh;
     const uint8_t *in = s->z8_playback_pixels;
-    uint8_t *out = g_malloc(no*2);
+    bool nv12=a[3]==0x31000000;
+    size_t output_bytes=no+(nv12?no/2:no);
+    uint8_t *out = g_malloc(output_bytes);
     bool ok = true;
     for (unsigned r = 0; ok && r < oh; r++) {
         unsigned sy = capture_nv16_coordinate(f, r, true);
         for (unsigned x = 0; x < ow; x++) {
             out[(size_t)r*ow+x] = in[(size_t)sy*ip+capture_nv16_coordinate(f, x, false)];
         }
-        for (unsigned x = 0; x < ow; x += 2) {
-            unsigned sx = capture_nv16_coordinate(f, x, false) & ~1u;
-            out[no+(size_t)r*ow+x] = in[ni+(size_t)sy*ip+sx];
-            out[no+(size_t)r*ow+x+1] = in[ni+(size_t)sy*ip+sx+1];
+    }
+    for(unsigned r=0;r<(nv12?oh/2:oh);r++) {
+        unsigned sy=capture_nv16_coordinate(f,nv12?r*2:r,true)/(nv12?2:1);
+        for(unsigned x=0;x<ow;x+=2) {
+            unsigned sx=capture_nv16_coordinate(f,x,false)&~1u;
+            out[no+(size_t)r*ow+x]=in[ni+(size_t)sy*ip+sx];
+            out[no+(size_t)r*ow+x+1]=in[ni+(size_t)sy*ip+sx+1];
         }
     }
     for (unsigned r = 0; ok && r < oh; r++) {
         ok = address_space_write(&address_space_memory, oy+(uint64_t)r*op,
-                MEMTXATTRS_UNSPECIFIED, out+(size_t)r*ow, ow) == MEMTX_OK &&
-             address_space_write(&address_space_memory, ouv+(uint64_t)r*op,
-                MEMTXATTRS_UNSPECIFIED, out+no+(size_t)r*ow, ow) == MEMTX_OK;
+                MEMTXATTRS_UNSPECIFIED, out+(size_t)r*ow, ow) == MEMTX_OK;
+        if(ok && r<(nv12?oh/2:oh)) { ok=address_space_write(&address_space_memory, ouv+(uint64_t)r*op,
+                MEMTXATTRS_UNSPECIFIED, out+no+(size_t)r*ow, ow) == MEMTX_OK; }
     }
     g_free(s->z8_playback_pixels);s->z8_playback_pixels=NULL;g_free(out);
     s->z8_playback_requested = false;
     if (!ok) { unknown_access(s, 0x15421104, (a[1]&~3u)|1, 4, true); return; }
-    s->z8_playback_jobs++; s->z8_playback_bytes += no*2;
+    s->z8_playback_jobs++; s->z8_playback_bytes += output_bytes;
     s->z8_playback_output_valid=true;
     /* This finite transfer has read its complete input and written both
      * output planes. Input first/data/end and B4 writer causes follow that
      * work, never a configuration strobe. STOP can separately acknowledge
      * the now-quiescent finite input after its native wait is cleared. */
-    s->engine1542_pending[1] |= 0x10011;
+    /* Movie frame delivery and the later guest-requested finite STOP
+     * own separate notifications. Coalescing STOP here can release the
+     * native ISR's context before it handles the remaining frame cause. */
+    s->engine1542_pending[1] |= nv12 ? 0x11 : 0x10011;
     s->engine1542_pending[7] |= 0x1000;
     raw_pipeline_irq_update(s);
     fprintf(stderr, "Z8_PLAYBACK_RESIZE job=%" PRIu64 " %ux%u -> %ux%u bytes=%zu\n",
-        s->z8_playback_jobs, a[0x4c/4], ih, ow, oh, no*2);
+        s->z8_playback_jobs, a[0x4c/4], ih, ow, oh, output_bytes);
 }
 
 static bool z8_playback_output_control(NikonZ8State *s, unsigned i,
@@ -187,10 +207,8 @@ static bool z8_playback_output_control(NikonZ8State *s, unsigned i,
 static void z8_playback_histogram(NikonZ8State *s)
 {
     const uint32_t *e=s->engine1542_config[14],*a=s->z8_playback_input;
-    unsigned core=s->z8_playback_decode_core;
-    if (core>=2 || !s->z8_jdec_output_valid[core] ||
-        s->z8_playback_decode_epoch!=s->z8_jdec_output_epoch[core]) { return; }
-    if (!s->raw_pipeline_output_done || !s->z8_e_armed || !s->z8_playback_pixels ||
+    if (!z8_playback_owner_valid(s)) { return; }
+    if ((!s->raw_pipeline_output_done && a[3]!=0x31000000) || !s->z8_e_armed || !s->z8_playback_pixels ||
         !(e[0]&1) || ((e[1]>>4)&15)!=14 || !(e[2]&1) || !(e[0x50/4]&1) ||
         (s->engine1542_pending[14]&0x11)) { return; }
     unsigned w=a[0x4c/4],h=a[0x50/4],pitch=a[0x38/4];

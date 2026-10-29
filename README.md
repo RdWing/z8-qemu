@@ -70,7 +70,7 @@ experimental profile.
 ## Quick start
 
 Use macOS or Linux, Python 3.12+, a C toolchain, Ninja, pkg-config, GLib,
-Pixman, zlib, libfdt, libjpeg, x264, x265 and a C++17 compiler. Linux card creation needs exfatprogs; macOS uses native exFAT tools.
+Pixman, zlib, libfdt, libjpeg, x264, x265, FFmpeg libavcodec/libavutil and a C++17 compiler. Linux card creation needs exfatprogs; macOS uses native exFAT tools.
 Supply a separate **QEMU 11.1.1** source tree.
 
 ```sh

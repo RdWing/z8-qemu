@@ -16,7 +16,7 @@ from native_power import validate_supply_pin
 import qemu_preflight
 
 ROOT = Path(__file__).resolve().parents[1]
-FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
+FLAGS = ('experimental_movie_playback', 'experimental_playback', 'experimental_shared221', 'experimental_boundary_inputs',
          'experimental_yuv_channels', 'experimental_movie_selector16', 'experimental_sensor_source_clock', 'experimental_movie_selector10')
 
 
@@ -88,6 +88,8 @@ def command(config):
             'experimental_shared221','experimental_boundary_inputs','experimental_sensor_source_clock',
             'experimental_yuv_channels','experimental_movie_selector16')):
         raise ValueError('Recording selector10 requires the complete experimental Movie profile')
+    if config.get('experimental_movie_playback') and not (native and config.get('experimental_playback')):
+        raise ValueError('Movie playback requires original EX and experimental_playback')
     if config.get('experimental_playback') and not config.get('card'):
         raise ValueError('Playback requires an existing card image')
     args += trace_plugin.cli_args(trace_plugin.configuration(config))

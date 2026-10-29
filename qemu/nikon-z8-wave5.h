@@ -9,6 +9,7 @@
  */
 #include "qemu/thread.h"
 #include "nikon-wave5-codec.h"
+#include "nikon-wave5-decode.h"
 
 #define WL_W5_BASE UINT64_C(0x16010000)
 #define WL_W5_INSTANCES 4
@@ -34,6 +35,8 @@ typedef struct WlWave5Instance {
     bool report_requested;
     uint32_t header_lengths[4]; /* AUD, VPS (HEVC only), SPS, PPS; no prefix */
     WlHevcCodec *codec;
+    WlVideoDecode *decoder;
+    uint32_t decode_rd;
 } WlWave5Instance;
 
 typedef struct WlWave5Job {
@@ -333,6 +336,288 @@ static bool wave5_snapshot(WlWave5State *w,WlWave5Instance *i,WlWave5Job *job)
     return true;
 }
 
+/* Functional real-data decoder adapter. Opaque compressed reference reservations
+ * live in libavcodec; only explicitly registered linear outputs receive pixels. */
+static bool wave5_decode_feed(WlWave5State *w,WlWave5Instance *i)
+{
+    WlVideoDecode *d=i->decoder;uint32_t rd=i->decode_rd,wr=d->write_bus;
+    uint64_t end=(uint64_t)i->ring_bus+i->ring_capacity;
+    if(rd<i->ring_bus || rd>=end || wr<i->ring_bus || wr>end) { return false; }
+    if(rd==wr || !g_queue_is_empty(&d->frames)) { return true; }
+    unsigned available=wr>=rd?wr-rd:end-rd+wr-i->ring_bus;
+    unsigned bytes=MIN(available,4*MiB),first=MIN(bytes,(unsigned)(end-rd));
+    uint8_t *data=g_malloc(bytes);
+    bool ok=address_space_read(&address_space_memory,i->ring_physical+rd-i->ring_bus,MEMTXATTRS_UNSPECIFIED,data,first)==MEMTX_OK;
+    if(ok && first<bytes) { ok=address_space_read(&address_space_memory,i->ring_physical,MEMTXATTRS_UNSPECIFIED,data+first,bytes-first)==MEMTX_OK; }
+    unsigned consumed=0;
+    if(ok) { ok=wl_video_dec_feed(d,data,bytes,&consumed); }
+    g_free(data);if(!ok) { return false; }
+    i->decode_rd=i->ring_bus+(rd-i->ring_bus+consumed)%i->ring_capacity;
+    w->input_bytes+=consumed;
+    return true;
+}
+static bool wave5_decode_buffers(WlWave5State *w,WlWave5Instance *i)
+{
+    uint32_t *r=w->regs,info=r[WL_W5_REG(0x118)],range=r[WL_W5_REG(0x120)];
+    unsigned start=(range>>8)&0xff,last=range&0xff,stride=info&0xffff;
+    unsigned linear=(info>>28)&1;
+    if(!i->configured || start>last || last>=32 || last-start>=8 ||
+        ((info>>20)&3) || (info&(1U<<19)) || stride<i->width || stride>32768 || (stride&1)) { return false; }
+    WlVideoDecBuffer staged[8]={0};
+    for(unsigned n=0;n<=last-start;n++) {
+        WlVideoDecBuffer *b=&staged[n];b->stride=stride;
+        b->interleaved=(info>>16)&1;b->nv21=(info>>17)&1;
+        unsigned offsets[3]={0x134+n*16,0x138+n*16,0x13c+n*16};
+        uint64_t sizes[3]={(uint64_t)stride*i->height,(uint64_t)(b->interleaved?stride:stride/2)*(i->height/2),(uint64_t)(stride/2)*(i->height/2)};
+        unsigned count=linear?(b->interleaved?2:3):2;
+        for(unsigned p=0;p<count;p++) {
+            uint64_t bytes=linear?sizes[p]:32;
+            if(!wave5_address(w->board,r[WL_W5_REG(offsets[p])],bytes,&b->plane[p]) ||
+                graphics_spans_overlap(b->plane[p],bytes,i->work_physical,i->work_capacity) ||
+                graphics_spans_overlap(b->plane[p],bytes,i->ring_physical,i->ring_capacity)) { return false; }
+            if(linear) { for(unsigned q=0;q<p;q++) { if(graphics_spans_overlap(b->plane[p],bytes,b->plane[q],sizes[q])) { return false; } } }
+        }
+        b->set=true;
+    }
+    for(unsigned n=0;n<=last-start;n++) { i->decoder->buffers[linear][start+n]=staged[n]; }
+    i->buffers=true;
+    fprintf(stderr,"Z8_WAVE5_DEC_FB linear=%u start=%u last=%u stride=%u info=%08x\n",linear,start,last,stride,info);
+    return true;
+}
+/* Linear display storage and the opaque compressed reservation remain
+ * paired until the guest releases that displayed picture. */
+static bool wave5_decode_slots(WlVideoDecode *d,unsigned *linear,unsigned *reference)
+{
+    unsigned idx=0;uint32_t held=0;bool has_references=false;
+    while(idx<32 && (!d->buffers[1][idx].set || (d->display_flags&(1U<<idx)))) { idx++; }
+    if(idx==32) { return false; }
+    for(unsigned n=0;n<32;n++) {
+        has_references|=d->buffers[0][n].set;
+        if(d->reference_bound[n] && (d->display_flags&(1U<<n))) { held|=1U<<d->reference_for_linear[n]; }
+    }
+    unsigned ref=0;
+    if(has_references) {
+        while(ref<32 && (!d->buffers[0][ref].set || (held&(1U<<ref)))) { ref++; }
+        if(ref==32) { return false; }
+    }
+    *linear=idx;*reference=has_references?ref:UINT_MAX;return true;
+}
+static bool wave5_decode_picture(WlWave5State *w,WlWave5Instance *i)
+{
+    WlVideoDecode *d=i->decoder;
+    if(!i->configured || !i->buffers || d->picture_result || i->sequence_result) { return false; }
+    if(d->after_flush) {
+        uint32_t rd=d->command_rd;
+        if(rd<i->ring_bus || (uint64_t)rd>=(uint64_t)i->ring_bus+i->ring_capacity) { return false; }
+        i->decode_rd=rd;d->after_flush=false;
+    }
+    d->write_bus=d->command_wr;
+    d->stream_end|=(d->command_options&2)!=0;
+    if(!wave5_decode_feed(w,i)) { return false; }
+    if(g_queue_is_empty(&d->frames)) {
+        if(d->stream_end) { if(!wl_video_dec_end(d)) { return false; } }
+        else if(!wl_video_dec_finish_packet(d)) { return false; }
+    }
+    if(g_queue_is_empty(&d->frames)) {
+        if(!d->drained) { return false; }
+        d->output_index=UINT_MAX;d->output_poc=-1;d->output_bytes=0;d->output_type=0;
+        d->picture_result=true;return true;
+    }
+    unsigned idx,reference;
+    if(!wave5_decode_slots(d,&idx,&reference)) { return false; }
+    AVFrame *f=g_queue_peek_head(&d->frames);WlVideoDecBuffer *b=&d->buffers[1][idx];
+    if((unsigned)f->width!=i->width || (unsigned)f->height!=i->height) { return false; }
+    uint32_t crc=crc32(0,0,0);unsigned total=0;
+    for(unsigned p=0;p<(b->interleaved?2:3);p++) {
+        unsigned rows=p?i->height/2:i->height,width=p?i->width/2:i->width;
+        uint8_t *row=g_malloc(b->interleaved && p?width*2:width);
+        for(unsigned y=0;y<rows;y++) {
+            if(b->interleaved && p) {
+                for(unsigned x=0;x<width;x++) {
+                    row[2*x+(b->nv21?1:0)]=f->data[1][(ptrdiff_t)y*f->linesize[1]+x];
+                    row[2*x+(b->nv21?0:1)]=f->data[2][(ptrdiff_t)y*f->linesize[2]+x];
+                }
+            } else { memcpy(row,f->data[p]+(ptrdiff_t)y*f->linesize[p],width); }
+            unsigned bytes=b->interleaved && p?width*2:width;
+            unsigned stride=p && !b->interleaved?b->stride/2:b->stride;
+            if(address_space_write(&address_space_memory,b->plane[p]+(uint64_t)y*stride,MEMTXATTRS_UNSPECIFIED,row,bytes)!=MEMTX_OK) { g_free(row);return false; }
+            crc=crc32(crc,row,bytes);total+=bytes;
+        }
+        g_free(row);
+    }
+    d->reference_bound[idx]=reference!=UINT_MAX;
+    d->reference_for_linear[idx]=reference;
+    d->output_index=idx;d->output_poc=f->pts==AV_NOPTS_VALUE?-1:f->pts;
+    unsigned type=f->pict_type==AV_PICTURE_TYPE_I?1:f->pict_type==AV_PICTURE_TYPE_P?2:4;
+    unsigned nal=(f->flags&AV_FRAME_FLAG_KEY)?(i->codec_mode==0?20:5):1;
+    d->output_type=type|(nal<<4);d->output_bytes=total;d->output_crc=crc;
+    d->display_flags|=1U<<idx;d->outputs++;d->buffer_epoch[idx]=d->outputs;d->picture_result=true;i->pictures++;i->bytes=total;
+    w->output_bytes+=total;w->output_crc=crc;
+    g_queue_pop_head(&d->frames);av_frame_free(&f);
+    fprintf(stderr,"Z8_WAVE5_DEC_PICTURE idx=%u poc=%d bytes=%u crc=%08x\n",idx,d->output_poc,total,crc);
+    return true;
+}
+/* A result remains owned until QUERY_RESULT; queued commands retain their
+ * submission arguments even while command/result register words are reused. */
+static void wave5_decode_schedule(WlVideoDecode *d)
+{
+    unsigned linear,reference;
+    if(d->command_count && !d->picture_result && !timer_pending(d->timer) &&
+       wave5_decode_slots(d,&linear,&reference)) {
+        timer_mod(d->timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+1000000);
+    }
+}
+/* Complete device work outside the CPU's command-store callback. One
+ * millisecond is a declared functional event delay, not physical codec timing. */
+static void wave5_decode_tick(void *opaque)
+{
+    WlVideoDecode *d=opaque;WlWave5State *w=d->owner;WlWave5Instance *i=d->instance;
+    if(!d->command_count || d->picture_result) { return; }
+    unsigned linear,reference;
+    if(!wave5_decode_slots(d,&linear,&reference)) {
+        /* Command is accepted but owns no writable destination yet. The
+         * display-flag query can release a reservation without a fake frame. */
+        w->busy=false;w->board->wave5_busy=false;w->regs[WL_W5_REG(0x70)]=0;
+        w->regs[WL_W5_REG(0x108)]=1;w->regs[WL_W5_REG(0x10c)]=0;
+        w->regs[WL_W5_REG(0x1e0)]=d->command_count<<16;
+        fprintf(stderr,"Z8_WAVE5_DEC_WAIT display/reference reservation held\n");
+        return;
+    }
+    WlVideoDecCommand c=d->commands[0];
+    d->command_rd=c.rd;d->command_wr=c.wr;d->command_options=c.options;
+    d->command_instance=c.instance;i->submit_tick=c.submitted;
+    memmove(d->commands,d->commands+1,(--d->command_count)*sizeof(*d->commands));
+    d->command_pending=d->command_count!=0;
+    if(!wave5_decode_picture(w,i)) {
+        w->regs[WL_W5_REG(0x108)]=0;w->regs[WL_W5_REG(0x10c)]=0x100;
+        w->regs[WL_W5_REG(0x70)]=0;w->busy=false;w->board->wave5_busy=false;w->rejections++;
+        return;
+    }
+    i->complete_tick=wave5_virtual_tick();
+    uint32_t selected=w->regs[WL_W5_REG(0x110)];
+    w->regs[WL_W5_REG(0x110)]=d->command_instance;
+    w->regs[WL_W5_REG(0x1e0)]=(d->command_count<<16)|1;wave5_complete(w,1U<<8);
+    w->regs[WL_W5_REG(0x110)]=selected;
+}
+static bool wave5_decode_command(WlWave5State *w,WlWave5Instance *i,
+                                         unsigned command,unsigned info,bool core_start)
+{
+    uint32_t *r=w->regs;unsigned mode=info>>16;
+    if(!w->booted || core_start || (mode!=0 && mode!=2)) { return false; }
+    if(command==8) {
+        uint64_t work,stream;unsigned wb=r[WL_W5_REG(0x118)],sb=r[WL_W5_REG(0x120)];
+        if(r[WL_W5_REG(0x13c)]>=WL_DEC_COMMAND_DEPTH || i->created || wb<0x110 || wb>4*MiB || !sb || sb>256*MiB ||
+            !wave5_address(w->board,r[WL_W5_REG(0x114)],wb,&work) ||
+            !wave5_address(w->board,r[WL_W5_REG(0x11c)],sb,&stream) ||
+            graphics_spans_overlap(work,wb,stream,sb)) { return false; }
+        i->decoder=wl_video_dec_open(mode);if(!i->decoder) { return false; }
+        i->decoder->owner=w;i->decoder->instance=i;
+        i->decoder->command_capacity=r[WL_W5_REG(0x13c)]+1;
+        i->decoder->timer=timer_new_ns(QEMU_CLOCK_VIRTUAL,wave5_decode_tick,i->decoder);
+        i->work_physical=work;i->work_bus=r[WL_W5_REG(0x114)];i->work_capacity=wb;
+        i->ring=true;i->ring_bus=r[WL_W5_REG(0x11c)];i->ring_capacity=sb;i->ring_physical=stream;
+        i->decode_rd=i->ring_bus;i->decoder->write_bus=i->ring_bus;i->codec_mode=mode;i->created=true;w->instances++;
+        fprintf(stderr,"Z8_WAVE5_DEC_CREATE mode=%u ring=%08x bytes=%u option=%08x\n",mode,i->ring_bus,sb,r[WL_W5_REG(0x124)]);
+        wave5_complete(w,1U<<3);
+    } else if(!i->created || !i->decoder) { return false; }
+    else if(command==0x8000) {
+        uint32_t wr=r[WL_W5_REG(0x11c)];
+        if(wr<i->ring_bus || (uint64_t)wr>(uint64_t)i->ring_bus+i->ring_capacity) { return false; }
+        i->decoder->write_bus=wr;i->decoder->stream_end|=(r[WL_W5_REG(0x120)]&2)!=0;
+        wave5_complete(w,0);
+    } else if(command==0x40) {
+        uint32_t rd=r[WL_W5_REG(0x118)],wr=r[WL_W5_REG(0x11c)];
+        if(i->configured || rd!=i->decode_rd) { return false; }
+        i->decoder->write_bus=wr;
+        bool ok=wave5_decode_feed(w,i);WlVideoDecode *d=i->decoder;
+        if(ok && (!d->width || !d->height || !d->depth)) { ok=wl_video_dec_finish_packet(d); }
+        fprintf(stderr,"Z8_WAVE5_DEC_SEQUENCE ok=%d rd=%08x wr=%08x width=%u height=%u depth=%u frames=%u\n",ok,i->decode_rd,wr,d->width,d->height,d->depth,g_queue_get_length(&d->frames));
+        if(!ok || !d->width || !d->height || d->depth!=8 || d->width>8192 || d->height>8192) { return false; }
+        i->width=d->width;i->height=d->height;i->depth=d->depth;i->fps_n=d->fps_n;i->fps_d=d->fps_d;
+        i->configured=true;i->sequence_result=true;r[WL_W5_REG(0x1e0)]=1;
+        wave5_complete(w,1U<<6);
+    } else if(command==0x80) {
+        if(!wave5_decode_buffers(w,i)) { return false; }
+        wave5_complete(w,0);
+    } else if(command==0x100) {
+        WlVideoDecode *d=i->decoder;
+        if(d->command_count==d->command_capacity) {
+            wave5_complete(w,0);r[WL_W5_REG(0x108)]=0;r[WL_W5_REG(0x10c)]=1;
+            r[WL_W5_REG(0x1e0)]=(d->command_count<<16)|(d->picture_result?1:0);w->commands++;w->last_command=command;return true;
+        }
+        if(!i->configured || !i->buffers || i->sequence_result) { return false; }
+        uint32_t rd=r[WL_W5_REG(0x118)],wr=r[WL_W5_REG(0x11c)];
+        if(wr<i->ring_bus || (uint64_t)wr>(uint64_t)i->ring_bus+i->ring_capacity ||
+            (d->after_flush && (rd<i->ring_bus || (uint64_t)rd>=(uint64_t)i->ring_bus+i->ring_capacity))) { return false; }
+        d->commands[d->command_count++]=(WlVideoDecCommand){
+            .rd=rd,.wr=wr,.options=r[WL_W5_REG(0x120)],
+            .instance=info&0xffff,.submitted=wave5_virtual_tick()};
+        d->command_pending=true;
+        wave5_complete(w,0);
+        r[WL_W5_REG(0x1e0)]=(d->command_count<<16)|(d->picture_result?1:0);
+        wave5_decode_schedule(d);
+    } else if(command==0x10) {
+        if(w->pending) { return false; }
+        WlVideoDecode *d=i->decoder;
+        timer_del(d->timer);d->command_pending=false;d->command_count=0;
+        while(!g_queue_is_empty(&d->frames)) { AVFrame *f=g_queue_pop_head(&d->frames);av_frame_free(&f); }
+        uint8_t *unused=NULL;int bytes=0;
+        av_parser_parse2(d->parser,d->context,&unused,&bytes,NULL,0,AV_NOPTS_VALUE,AV_NOPTS_VALUE,d->input_bytes);
+        avcodec_flush_buffers(d->context);
+        d->stream_end=false;d->drained=false;d->failed=false;d->picture_result=false;d->after_flush=true;
+        i->sequence_result=false;r[WL_W5_REG(0x1e0)]=0;
+        r[WL_W5_REG(0x1e8)]&=~(1U<<(info&0xffff));r[WL_W5_REG(0x1fc)]&=~(1U<<(info&0xffff));
+        wave5_complete(w,0);
+        fprintf(stderr,"Z8_WAVE5_DEC_FLUSH queued frames cancelled; display leases retained\n");
+    } else if(command==0x20) {
+        if(w->pending || i->sequence_result || i->decoder->picture_result || i->decoder->command_pending) { return false; }
+        wl_video_dec_close(i->decoder);memset(i,0,sizeof(*i));w->instances--;wave5_complete(w,0);
+    } else if(command==0x4000) {
+        unsigned query=r[WL_W5_REG(0x104)];WlVideoDecode *d=i->decoder;
+        if(query==5) { r[WL_W5_REG(0x11c)]=i->decode_rd; }
+        else if(query==3) {
+            uint32_t released=r[WL_W5_REG(0x11c)];
+            d->display_flags=(d->display_flags|r[WL_W5_REG(0x118)])&~released;
+            for(unsigned n=0;n<32;n++) { if(released&(1U<<n)) { d->buffer_epoch[n]=0;d->reference_bound[n]=false; } }
+            r[WL_W5_REG(0x17c)]=d->display_flags;
+            wave5_decode_schedule(d);
+        } else if(query==2 && (i->sequence_result || d->picture_result)) {
+            /* Command arguments and return fields alias the same words.
+             * Absent auxiliary metadata must not expose old DMA addresses. */
+            memset(&r[WL_W5_REG(0x118)],0,0x1e0-0x118);
+            r[WL_W5_REG(0x11c)]=i->decode_rd;r[WL_W5_REG(0x120)]=d->profile<<24;
+            r[WL_W5_REG(0x124)]=0x88;r[WL_W5_REG(0x128)]=1;
+            r[WL_W5_REG(0x130)]=i->fps_n;r[WL_W5_REG(0x134)]=i->fps_d;
+            r[WL_W5_REG(0x138)]=3;r[WL_W5_REG(0x13c)]=d->context->has_b_frames;
+            r[WL_W5_REG(0x140)]=0;r[WL_W5_REG(0x144)]=0;r[WL_W5_REG(0x148)]=0;
+            r[WL_W5_REG(0x14c)]=(i->width<<16)|i->height;
+            r[WL_W5_REG(0x150)]=r[WL_W5_REG(0x154)]=0;
+            r[WL_W5_REG(0x17c)]=d->display_flags;r[WL_W5_REG(0x1d4)]=r[WL_W5_REG(0x1d8)]=0;
+            r[WL_W5_REG(0x1dc)]=1;r[WL_W5_REG(0x1e0)]=d->command_count<<16;
+            r[WL_W5_REG(0x1b0)]=r[WL_W5_REG(0x1b4)]=0;
+            if(d->picture_result) {
+                r[WL_W5_REG(0x160)]=d->output_type;r[WL_W5_REG(0x164)]=d->output_poc;
+                r[WL_W5_REG(0x170)]=d->output_index==UINT_MAX?(uint32_t)-2:d->output_index;
+                r[WL_W5_REG(0x174)]=d->output_index;
+                r[WL_W5_REG(0x1b8)]=i->submit_tick;
+                r[WL_W5_REG(0x1bc)]=r[WL_W5_REG(0x1c0)]=i->submit_tick;
+                r[WL_W5_REG(0x1c4)]=r[WL_W5_REG(0x1c8)]=i->submit_tick;
+                r[WL_W5_REG(0x1cc)]=i->submit_tick;r[WL_W5_REG(0x1d0)]=i->complete_tick;
+                d->picture_result=false;
+            }
+            i->sequence_result=false;
+            wave5_decode_schedule(d);
+        } else if(query==2) {
+            /* The original driver drains results until hardware says none
+             * are queued. This is an empty queue, never a fabricated frame. */
+            wave5_complete(w,0);r[WL_W5_REG(0x108)]=0;r[WL_W5_REG(0x10c)]=0x800;
+            r[WL_W5_REG(0x1e0)]=d->command_count<<16;w->commands++;w->last_command=command;
+            fprintf(stderr,"Z8_WAVE5_DEC_NOT_READY no queued result\n");return true;
+        } else { return false; }
+        wave5_complete(w,0);
+    } else { return false; }
+    w->commands++;w->last_command=command;return true;
+}
 static bool wave5_command(WlWave5State *w,unsigned command,bool core_start)
 {
     uint32_t *r=w->regs;
@@ -346,6 +631,10 @@ static bool wave5_command(WlWave5State *w,unsigned command,bool core_start)
     if (global) { idx=0; }
     WlWave5Instance *i=&w->instance[idx];
     if (!global && command!=8 && i->created && (info>>16)!=i->codec_mode) { return false; }
+    if (!global && (i->decoder || ((info>>16)==0 || (info>>16)==2)) &&
+            w->board->wave5_host_decoder_diagnostic && command!=1) {
+        return wave5_decode_command(w,i,command,info,core_start);
+    }
     if (command==1) {
         uint64_t code,temp;unsigned bytes=r[WL_W5_REG(0x114)],tmp=r[WL_W5_REG(0x120)];
         w->boot_rejection=NULL;
@@ -501,7 +790,7 @@ static bool wave5_command(WlWave5State *w,unsigned command,bool core_start)
         if (query==0) {
             r[WL_W5_REG(0x118)]=0x10000;r[WL_W5_REG(0x11c)]=0x574c3556;
             r[WL_W5_REG(0x120)]=0x5210;r[WL_W5_REG(0x124)]=0;
-            r[WL_W5_REG(0x128)]=3; /* Public Wave5 convention: HEVC/AVC encoders. */
+            r[WL_W5_REG(0x128)]=3|(w->board->wave5_host_decoder_diagnostic?12:0); /* Public Wave5 convention: HEVC/AVC encoders. */
             r[WL_W5_REG(0x12c)]=(1U<<3)|(1U<<11); /* Functional 10-bit HEVC/AVC. */
             r[WL_W5_REG(0x130)]=0;r[WL_W5_REG(0x134)]=0;r[WL_W5_REG(0x140)]=0;
         } else if (query==2) {
@@ -621,7 +910,7 @@ static bool wave5_access(NikonZ8State *s,hwaddr address,uint64_t *value,unsigned
             if (w->instance[i].result) { goto rejected; }
         }
         if (v) {
-            for (unsigned i=0;i<WL_W5_INSTANCES;i++) { wl_hevc_close(w->instance[i].codec);memset(&w->instance[i],0,sizeof(w->instance[i])); }
+            for (unsigned i=0;i<WL_W5_INSTANCES;i++) { wl_hevc_close(w->instance[i].codec);wl_video_dec_close(w->instance[i].decoder);memset(&w->instance[i],0,sizeof(w->instance[i])); }
             memset(w->regs,0,sizeof(w->regs));w->booted=false;w->sleeping=false;w->instances=0;w->resets++;
         }
         w->regs[word]=v;w->regs[WL_W5_REG(0x54)]=0;
@@ -716,4 +1005,38 @@ static char *get_wave5_state(Object *obj,Error **errp)
         w->source_rejection ? w->source_rejection : "",w->boot_rejection ? w->boot_rejection : "",s->wave5_host_codec_diagnostic ? "false" : "true",
         s->wave5_host_codec_diagnostic ? "true" : "false",w->boot_physical);
     return g_string_free(j,false);
+}
+
+static bool get_wave5_decode(Object *obj,Error **errp) { return NIKON_Z8_LAB(obj)->wave5_host_decoder_diagnostic; }
+static void set_wave5_decode(Object *obj,bool value,Error **errp) { NikonZ8State *s=NIKON_Z8_LAB(obj);if(s->wave5_realized) { error_setg(errp,"immutable decoder profile");return; }s->wave5_host_decoder_diagnostic=value; }
+
+static bool wave5_decoder_surface_valid(NikonZ8State *s,unsigned token,uint64_t epoch)
+{
+    if(!s->wave5_host_decoder_diagnostic || !s->wave5 || token>=128) { return false; }
+    WlWave5Instance *i=&s->wave5->instance[token/32];WlVideoDecode *d=i->decoder;
+    unsigned idx=token%32;
+    return d && i->created && i->configured && d->buffers[1][idx].set &&
+        (d->display_flags&(1U<<idx)) && epoch && d->buffer_epoch[idx]==epoch;
+}
+static bool wave5_decoder_surface_find(NikonZ8State *s,uint64_t y,uint64_t uv,unsigned width,unsigned height,unsigned pitch,unsigned *token,uint64_t *epoch)
+{
+    if(!s->wave5_host_decoder_diagnostic || !s->wave5) { return false; }
+    for(unsigned n=0;n<WL_W5_INSTANCES;n++) {
+        WlWave5Instance *i=&s->wave5->instance[n];WlVideoDecode *d=i->decoder;
+        if(!d || i->width!=width || i->height!=height || i->depth!=8) { continue; }
+        for(unsigned k=0;k<32;k++) {
+            WlVideoDecBuffer *b=&d->buffers[1][k];
+            if(b->plane[0]==y && b->plane[1]==uv && b->interleaved && !b->nv21 &&
+                b->stride==pitch && wave5_decoder_surface_valid(s,n*32+k,d->buffer_epoch[k])) {
+                *token=n*32+k;*epoch=d->buffer_epoch[k];return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void wave5_decoder_finalize(NikonZ8State *s)
+{
+    if(!s->wave5) { return; }
+    for(unsigned n=0;n<WL_W5_INSTANCES;n++) { wl_video_dec_close(s->wave5->instance[n].decoder);s->wave5->instance[n].decoder=NULL; }
 }

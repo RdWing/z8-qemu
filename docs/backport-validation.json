@@ -833,5 +833,61 @@
     },
     "native_movie_playback_qualified": false,
     "physical_dma_timing_verified": false
+  },
+  "saved_movie_video_decoder": {
+    "default_enabled": false,
+    "option": "wave5-host-decoder-diagnostic",
+    "cli_option": "--experimental-movie-playback",
+    "backend": "installed public libavcodec/libavutil",
+    "linear_output": "8-bit I420/NV12/NV21; NV12 display bridge",
+    "programmed_command_capacity": [
+      1,
+      4
+    ],
+    "synthetic_actual_board": {
+      "checks": 457,
+      "passed": true,
+      "frames": 30,
+      "source": "generated lossless pixels",
+      "queue_full_rejection": true,
+      "flush_reset_cancel_pending": true
+    },
+    "native_video": {
+      "plays": 2,
+      "frames_per_play": 30,
+      "poster_decodes_per_play": 1,
+      "transport_checks": 300,
+      "transport_passed": true,
+      "runtime_error": false,
+      "photo_live_view_return": true,
+      "saved_mov_unchanged": true,
+      "read_only_exfat_exit": 0,
+      "vpu_commands": 312,
+      "vpu_rejects": 0,
+      "active_decoded_bytes": 771379200,
+      "image_transfer_jobs": 65,
+      "photo_ui_mode": 6,
+      "photo_raw_frames": 417,
+      "clean_owned_stop_virtual_seconds": 48.019474778,
+      "public_cli_profile_verified": true
+    },
+    "native_audio_tx_qualified": false,
+    "arbitrary_movie_formats_qualified": false,
+    "vendor_microcode_executed": false,
+    "physical_timing_verified": false,
+    "synthetic_nv12_playback": {
+      "checks": 44,
+      "passed": true,
+      "source": "generated lossless 3840x2160 pixels",
+      "output": [
+        1024,
+        576
+      ],
+      "normal_input_cause": 17,
+      "explicit_stop_cause": 65536,
+      "phase_separation": true,
+      "flush_reset_cancel_pending": true
+    },
+    "default_off_board_checks": 7
   }
 }
