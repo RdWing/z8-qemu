@@ -5,7 +5,8 @@ import errno,os,shutil
 from pathlib import Path
 def copy_card(source,target):
     source,target=Path(source),Path(target)
-    with source.open('rb') as src,target.open('xb') as dst:
+    # Extent queries change the descriptor offset outside Python's buffer.
+    with source.open('rb',buffering=0) as src,target.open('xb') as dst:
         size=source.stat().st_size;dst.truncate(size)
         if hasattr(os,'SEEK_DATA'):
             position=0

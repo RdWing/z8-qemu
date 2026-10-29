@@ -653,7 +653,7 @@
     "record_stop_replay": "tools/native-movie-recording-contacts.json",
     "encoded_output_qualified": true,
     "saved_file_playback_qualified": false,
-    "scope": "Original Record input, header admission and bounded functional host encoding from original picture requests; Stop/card finalization and saved-file playback remain open",
+    "scope": "Original Record/Stop with declared image/audio inputs, functional host video/LPCM backends and original card writer; one short saved file fully decoded independently. Native Movie playback and longer/repeated recording remain open.",
     "codec_headers": {
       "optional_models": [
         "video-nr-reset-model",
@@ -733,7 +733,62 @@
         "saved_containers": 1,
         "ffprobe_media_streams": 0
       },
-      "remaining_boundary": "Audio-source initialization/conversion and synchronized samples to the original writer; later repeated program upload and native saved-file playback remain unqualified"
+      "remaining_boundary": "Earlier profile without LPCM/audio input: zero-stream skeletons; later functional recording is qualified separately below."
+    },
+    "playable_saved_movie": {
+      "optional_models": [
+        "lpcm-host-conversion-model",
+        "lpcm-ram-aperture-fixture",
+        "serial5-audio-config-model",
+        "video-preview-ram-model"
+      ],
+      "external_pcm_source": "declared 48kHz stereo signed LE32 blocks via original RX DMA",
+      "lpcm_jobs": 6,
+      "lpcm_input_bytes": 1153152,
+      "lpcm_output_bytes": 864864,
+      "encoded_pictures": 31,
+      "saved_file_bytes": 976533,
+      "fully_initialized": true,
+      "video": {
+        "codec": "hevc",
+        "width": 3840,
+        "height": 2160,
+        "fps_n": 30000,
+        "fps_d": 1001,
+        "decoded_frames": 30
+      },
+      "audio": {
+        "codec": "pcm_s24le",
+        "rate": 48000,
+        "channels": 2,
+        "sample_frames": 48048,
+        "all_decoded_pairs_match_declared_source": true
+      },
+      "duration_seconds": 1.001,
+      "full_external_decode_exit": 0,
+      "read_only_exfat_check_exit": 0,
+      "source_card_unchanged_by_audit": true,
+      "photo_recovery": true,
+      "owned_clean_end_virtual_seconds": 58,
+      "vendor_microcode_executed": false,
+      "physical_audio_verified": false,
+      "native_playback_verified": false,
+      "board_qtest_checks": 190,
+      "disabled_model_checks": 3,
+      "host_tests": 107,
+      "host_passed": 106,
+      "host_optional_skips": 1,
+      "external_file_decode_qualified": true,
+      "independent_cold_boot_recordings": 2
+    },
+    "native_saved_movie_playback": {
+      "recognizes_movie": true,
+      "duration_displayed_seconds": 1,
+      "picture": "black",
+      "vpu_commands": 2,
+      "created_decode_instances": 0,
+      "decoded_frames": 0,
+      "qualified": false
     }
   }
 }

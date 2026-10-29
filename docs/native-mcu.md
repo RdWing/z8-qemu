@@ -672,7 +672,7 @@ one supply cut/reset, one EX startup reset, zero bad frames and clean stop.
 This final-gate control makes no exposure and retains separate scope from the
 three audited desktop HE★ files.
 
-## Movie recording preparation frontier
+## Movie recording and saved-file playback
 
 `tools/native-movie-recording-contacts.json` enters Movie, presses/releases its
 Record key at virtual 30/30.4 seconds, sends a second press/release at 40/40.4
@@ -754,7 +754,42 @@ These are original card writes, but neither file is playable.
 Tracing distinguishes video groups reaching the synchronization worker from
 its empty audio-source queue. The original source-miss limit remains intact
 and is reached during drain even in the shorter control. The on-chip LPCM
-conversion path has an earlier initialization failure; its core currently
-retains setup registers without executing its program. Further boot and
-conversion experiments remain private diagnostics. Playable recording still
-requires actual synchronized samples, finalization and saved-file playback.
+conversion path has an earlier initialization failure in that profile.
+
+The optional `lpcm-host-conversion-model=on` implements its boot/message
+interface and actual signed little-endian sample-width conversion, with
+original TX/RX interrupts and acknowledgement ownership. It requires the
+separate `lpcm-ram-aperture-fixture=on`: the default 128 MiB windows miss the
+originally allocated conversion buffers. That fixture extends only the first
+read/write pairs to work-RAM size. It is declared boot input, not a measured
+camera map. Both properties are fixed at realization and default off.
+Original on-chip instructions are not executed.
+
+Audio remains an explicit external input. Enable `serial5-audio-config-model`
+and declare sample-register values through `serial5-audio-sample-input` after
+configuration is enabled. `serial5-pcm-state` identifies each ready original
+RX descriptor. Complete stereo LE32 blocks enter through
+`serial5-pcm-input=channel:phase:local:word-count:left:right`, with matching
+address, phase and length. The input writes real bytes before native DMA
+completion; absent input produces no audio packet. The tested source was
+48 kHz stereo with alternating signed constant blocks, not microphone audio.
+
+With these models, finite preview enabled and the existing recording profile,
+original EX Record/Stop completes six LPCM conversions and 31 encoded pictures.
+The original writer closes a fully initialized 976,533-byte MOV. Read-only
+extraction and independent full decoding find 30 HEVC frames at
+3840×2160, 30000/1001 fps, plus 48,048 stereo 24-bit PCM sample frames at
+48 kHz. Both tracks last 1.001 seconds. Every decoded audio pair matches the
+declared source. The stopped exFAT card passes its read-only filesystem check;
+Photo recovery and clean owned shutdown complete at virtual 58 seconds.
+A second cold boot of the publication-ready source repeats the same file size,
+track counts, duration and successful full decode/filesystem checks.
+This qualifies two short functional recordings, with synthetic image/audio and
+host codec/conversion backends. Longer/repeated recording, physical codec
+behavior and microphone/audio-output integration remain separate checks.
+
+Native Playback recognizes the saved MOV and its duration. Its current
+picture is black: the VPU trace reaches boot and capability query, with no
+created decode instance or decoded frame. The model advertises its implemented
+encoders only. Independent file decoding does not qualify native Movie
+playback; the decoder/display and audio-output paths remain open.

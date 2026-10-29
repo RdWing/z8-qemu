@@ -107,3 +107,17 @@ The twelve STOP checks use guest-recorded timer/interrupt values rather than
 host scheduling to establish clock isolation. The twenty-two supply checks
 include two cycles and the default unconnected negative control. Neither suite
 qualifies physical pin-to-rail wiring or original-firmware operation by itself.
+
+
+`tests/check_lpcm.py --qemu /path/to/qemu-system-aarch64 --output .local/new-lpcm-check`
+uses only synthetic data on the actual board. Its 190 assertions cover the
+explicit RAM aperture, all four PCM byte-width modes, original mailbox
+ownership and IRQ wires, malformed/unmapped inputs and reset cancellation.
+Run it again with a fresh output directory and `--disabled` for the three
+checks of the default-off boot gate. These checks do not establish recording,
+physical sample packing or native Movie playback.
+
+Sparse-card tests compare complete cloned/derived partition bytes and reject
+buffered extent scans. Extent queries change the underlying descriptor offset,
+so all sparse source reads use unbuffered files. A filesystem audit and media
+decoding are separate checks; neither implies the other.

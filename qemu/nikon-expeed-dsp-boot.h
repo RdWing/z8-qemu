@@ -5,7 +5,7 @@
  * Port1 receives messages; port0 acknowledges outgoing messages. The
  * descriptor encodes a mailbox slot, not the nine-word payload length.
  */
-#define WL_DSP_BOOT_CHANNELS 3
+#define WL_DSP_BOOT_CHANNELS 4
 #define WL_DSP_BOOT_SLOTS 8
 #define WL_DSP_BOOT_DELAY_NS 1000000
 #define WL_DSP_SESSION_ALLOCATION_BYTES 0x56e40
@@ -24,6 +24,8 @@ typedef struct WlDspBootChannel {
     uint32_t tx_written[8], last_tx[16], last_tx_written, last_tx_control;
     uint32_t last_tx_claim, last_tx_route, last_tx_destination;
     unsigned tx_slot;
+    uint32_t lpcm_mode,lpcm_input,lpcm_output,lpcm_reply[9];
+    uint64_t lpcm_jobs,lpcm_input_bytes,lpcm_output_bytes,lpcm_rejects;
     bool reset_held, scheduled, booted, rx_pending, tx_scheduled, tx_pending;
     uint64_t requests, replies, acknowledgements, cancelled;
     uint64_t tx_requests, tx_confirmations, tx_acks, tx_cancelled;
@@ -40,11 +42,11 @@ typedef struct WlDspBootChannel {
     bool init_is_correction;
 } WlDspBootChannel;
 typedef struct WlDspBootState {
-    WlDspBootChannel channels[3];
+    WlDspBootChannel channels[4];
 } WlDspBootState;
-static const hwaddr wl_dsp_csrs[] = {0x1c800000, 0x1d800000, 0x1fc00000};
-static const hwaddr wl_dsp_mailboxes[] = {0x1c802000, 0x1d802000, 0x1fc02000};
-static const unsigned wl_dsp_rx_irqs[] = {78, 82, 74};
+static const hwaddr wl_dsp_csrs[] = {0x1c800000, 0x1d800000, 0x1fc00000,0x1b800000};
+static const hwaddr wl_dsp_mailboxes[] = {0x1c802000, 0x1d802000, 0x1fc02000,0x1b802000};
+static const unsigned wl_dsp_rx_irqs[] = {78, 82, 74,87};
 
 static void dsp_boot_irq_update(WlDspBootChannel *d)
 {
@@ -347,6 +349,73 @@ static void dsp_session_program_free(WlDspBootChannel *d)
         d->init_program_bytes[i] = d->init_crc[i] = 0;
     }
 }
+/* Functional LPCM backend. Declared left-aligned LE signed PCM,
+ * byte truncation/zero extension; original core ISA/rounding unverified. */
+static bool lpcm_address(NikonZ8State *s, unsigned direction,
+                                  uint32_t local, uint32_t bytes, uint64_t *physical)
+{
+    if (!s->bus_window_fixture || !bytes) { return false; }
+    for (unsigned entry=direction*2;entry<32;entry+=4) {
+        unsigned bank=!!(s->bus_windows[10][0][entry][0]&0x10);
+        uint64_t *w=s->bus_windows[10][bank][entry];
+        uint32_t start=w[0]&0xffffffc0,span=-(uint32_t)(w[1]&0xffffffc0);
+        if (local>=start && (uint64_t)local-start<span && bytes<=span-((uint64_t)local-start)) {
+            *physical=(((bank?UINT64_C(0x800000000):UINT64_C(0xc00000000))+
+                (w[2]&UINT64_C(0xfffffffc0)))&UINT64_C(0xfffffffc0))+local-start;
+            if (s->lpcm_ram_aperture_fixture && entry<4 && w[2]==0 &&
+                w[1]==(UINT64_C(1)<<36)-MACHINE(s)->ram_size) {
+                *physical=UINT64_C(0xa00000000)+local-start;
+            }
+            return dma_ram_range(s,*physical,bytes);
+        }
+    }
+    return false;
+}
+static bool lpcm_submit(NikonZ8State *s,WlDspBootChannel *d,
+                                const uint32_t *w,uint32_t mask)
+{
+    if (mask!=0x1ff || w[0]!=2 || d->init_ready || d->rx_pending) { return false; }
+    unsigned used=w[1]==1?5:w[1]==2?2:w[1]==3?4:9;
+    if (used==9) { return false; }
+    for (unsigned i=used;i<9;i++) { if(w[i]) { return false; } }
+    uint64_t src,dst;
+    if (w[1]==1) {
+        if (d->init_configured || w[2]<1 || w[2]>4 ||
+            !lpcm_address(s,0,w[3],0x2f000,&src) ||
+            !lpcm_address(s,1,w[4],0x2f000,&dst) ||
+            (src<dst+0x2f000 && dst<src+0x2f000)) { return false; }
+        d->lpcm_mode=w[2];d->lpcm_input=w[3];d->lpcm_output=w[4];d->init_configured=true;
+    } else if (w[1]==2) {
+        if (!d->init_configured) { return false; }
+        d->init_configured=false;
+    } else {
+        unsigned ib=d->lpcm_mode==1 || d->lpcm_mode==3?4:3;
+        unsigned ob=d->lpcm_mode==1?3:d->lpcm_mode==2?4:2;
+        if (!d->init_configured || !w[2] || w[2]>0x2f000 || w[2]%ib ||
+            w[3]!=w[2]/ib*ob || w[3]>0x2f000 ||
+            !lpcm_address(s,0,d->lpcm_input,w[2],&src) ||
+            !lpcm_address(s,1,d->lpcm_output,w[3],&dst) ||
+            (src<dst+w[3] && dst<src+w[2])) { return false; }
+        uint8_t *input=g_malloc(w[2]),*output=g_malloc0(w[3]);
+        bool ok=address_space_read(&address_space_memory,src,MEMTXATTRS_UNSPECIFIED,input,w[2])==MEMTX_OK;
+        if (ok) {
+            for (unsigned i=0,j=0;i<w[2];i+=ib,j+=ob) {
+                if (ob<ib) { memcpy(output+j,input+i+ib-ob,ob); }
+                else { memcpy(output+j+ob-ib,input+i,ib); }
+            }
+            ok=address_space_write(&address_space_memory,dst,MEMTXATTRS_UNSPECIFIED,output,w[3])==MEMTX_OK;
+        }
+        g_free(input);g_free(output);
+        if (!ok) { return false; }
+        d->lpcm_jobs++;d->lpcm_input_bytes+=w[2];d->lpcm_output_bytes+=w[3];
+    }
+    memset(d->lpcm_reply,0,sizeof(d->lpcm_reply));d->lpcm_reply[0]=2;d->lpcm_reply[1]=w[1];
+    if(w[1]==3) { d->lpcm_reply[2]=w[2]; }
+    d->init_ready=true;d->init_completed++;
+    fprintf(stderr,"Z8_LPCM_JOB command=%u mode=%u words=%08x,%08x,%08x,%08x,%08x jobs=%"PRIu64"\n",w[1],d->lpcm_mode,w[0],w[1],w[2],w[3],w[4],d->lpcm_jobs);
+    return true;
+}
+
 static void dsp_session_try_reply(WlDspBootChannel *d)
 {
     if (!d->init_ready || d->reset_held || d->rx_pending || d->tx_scheduled ||
@@ -355,6 +424,7 @@ static void dsp_session_try_reply(WlDspBootChannel *d)
     d->rx[0] = d->init_opcode;
     d->rx[1] = 0; /* This backend's actual initialized-session result. */
     d->rx[2] = d->init_group;
+    if (d->channel==3) { memcpy(d->rx,d->lpcm_reply,sizeof(d->lpcm_reply)); }
     d->rx_pending = d->rx_is_init = true;
     d->init_ready = false;
     d->init_replies++;
@@ -588,8 +658,9 @@ invalid:
 static bool dsp_boot_mailbox_access(NikonZ8State *s, hwaddr addr,
                                     uint64_t *value, unsigned size, bool write)
 {
-    if (!s->dsp_boot_mailbox_model) { return false; }
-    for (unsigned channel = 0; channel < 3; channel++) {
+    if (!s->dsp_boot_mailbox_model && !s->lpcm_host_conversion_model) { return false; }
+    for (unsigned channel = 0; channel < 4; channel++) {
+        if ((channel==3 && !s->lpcm_host_conversion_model) || (channel<3 && !s->dsp_boot_mailbox_model)) { continue; }
         hwaddr base = wl_dsp_mailboxes[channel];
         if (addr < base || addr >= base + 0x904) { continue; }
         WlDspBootChannel *d = &s->dsp_boot->channels[channel];
@@ -672,7 +743,9 @@ static bool dsp_boot_mailbox_access(NikonZ8State *s, hwaddr addr,
                 !d->tx_written[slot] || (d->tx_written[slot] & (d->tx_written[slot] + 1))) {
                 goto invalid;
             }
-            if (s->dsp_motion_functional_model && d->channel == 1 && d->tx[slot][0] == 0x18) {
+            if (d->channel==3) {
+                if (!lpcm_submit(s,d,d->tx[slot],d->tx_written[slot])) { d->lpcm_rejects++; goto invalid; }
+            } else if (s->dsp_motion_functional_model && d->channel == 1 && d->tx[slot][0] == 0x18) {
                 if (!dsp_moving_submit(s, d, d->tx[slot], d->tx_written[slot])) { goto invalid; }
             } else if (s->dsp_motion_functional_model && d->channel == 1 &&
                     (d->tx[slot][0] == 0x1a || d->tx[slot][0] == 0x1b)) {
@@ -710,7 +783,7 @@ invalid:
 }
 static void dsp_boot_init(NikonZ8State *s, DeviceState *gic)
 {
-    if (!s->dsp_boot_mailbox_model) { return; }
+    if (!s->dsp_boot_mailbox_model && !s->lpcm_host_conversion_model) { return; }
     if (!s->bootstrap_fixtures) {
         error_report("DSP boot mailbox requires bootstrap-fixtures=on"); exit(1);
     }
@@ -718,7 +791,7 @@ static void dsp_boot_init(NikonZ8State *s, DeviceState *gic)
         error_report("dsp-session-init-model requires explicit DSP RAM aperture input"); exit(1);
     }
     s->dsp_boot = g_new0(WlDspBootState, 1);
-    for (unsigned i = 0; i < 3; i++) {
+    for (unsigned i = 0; i < 4; i++) {
         WlDspBootChannel *d = &s->dsp_boot->channels[i];
         d->owner = s; d->channel = i;
         d->irq = qdev_get_gpio_in(gic, wl_dsp_rx_irqs[i] - 32);
@@ -890,4 +963,48 @@ static char *get_dsp_boot_mailbox_state(Object *obj, Error **errp)
         s->dsp_boot && s->dsp_boot->channels[1].motion.completed ? "true" : "false",
         s->dsp_motion_functional_model ? "true" : "false");
     return g_string_free(out, false);
+}
+
+static void lpcm_boot_ready(NikonZ8State *s)
+{ if(s->dsp_boot) { s->dsp_boot->channels[3].booted=true;s->dsp_boot->channels[3].reset_held=false; } }
+static void lpcm_reset(NikonZ8State *s)
+{
+ if(!s->dsp_boot) { return; }
+ WlDspBootChannel *d=&s->dsp_boot->channels[3];
+ timer_del(d->tx_timer);d->tx_scheduled=d->tx_pending=d->rx_pending=d->booted=d->init_configured=d->init_ready=d->rx_is_init=false;
+ d->reset_held=true;memset(d->claims,0,sizeof(d->claims));dsp_boot_irq_update(d);
+}
+
+static char *get_lpcm_host_state(Object *obj, Error **errp)
+{
+    NikonZ8State *s=NIKON_Z8_LAB(obj);
+    WlDspBootChannel empty={0};
+    WlDspBootChannel *d=s->dsp_boot?&s->dsp_boot->channels[3]:&empty;
+    return g_strdup_printf("{\"enabled\":%s,\"ram_aperture_fixture\":%s,\"boot_requests\":%"PRIu64
+        ",\"boot_responses\":%"PRIu64",\"configured\":%s,\"mode\":%u,\"input_bus\":%u,\"output_bus\":%u,"
+        "\"jobs\":%"PRIu64",\"input_bytes\":%"PRIu64",\"output_bytes\":%"PRIu64",\"rejects\":%"PRIu64
+        ",\"tx_requests\":%"PRIu64",\"tx_acks\":%"PRIu64",\"rx_replies\":%"PRIu64",\"rx_acks\":%"PRIu64
+        ",\"tx_pending\":%s,\"rx_pending\":%s,\"original_core_instructions_executed\":false,"
+        "\"physical_packing_verified\":false,\"scope\":\"explicit left-aligned signed LE PCM width conversion; real RAM before IRQ; no audio source, file writer or decoder supplied\"}",
+        s->lpcm_host_conversion_model?"true":"false",s->lpcm_ram_aperture_fixture?"true":"false",
+        s->core1b_boot_requests,s->core1b_boot_responses,d->init_configured?"true":"false",
+        d->lpcm_mode,d->lpcm_input,d->lpcm_output,d->lpcm_jobs,d->lpcm_input_bytes,
+        d->lpcm_output_bytes,d->lpcm_rejects,d->tx_requests,d->tx_acks,d->init_replies,
+        d->init_acks,d->tx_pending?"true":"false",d->rx_pending?"true":"false");
+}
+
+static void dsp_boot_finalize(NikonZ8State *s)
+{
+    if (!s->dsp_boot) { return; }
+    for (unsigned i=0;i<WL_DSP_BOOT_CHANNELS;i++) {
+        WlDspBootChannel *d=&s->dsp_boot->channels[i];
+        motion_job_reset(&d->motion);
+        dsp_session_program_free(d);
+        if (d->timer) { timer_free(d->timer); }
+        if (d->tx_timer) { timer_free(d->tx_timer); }
+        if (d->init_timer) { timer_free(d->init_timer); }
+        if (d->motion.timer) { timer_free(d->motion.timer); }
+    }
+    g_free(s->dsp_boot);
+    s->dsp_boot=NULL;
 }

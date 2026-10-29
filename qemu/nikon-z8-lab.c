@@ -1114,6 +1114,10 @@ struct NikonZ8State {
     bool dsp_correction_init_model;
     struct WlDspBootState *dsp_boot;
     uint32_t core1b_config[0x44 / 4];
+    bool lpcm_host_conversion_model, lpcm_realized;
+    bool lpcm_ram_aperture_fixture;
+    QEMUTimer *core1b_boot_timer;
+    uint64_t core1b_boot_requests,core1b_boot_responses;
     uint64_t general_dma_fill[8];
     uint32_t i2c[4][11];
     uint8_t i2c_tx[4][16];
@@ -1682,6 +1686,9 @@ static void provision_bus_windows(NikonZ8State *s)
                  * This is boot input, not a measured physical-camera map. */
                 if (group == 0 && entry >= 14) {
                     words[1] = UINT64_C(0xfe0000000);
+                }
+                if (s->lpcm_ram_aperture_fixture && group==10 && entry<4) {
+                    words[1]=(UINT64_C(1)<<36)-MACHINE(s)->ram_size;
                 }
                 if (group == 16) {
                     words[0] = 0x80000000;
@@ -5876,6 +5883,54 @@ static uint32_t *task_1500_word(NikonZ8State *s, hwaddr addr, unsigned size,
         return NULL;
     }
     return &s->task_1500_desc[ch][off / 4];
+}
+
+/* Explicit LPCM service boot ABI. The optional host conversion backend
+ * consumes actual PCM; no on-chip instructions are executed. */
+static void lpcm_boot_ready(NikonZ8State *s);
+static void lpcm_reset(NikonZ8State *s);
+static void core1b_boot_response(void *opaque)
+{
+    NikonZ8State *s=opaque;
+    if (!s->lpcm_host_conversion_model || s->core1b_config[0] ||
+        s->core1b_config[2] || s->core1b_config[8]) { return; }
+    uint32_t status=0;
+    if (address_space_read(&address_space_memory,UINT64_C(0xa00080000),
+        MEMTXATTRS_UNSPECIFIED,&status,4)!=MEMTX_OK || status) { return; }
+    status=cpu_to_le32(0x53535353);
+    if (address_space_write(&address_space_memory,UINT64_C(0xa00080000),
+        MEMTXATTRS_UNSPECIFIED,&status,4)==MEMTX_OK) { s->core1b_boot_responses++;lpcm_boot_ready(s); fprintf(stderr,"Z8_LPCM_BOOT_RESPONSE ns=%"PRId64"; boot ABI only\n",qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)); }
+}
+static void core1b_boot_written(NikonZ8State *s,unsigned off)
+{
+    if (!s->lpcm_host_conversion_model) { return; }
+    if (!s->core1b_boot_timer) {
+        s->core1b_boot_timer=timer_new_ns(QEMU_CLOCK_VIRTUAL,core1b_boot_response,s);
+    }
+    if (s->core1b_config[0] || s->core1b_config[2] || s->core1b_config[8]) {
+        timer_del(s->core1b_boot_timer);lpcm_reset(s);return;
+    }
+    if (off!=0x2c || s->core1b_config[0x2c/4]!=0x10 || timer_pending(s->core1b_boot_timer)) { return; }
+    uint8_t program[0x3e00];unsigned nonzero=0;
+    if (address_space_read(&address_space_memory,UINT64_C(0xa00000000),
+        MEMTXATTRS_UNSPECIFIED,program,sizeof(program))!=MEMTX_OK) { return; }
+    for (unsigned i=0;i<sizeof(program);i++) { nonzero+=program[i]!=0; }
+    if (nonzero<1024) { return; }
+    s->core1b_boot_requests++;
+    fprintf(stderr,"Z8_LPCM_BOOT request=%"PRIu64" program_nonzero=%u; functional ABI, no ISA execution\n",s->core1b_boot_requests,nonzero);
+    timer_mod(s->core1b_boot_timer,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)+1000000);
+}
+static bool get_lpcm_ram_aperture(Object *obj,Error **errp)
+{ return NIKON_Z8_LAB(obj)->lpcm_ram_aperture_fixture; }
+static void set_lpcm_ram_aperture(Object *obj,bool value,Error **errp)
+{ NikonZ8State *s=NIKON_Z8_LAB(obj);if(s->lpcm_realized) { error_setg(errp,"immutable explicit core1b RAM aperture");return; } s->lpcm_ram_aperture_fixture=value; }
+static bool get_lpcm_host_conversion_model(Object *obj,Error **errp)
+{ return NIKON_Z8_LAB(obj)->lpcm_host_conversion_model; }
+static void set_lpcm_host_conversion_model(Object *obj,bool value,Error **errp)
+{
+    NikonZ8State *s=NIKON_Z8_LAB(obj);
+    if (s->lpcm_realized) { error_setg(errp,"immutable LPCM host conversion profile");return; }
+    s->lpcm_host_conversion_model=value;
 }
 
 /* Separate on-chip controller setup, original 40c2dad8 and 40c2dc10.
@@ -20362,6 +20417,7 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
     uint32_t *core1b = core1b_word(s, addr, size, &core1b_mask);
     if (core1b && !(value & ~core1b_mask)) {
         *core1b = value;
+        core1b_boot_written(s,(unsigned)(addr-0x1b800000));
         fprintf(stderr, "Z8_CORE1B_INIT offset=%x value=%x; no core execution\n",
                 (unsigned)(addr - 0x1b800000), (uint32_t)value);
         return;
@@ -21897,6 +21953,14 @@ static void nikon_z8_init(MachineState *machine)
         error_report("dsp-ram-aperture-fixture requires bootstrap, bus-window-fixture and dsp-boot-mailbox-model");
         exit(1);
     }
+    if (s->lpcm_host_conversion_model && (!s->bootstrap_fixtures ||
+            !s->bus_window_fixture || !s->lpcm_ram_aperture_fixture)) {
+        error_report("lpcm-host-conversion-model requires bootstrap, bus windows and explicit LPCM RAM aperture"); exit(1);
+    }
+    if (s->lpcm_ram_aperture_fixture && (!s->bootstrap_fixtures || !s->bus_window_fixture)) {
+        error_report("LPCM RAM aperture requires explicit bootstrap and bus-window fixtures"); exit(1);
+    }
+    s->lpcm_realized=true;
     if (s->bus_window_fixture) {
         if (!s->bootstrap_fixtures) {
             error_report("bus-window-fixture requires bootstrap-fixtures=on");
@@ -23438,6 +23502,9 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "engine1542-ram-input-control-state", get_engine1542_ram_input_state, NULL);
     object_class_property_add_bool(oc, "capture-thumbnail-nv16-model", get_capture_thumbnail_model, set_capture_thumbnail_model);
     object_class_property_add_bool(oc,"video-preview-ram-model",get_video_preview_model,set_video_preview_model);
+    object_class_property_add_bool(oc,"lpcm-ram-aperture-fixture",get_lpcm_ram_aperture,set_lpcm_ram_aperture);
+    object_class_property_add_bool(oc,"lpcm-host-conversion-model",get_lpcm_host_conversion_model,set_lpcm_host_conversion_model);
+    object_class_property_add_str(oc,"lpcm-host-state",get_lpcm_host_state,NULL);
     object_class_property_add_str(oc,"video-preview-ram-state",get_video_preview_state,NULL);
     object_class_property_add_str(oc, "capture-thumbnail-nv16-state", get_capture_thumbnail_state, NULL);
     object_class_property_add_bool(oc, "capture-nv16-pipeline-model", get_capture_nv16_model, set_capture_nv16_model);
@@ -23505,6 +23572,7 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
 static void nikon_z8_finalize(Object *obj)
 {
     NikonZ8State *s = NIKON_Z8_LAB(obj);
+    dsp_boot_finalize(s);
     g_clear_pointer(&s->nand_pages, g_hash_table_unref);
     g_clear_pointer(&s->serial_last_tx, g_free);
     if (s->serial_write_peer_timer) { timer_free(s->serial_write_peer_timer); }
@@ -23517,6 +23585,7 @@ static void nikon_z8_finalize(Object *obj)
     g_free(s->statistics_raw_path);
     nikon_raw_pixels_free(s->raw_pixels);
     g_free(s->z8_playback_pixels);
+    if (s->core1b_boot_timer) { timer_free(s->core1b_boot_timer); }
     g_free(s->primary_d980_cache);
     g_free(s->video_raw_packet_extra);
     if (s->primary_d980_single_timer) { timer_free(s->primary_d980_single_timer); }
