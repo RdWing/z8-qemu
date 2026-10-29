@@ -653,6 +653,48 @@
     "record_stop_replay": "tools/native-movie-recording-contacts.json",
     "encoded_output_qualified": false,
     "saved_file_playback_qualified": false,
-    "scope": "Original Record input and preparation/header admission only; native NR reset continuation is being investigated"
+    "scope": "Original Record input/header admission and optional codec-header completion only; no encoded pictures, Stop/file finalization or saved-file playback",
+    "codec_headers": {
+      "optional_models": [
+        "video-nr-reset-model",
+        "video-initial-reset-model",
+        "video-processing-config-model",
+        "wave5-vpu-model",
+        "wave5-host-codec-diagnostic"
+      ],
+      "gic_intid": 120,
+      "polling_override": "wave5-irq=0",
+      "original_handler_observed": true,
+      "program_dma_bytes": 1048576,
+      "program_dma_crc32": 41103859,
+      "commands": 9,
+      "completions": 9,
+      "pending": 0,
+      "hevc_header_bytes": 88,
+      "pictures": 0,
+      "coded_width": 3840,
+      "coded_height": 2160,
+      "depth": 8,
+      "fps_n": 30000,
+      "fps_d": 1001,
+      "keyframe_period": 15,
+      "ring_capacity": 167772160,
+      "vendor_microcode_executed": false,
+      "controls_completed_virtual_seconds": 58,
+      "owned_processes_stopped": true
+    },
+    "registered_source_comparison": {
+      "at_virtual_seconds": 42,
+      "surfaces_produced": 280,
+      "source_rejections": 0,
+      "codec_acquisitions": 0,
+      "pictures": 0,
+      "scope": "Actual RAW-derived surfaces are not encoder-submission acceptance"
+    },
+    "interrupt_binding_mmio_checks": {
+      "default": 23,
+      "explicit_polling": 23,
+      "no_command_or_completion_created_by_binding": true
+    }
   }
 }

@@ -23557,6 +23557,10 @@ static void nikon_z8_instance_init(Object *obj)
 {
     /* Preserve Z8's accepted default F0 file encoding. */
     NIKON_Z8_LAB(obj)->engine1540_lossless14_model = true;
+    /* Original C3.11 registers and enables the codec handler at INTID120.
+     * The optional device stays disabled by default; explicit irq=0 retains
+     * polling-only diagnostics. This is a board binding, not a completion. */
+    NIKON_Z8_LAB(obj)->wave5_irq_number = 120;
 }
 
 static const TypeInfo nikon_z8_type = {

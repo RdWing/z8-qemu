@@ -699,3 +699,25 @@ NR reset ID `0x4A`, bank eight bit 23. The explicit NR initialization/reset
 profile has separate continuation checks; no encoded movie, card closure or
 saved-file playback is qualified by these preparation results. The optional
 host codec receives zero commands in the earlier failed controls.
+
+
+The optional Wave5-compatible device now uses the original Z8 codec GIC
+interrupt, INTID 120. `wave5-irq=0` explicitly selects polling-only diagnostics;
+the binding cannot change after machine realization. This connection does not
+assert an interrupt until the device owns a completed command and enabled
+pending reason. The device and diagnostic host-codec backend remain opt-in.
+
+With the separate NR initialization/reset/configuration models and host codec
+enabled, native original MAIN/EX uploads a nonzero 1 MiB program buffer and
+configures 3840×2160 eight-bit HEVC at 30000/1001 fps with a 15-frame keyframe
+period. The connected original handler consumes nine completed commands and
+88 bytes of sequence headers. The comparison with no interrupt connection
+stops after sequence setup and later faults in the header consumer. Original
+code DMA does not establish vendor microcode execution: encoding is an
+explicit functional host backend.
+
+Two normal-clock, interrupt-connected controls stop cleanly at virtual 58
+seconds, but submit zero pictures and save no movie. Registering RAW-derived
+recording surfaces alone does not change that result. Header completion,
+encoded pictures, Stop/file finalization and native playback are separate
+acceptance boundaries; the latter three remain open.
