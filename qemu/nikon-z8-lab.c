@@ -6489,10 +6489,12 @@ static void general_dma_write(NikonZ8State *s, unsigned ch, unsigned word,
         source_ok = r[3] == 0x30f00 &&
                     general_dma_address(s, ch, 0, r[1], bytes, &src);
     }
+    /* Playback may copy a buffer onto the identical checked RAM span.
+     * Keep the real read/write below; partial overlaps remain unsupported. */
     if (value != 0x11109003 || !source_ok || r[4] != 0x30f00 ||
         r[5] != 0 || bytes > 64 * MiB ||
         !general_dma_address(s, ch, 1, r[2], bytes, &dst) ||
-        (!fill && src < dst + bytes && dst < src + bytes)) {
+        (!fill && src != dst && src < dst + bytes && dst < src + bytes)) {
         fprintf(stderr, "Z8_GDMA rejected ch=%u src=%" PRIx64
                 " dst=%" PRIx64 " bytes=%" PRIx64
                 " cfg=%08x,%08x,%08x,%08x\n",

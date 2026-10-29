@@ -819,5 +819,19 @@
         "native_playback_qualified": false
       }
     }
+  },
+  "general_dma_identity_copy": {
+    "synthetic_actual_board": {
+      "checks": 17,
+      "passed": true,
+      "bytes_per_valid_transfer": 192192,
+      "identity_uses_checked_ram_copy": true,
+      "partial_overlap_admitted": false,
+      "unmapped_endpoints_admitted": false,
+      "oversized_identity_admitted": false,
+      "invalid_source_mode_admitted": false
+    },
+    "native_movie_playback_qualified": false,
+    "physical_dma_timing_verified": false
   }
 }

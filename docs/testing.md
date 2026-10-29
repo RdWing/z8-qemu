@@ -127,3 +127,11 @@ GLib, x264 and x265 development libraries. It checks actual VPS/SPS bytes for
 both HEVC tiers at levels 5.1 and 5.2, including the emulation-prevention bytes, and
 rejects invalid level/tier combinations. This covers encoder header signaling;
 native Movie parser admission and decoded playback require separate runs.
+
+`python3 tests/check_general_dma.py --qemu /path/to/qemu-system-aarch64 --output .local/new-general-dma-check`
+loads only synthetic RAM. Its 17 checks cover an identity transfer, an exact
+192,192-byte disjoint copy, canaries and status acknowledgement. Forward and
+backward partial overlaps, unmapped endpoints, an oversized identity span and
+an invalid source mode must leave memory unchanged and produce no completion.
+An identity transfer uses the same checked memory reads/writes as an ordinary
+copy. These checks do not establish native Movie playback or physical DMA timing.
