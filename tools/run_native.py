@@ -101,14 +101,14 @@ if a.card:virtual_card.attach(g,a.card,playback=a.experimental_playback,native_m
 native_he.attach(g,a)
 mode_controls=a.native_controls and native_he.control_modes_enabled(a)
 g.data.update(native_mode_controls=mode_controls,native_controls=a.native_controls,native_contact_actions=contacts.actions if contacts else [],command=g.command,native_mcu=True,host_mcu_messages=False,mcu_sha256=hashlib.sha256(mcu.read_bytes()).hexdigest())
-control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls,native_dials=a.native_controls) if a.port is not None else None
+control=Control(a.port,playback=a.experimental_playback,native_mcu=True,native_buttons=CONTACTS if a.native_controls else None,native_modes=mode_controls,native_capture=native_capture and a.native_controls,native_dials=a.native_controls,native_supply=bool(a.experimental_main_supply_pin),native_wake=a.native_controls and a.experimental_main_supply_pin=='C1') if a.port is not None else None
 if control:
  g.startup_cancelled=control.stop.is_set
  control.write_endpoint(g.out);signal.signal(signal.SIGTERM,lambda *_:control.stop.set())
 try:
  with g:
   g.rsp('z1,40160000,4')
-  inputs=Inputs(g.qmp,allow_modes=mode_controls,allow_capture=native_capture) if a.native_controls else None
+  inputs=Inputs(g.qmp,allow_modes=mode_controls,allow_capture=native_capture,allow_wake=a.experimental_main_supply_pin=='C1') if a.native_controls else None
   boundary=BoundaryPeer(g,33,auxiliary_masked=True,auxiliary1_masked=a.experimental_boundary_inputs,global0_bit26=a.experimental_boundary_inputs)
   spi8=WritePeer(g);spi9=WritePeer(g,channel=9,wire_bits=9,allow_dummy_rx=True)
   deadline=time.monotonic()+a.seconds;next_sample=0;capture_at=[]
@@ -142,8 +142,10 @@ try:
      he=g.data['native_he_models']['engine152c-he-still-state']
      row['capture_completed_jobs']=min(he['jobs'],he['acks'],he['stop_acks'])
      row['capture_ready']=native_he.capture_ready(g,row)
-    row['powered_down']=powered_down(row['runtime-clock-state'],int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little'))
-    if row['powered_down'] and inputs:inputs.release()
+     row['capture_retired']=native_he.capture_retired(g,row)
+    row['main_supply']=row['native-mcu-io-state']['main_supply']
+    row['powered_down']=bool(row['main_supply']['enabled'] and row['main_supply']['off']) or powered_down(row['runtime-clock-state'],int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little'))
+    if row['powered_down'] and inputs and not inputs.wake:inputs.release()
     g.data['native_powered_down']=g.data.get('native_powered_down',False) or row['powered_down']
     g.data.setdefault('native_samples',[]).append(row)
     if control:
@@ -151,7 +153,7 @@ try:
      row['native-mcu-panel-state']=json.loads(g.qmp.command('qom-get',path='/machine',property='native-mcu-panel-state'))
      control.publish_panel(g.qmp.command('qom-get',path='/machine',property='mcu-toplcd-bits'),row['native-mcu-panel-state'])
      frame=g.out/'current.ppm';g.qmp.command('screendump',filename=str(frame))
-     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9,powered_down=row['powered_down'],preparing_capture=row['preparing_capture'],capture_ready=row.get('capture_ready',False),capture_completed_jobs=row.get('capture_completed_jobs',0)),ready=a.native_controls and (row['raw-pipeline-state']['frames']>=8 or (native_capture and int.from_bytes(g.read_bytes(0xa03bc2b24,4),'little')==3)) and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
+     control.publish(frame,dict(raw=row['raw-pipeline-state'],lcd=row['engine1548-scanout-state'],virtual_seconds=row['runtime-clock-state']['virtual_ns']/1e9,powered_down=row['powered_down'],main_supply=row['main_supply'],preparing_capture=row['preparing_capture'],capture_ready=row.get('capture_ready',False),capture_retired=row.get('capture_retired',False),capture_completed_jobs=row.get('capture_completed_jobs',0)),ready=a.native_controls and (row['raw-pipeline-state']['frames']>=8 or (native_capture and int.from_bytes(g.read_bytes(0xa03bc2b24,4),'little')==3)) and int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little') in (1,2,6) and row['engine1548-scanout-state']['frames']>=8 and row['native-mcu-switch-state']['frames']>0)
      g.qmp.command('cont')
     (g.out/'native-live.json').write_text(json.dumps(row)+'\n');next_sample=now+.5
     if a.virtual_seconds is not None and row['runtime-clock-state']['virtual_ns']/1e9>=a.virtual_seconds:break

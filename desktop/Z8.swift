@@ -126,6 +126,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     var terminating = false
     var lastError = false
     var modeReady = false
+    var wakeReady = false
     var captureReady = false
     var dialsReady = false
     var buttonsReady = Set<String>()
@@ -175,6 +176,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             ("Switch to Photo", #selector(selectPhoto), "1"),
             ("Switch to Movie", #selector(selectMovie), "2"),
             ("Capture photo", #selector(capturePhoto), ""),
+            ("Wake camera", #selector(wakeCamera), ""),
             ("MENU", #selector(cameraMenuButton), ""),
             ("Half shutter", #selector(cameraHalfButton), ""),
             ("Playback", #selector(cameraPlayButton), ""),
@@ -321,7 +323,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     }
     func start(_ configuration: URL, restoring: Bool = false) {
         guard child == nil && !starting && !exporting else { return }
-        lastError = false; modeReady = false; captureReady = false; dialsReady = false; buttonsReady = []
+        lastError = false; modeReady = false; captureReady = false; wakeReady = false; dialsReady = false; buttonsReady = []
         do {
             let value = try JSONSerialization.jsonObject(with: Data(contentsOf: configuration))
             guard let config = value as? [String: Any], let python = config["python"] as? String,
@@ -383,7 +385,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
                 guard let self else { return }
                 self.cleanupSnapshot(snapshot)
                 guard self.child === process else { return }
-                self.child = nil; self.modeReady = false; self.captureReady = false; self.dialsReady = false; self.buttonsReady = []
+                self.child = nil; self.modeReady = false; self.captureReady = false; self.wakeReady = false; self.dialsReady = false; self.buttonsReady = []
                 if self.terminating { self.cancelRestart(); NSApp.reply(toApplicationShouldTerminate: true) }
                 else if let restart = self.restartURL {
                     self.restartURL = nil
@@ -430,6 +432,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
               message.frameInfo.securityOrigin.port == baseURL.port,
               let value = message.body as? [String: Any], let ready = value["modeReady"] as? Bool else { return }
         modeReady = ready
+        wakeReady = value["wakeReady"] as? Bool ?? false
         captureReady = value["captureReady"] as? Bool ?? false
         dialsReady = value["dialsReady"] as? Bool ?? false
         buttonsReady = Set((value["buttonsReady"] as? [String] ?? []).filter { cameraButtonActions.values.contains($0) })
@@ -438,6 +441,10 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
         guard modeReady, child?.isRunning == true, baseURL != nil,
               mode == "photo" || mode == "movie" else { return }
         view.evaluateJavaScript("window.z8Workbench?.selectMode('\(mode)')")
+    }
+    @objc func wakeCamera() {
+        guard wakeReady, child?.isRunning == true, baseURL != nil else { return }
+        view.evaluateJavaScript("window.z8Workbench?.wakeCamera()")
     }
     @objc func capturePhoto() {
         guard captureReady, child?.isRunning == true, baseURL != nil else { return }
@@ -640,7 +647,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
             try JSONSerialization.data(withJSONObject: configuration).write(to: temporary, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
             if child != nil {
-                restartURL = temporary; modeReady = false; captureReady = false; dialsReady = false; terminateChild()
+                restartURL = temporary; modeReady = false; captureReady = false; wakeReady = false; dialsReady = false; terminateChild()
             } else {
                 start(temporary, restoring: true)
                 try? FileManager.default.removeItem(at: temporary)
@@ -654,6 +661,7 @@ final class Desktop: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNaviga
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if let action = item.action, dialActions[action] != nil { return dialsReady && child?.isRunning == true && baseURL != nil }
         if let action = item.action, let key = cameraButtonActions[action] { return buttonsReady.contains(key) && child?.isRunning == true && baseURL != nil }
+        if item.action == #selector(wakeCamera) { return wakeReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(capturePhoto) { return captureReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(selectPhoto) || item.action == #selector(selectMovie) { return modeReady && child?.isRunning == true && baseURL != nil }
         if item.action == #selector(exportDiagnostics) { return activeConfiguration?["python"] is String && output != nil && child == nil && !starting && !exporting }

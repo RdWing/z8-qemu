@@ -111,8 +111,9 @@ python3 tools/run_native.py --firmware /private/MAIN.bi --mcu /private/EX.bi \
 ```
 
 The complete Movie options supply required device models; HE preparation does
-not qualify combined Movie live view. Interactive HE sessions disable mode
-selection and direct users to a separate Movie session.
+not qualify combined Movie live view. This legacy preparation profile disables
+interactive mode selection. The explicit live-preview profile below has separate
+combined-mode acceptance.
 
 This uses the production default `icount shift=0`; wall time and virtual time
 are separate bounds. The HE★ replay delivers 100 external contact actions.
@@ -531,10 +532,31 @@ clean owned-process stop. All three HE★ files pass the full RAW, three-JPEG,
 producer and receiver audits above, with the same bounded synthetic-input
 error. No guest instruction, RAM flag, timeout or response is patched.
 
-This qualifies one post-HE Movie/Photo cycle followed by recapture under the
-explicit experimental profile. Repeated mixed-mode cycles, desktop combined
-mode controls, MAIN supply/wake integration, playable recording and physical
-codec/timing equivalence remain open. Interactive HE mode controls stay gated.
+The production controls now complete three HE★/Movie/Photo cycles followed by
+another HE★ capture at default timing. All four captures retire their data and
+STOP acknowledgements; Photo returns ready after each Movie interval. Retained
+Movie and Photo displays were visually checked, with LCD frames advancing.
+The three returns retain 172, 299 and 427 functional Movie frames, with 427
+ISP acknowledgements, 431 source acknowledgements including four captures,
+and zero RAW-pipeline rejects at the final checkpoint.
+The run passes all 911 checks, ends with 2,264 RAW / 3,732 LCD frames, one
+startup EX reset, zero bad frames and clean owned shutdown. The final input
+lease completes at 153.838987184 virtual seconds. All four files pass complete
+RAW/three-JPEG, producer and receiver audits with the same bounded synthetic
+error above. This production-control run checks displayed Movie recovery and
+frame progress; it does not add a per-cycle codec-job-counter measurement to
+the earlier 97-frame control.
+
+The complete live-preview profile now enables combined Photo/Movie controls.
+Legacy HE preparation and incomplete profiles remain gated. Capture retains
+its input lease through contact release, output/STOP acknowledgements and
+Photo readiness; retirement of capture 16 is independent of the limit that
+rejects another capture. Browser and AppKit commands use the same gate.
+The native desktop additionally completes one idle supply/wake cycle and two
+post-wake HE★ captures around another Movie/Photo interval, with all three
+files fully audited and 1,041 passing checks. See the [wake qualification and
+readiness boundary](native-mcu.md#desktop-live-profile-idle-wake-and-recapture).
+Playable recording, physical wiring and codec/timing equivalence remain open.
 
 Desktop sessions can select this profile with `experimental_he_live_preview: true`
 alongside `experimental_native_he: true` and its existing dependencies. The

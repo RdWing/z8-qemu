@@ -53,8 +53,10 @@ def attach(guest,args):
 
 
 def control_modes_enabled(args):
-    """HE preparation and Movie preview have separate workflow qualification."""
-    return native_modes_enabled(args) and not any(getattr(args,name,False) for name in OPTIONS)
+    """Only the complete live HE profile shares Movie controls."""
+    chosen=[getattr(args,name,False) for name in OPTIONS]
+    return native_modes_enabled(args) and (not any(chosen) or
+        (all(chosen) and getattr(args,'experimental_he_live_preview',False)))
 
 
 def setup_contacts(args):
@@ -62,13 +64,18 @@ def setup_contacts(args):
     return Path(__file__).with_name(name)
 
 
-def capture_ready(guest,row):
+def capture_retired(guest,row):
     """C3.11 shooting mode is 6; menu/review modes cannot admit a new shot."""
     he=guest.data['native_he_models']['engine152c-he-still-state']
     mode=int.from_bytes(bytes.fromhex(row['ui_control_hex'])[4:8],'little')
     return (not row['preparing_capture'] and mode==6 and
-            guest.read_bytes(0xa03bd042c,1)==b'\x01' and he['jobs']<16 and
+            guest.read_bytes(0xa03bd042c,1)==b'\x01' and
+            he['acks']==he['jobs'] and he['stop_acks']==he['jobs'] and
             not he['pending'] and not he['stop_pending'])
+
+
+def capture_ready(guest,row):
+    return guest.data['native_he_models']['engine152c-he-still-state']['jobs']<16 and capture_retired(guest,row)
 
 
 def sample(guest):

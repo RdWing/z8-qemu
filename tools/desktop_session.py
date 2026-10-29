@@ -12,6 +12,7 @@ import threading
 import time
 import trace_plugin
 import native_adc
+from native_power import validate_supply_pin
 import qemu_preflight
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +21,7 @@ FLAGS = ('experimental_playback', 'experimental_shared221', 'experimental_bounda
 
 
 def command(config):
-    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'experimental_he_live_preview', 'mcu_adc_inputs', 'seconds', *FLAGS, *trace_plugin.KEYS}
+    allowed = {'python', 'firmware', 'qemu', 'raw', 'output', 'card', 'mcu', 'native_controls', 'experimental_native_he', 'experimental_he_live_preview', 'mcu_adc_inputs', 'experimental_main_supply_pin', 'seconds', *FLAGS, *trace_plugin.KEYS}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Unknown desktop configuration fields')
     native=bool(config.get('mcu'))
@@ -34,6 +35,9 @@ def command(config):
         if type(config.get('native_controls',False)) is not bool:raise ValueError('native_controls must be true or false')
         args += ['--mcu',mcu]
         if config.get('native_controls'):args += ['--native-controls']
+    if 'experimental_main_supply_pin' in config:
+        if not native:raise ValueError('experimental_main_supply_pin requires an mcu component')
+        args += ['--experimental-main-supply-pin',validate_supply_pin(config['experimental_main_supply_pin'])]
     if 'mcu_adc_inputs' in config:
         if not native:raise ValueError('mcu_adc_inputs requires an mcu component')
         args += ['--mcu-adc-inputs',native_adc.validate(config['mcu_adc_inputs'])]

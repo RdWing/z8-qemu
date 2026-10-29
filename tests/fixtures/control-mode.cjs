@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const nodes=Object.fromEntries(['state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','display-help','ex-panel','panel-screen','panel-status','dial-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
+const nodes=Object.fromEntries(['wake','state','screen','connection','input-status','shooting-mode','stop','playback-help','capture','capture-help','display-help','ex-panel','panel-screen','panel-status','dial-help'].map(id=>[id,{value:'photo',className:'',disabled:true}]));
 const buttons=['menu','half','play','i','disp','protect','delete'].map(key=>({dataset:{key},disabled:true})), calls=[], notifications=[];
 const dials=['main','sub','mode','compensation'].flatMap(dial=>[-1,1].map(direction=>({dataset:{dial,direction:String(direction)},disabled:true})));
 let respond=async()=>({ok:true,status:202});
@@ -113,5 +113,20 @@ const run=code=>vm.runInContext(code,context);
  respond=async()=>({ok:false,status:403,text:async()=> 'Session changed'});
  assert.equal(await run('window.z8Workbench.capturePhoto()'),false);
  assert.equal(nodes.capture.disabled,true);assert.equal(notifications.at(-1).captureReady,false);
+
+ respond=async()=>({ok:true,json:async()=>({session:'SESSION_HERE',ready:false,wake_available:true,wake_ready:true})});
+ await run('poll()');assert.equal(nodes.wake.hidden,false);assert.equal(nodes.wake.disabled,false);
+ assert.equal(notifications.at(-1).wakeReady,true);assert.equal(nodes['shooting-mode'].disabled,true);
+ let finishWake;
+ respond=()=>new Promise(resolve=>{finishWake=resolve});
+ const waking=run('window.z8Workbench.wakeCamera()');
+ assert.equal(nodes.wake.disabled,true);
+ assert.equal(await run('window.z8Workbench.wakeCamera()'),false);
+ assert.equal(calls.at(-1).path,'/wake');
+ finishWake({ok:true,status:202});assert.equal(await waking,true);assert.equal(nodes.wake.disabled,true);
+ respond=async()=>({ok:true,json:async()=>({session:'SESSION_HERE',ready:false,wake_available:true,wake_ready:true})});
+ await run('poll()');assert.equal(nodes.wake.disabled,false);
+ run('disconnected()');assert.equal(nodes.wake.disabled,true);assert.equal(notifications.at(-1).wakeReady,false);
+ assert.equal(await run('window.z8Workbench.wakeCamera()'),false);
 
 })().catch(error=>{console.error(error);process.exitCode=1});

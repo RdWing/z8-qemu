@@ -29,13 +29,15 @@ def png_from_ppm(path):
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(scan,3))+chunk(b'IEND',b'')
 
 class Control:
- def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None,native_modes=False,native_capture=False,native_dials=False):
-  self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes and not native_capture);self.powered_down=False;self.cancelled=0
+ def __init__(self,port,*,playback=False,native_mcu=False,native_buttons=None,native_modes=False,native_capture=False,native_dials=False,native_supply=False,native_wake=False):
+  self.native_mcu=bool(native_mcu);self.native_modes=bool(native_modes);self.powered_down=False;self.cancelled=0;self.native_supply=bool(native_mcu and native_supply);self.supply_resets=0
   self.allowed_buttons=set(set(BUTTONS)-{'disp','protect','delete'} if not native_mcu else native_buttons or [])
   self.native_dials=bool(native_mcu and native_dials)
   self.playback=bool(playback)
-  self.native_capture=bool(native_mcu and native_capture);self.capture_ready=False;self.capture_busy=False
+  self.native_capture=bool(native_mcu and native_capture);self.capture_ready=False;self.capture_retired=False;self.capture_busy=False
   self.capture_serial=0;self.capture_finished=0;self.capture_error=None;self.capture_completed_jobs=0
+  self.native_wake=bool(self.native_supply and native_wake);self.supply_off=False
+  self.wake_requested=False;self.wake_busy=False;self.wake_error=None
   self.input_lock=threading.RLock()
   self.stop=threading.Event();self.queue=queue.Queue(maxsize=8);self.png=None;self.info={'state':'Booting original Z8 MAIN…'};self.token=secrets.token_hex(24)
   self.session=secrets.token_hex(12);self.ready=False;self.last_publish=None;self.submitted=0;self.sent=0;self.frame_version=0;self.shooting_mode="photo";self.panel_png=None;self.panel_info={};self.panel_version=0
@@ -65,6 +67,12 @@ class Control:
     if self.headers.get('X-Control-Token')!=owner.token:self.send(403,b'This emulator session changed. Reload the page.','text/plain');return
     button=self.path.removeprefix('/button/')
     if self.path=='/stop':owner.stop.set();self.send(200,b'{}','application/json')
+    elif self.path=='/wake':
+     if not owner.native_wake:self.send(409,b'Wake requires the explicit MAIN supply fixture.','text/plain');return
+     if owner.wake_busy:self.send(409,b'Wake is already in progress.','text/plain');return
+     if not owner.status()['wake_ready']:self.send(503,b'Camera is not ready for wake.','text/plain');return
+     owner.wake_requested=True;owner.wake_busy=True;owner.wake_error=None;owner.submitted+=1
+     self.send(202,b'{}','application/json')
     elif self.path=='/capture':
      with owner.input_lock:
       if not owner.native_capture:self.send(409,b'Capture requires the experimental native HE profile and virtual card.','text/plain');return
@@ -109,6 +117,8 @@ class Control:
   target=Path(out)/'control-endpoint.json';temporary=target.with_suffix('.tmp')
   temporary.write_text(json.dumps({'url':f'http://127.0.0.1:{self.server.server_address[1]}/','session':self.session})+'\n');temporary.replace(target)
  def next_input(self):
+  if self.wake_requested:
+   self.wake_requested=False;return ('wake',None)
   if self.powered_down:return None
   try:return self.queue.get_nowait()
   except queue.Empty:return None
@@ -116,9 +126,12 @@ class Control:
  def finish_capture(self,error=None):
   with self.input_lock:
    self.capture_finished=self.capture_serial;self.capture_busy=False;self.capture_error=error
+ def finish_wake(self,error=None):
+  with self.input_lock:
+   self.wake_requested=False;self.wake_busy=False;self.wake_error=error
  def status(self):
   stale=self.last_publish is not None and time.monotonic()-self.last_publish>5
-  ready=self.ready and (not self.native_mcu or bool(self.allowed_buttons)) and not stale and not self.stop.is_set()
+  ready=self.ready and (not self.native_mcu or bool(self.allowed_buttons)) and not stale and not self.stop.is_set() and not self.wake_busy
   info=dict(self.info,powered_down=self.powered_down,cancelled_inputs=self.cancelled,allowed_buttons=sorted(self.allowed_buttons),mode_available=not self.native_mcu or bool(self.native_modes and self.allowed_buttons),controller='native_ex' if self.native_mcu else 'host_peer',playback_available=self.playback,application='nikon-z8-emulator',session=self.session,ready=ready,submitted_inputs=self.submitted,sent_inputs=self.sent,queued_inputs=self.queue.qsize(),frame_version=self.frame_version,shooting_mode=self.shooting_mode)
   info['dials_available']=bool(self.native_dials and self.allowed_buttons)
   info.update(panel_available=bool(self.native_mcu and self.panel_png),panel_version=self.panel_version,
@@ -126,6 +139,11 @@ class Control:
   info.update(capture_available=self.native_capture,capture_busy=self.capture_busy,
               capture_ready=bool(self.native_capture and ready and self.capture_ready and not self.capture_busy and not self.queue.qsize() and self.shooting_mode=='photo'),
               capture_serial=self.capture_serial,capture_finished=self.capture_finished,capture_error=self.capture_error)
+  info.update(wake_available=self.native_wake,wake_busy=self.wake_busy,wake_error=self.wake_error,
+              wake_ready=bool(self.native_wake and self.powered_down and self.supply_off and
+                  not stale and self.last_publish is not None and not self.stop.is_set() and
+                  not self.capture_busy and not self.wake_busy))
+  if self.wake_busy:info['state']='Waking camera…'
   if self.capture_busy and not self.powered_down:
    info['ready']=False;info['state']='Capturing photo…'
   if self.stop.is_set():info['state']='Stopping emulator…'
@@ -141,15 +159,22 @@ class Control:
  def publish(self,path,row,ready=False):
   png=png_from_ppm(path)
   if png!=self.png:self.png=png;self.frame_version+=1
-  self.powered_down=self.powered_down or bool(row.get('powered_down'))
+  supply=row.get('main_supply',{}) if self.native_supply else {}
+  self.supply_off=bool(supply.get('enabled') and supply.get('off'))
+  resets=int(supply.get('resets',0))
+  restarted=bool(supply.get('enabled') and not supply.get('off') and resets>self.supply_resets)
+  self.supply_resets=max(self.supply_resets,resets)
+  if restarted:self.powered_down=False;self.ready=False
+  self.powered_down=self.powered_down or bool(row.get('powered_down')) or bool(supply.get('off'))
   if self.powered_down:
    while not self.queue.empty():
     try:self.queue.get_nowait();self.cancelled+=1
     except queue.Empty:break
   self.capture_ready=bool(row.get('capture_ready'))
+  self.capture_retired=bool(row.get('capture_retired'))
   self.capture_completed_jobs=int(row.get('capture_completed_jobs',0))
   self.ready=(self.ready or ready) and not row.get('preparing_capture',False) and not self.powered_down and (not self.native_mcu or bool(self.allowed_buttons));self.last_publish=time.monotonic()
   self.info={'state':(('Running original MAIN/EX firmware' if self.ready else 'Original MAIN/EX running · camera inputs paused') if self.native_mcu and self.allowed_buttons else 'Original MAIN/EX running · display-only session' if self.native_mcu else 'Running original Z8 firmware' if self.ready else 'Starting camera display and menus…'),'virtual_seconds':round(row['virtual_seconds'],1),'display_frames':row['lcd']['frames'],'sensor_frames':row['raw']['frames']}
   if row.get('preparing_capture'):self.info['state']='Preparing experimental capture controls…'
-  if self.powered_down:self.info['state']='Camera firmware entered power-down. Restart the session to continue.'
+  if self.powered_down:self.info['state']=('Camera is powered down. Wake camera to continue.' if self.native_wake and self.supply_off else 'Camera firmware entered power-down. Restart the session to continue.')
  def close(self):self.server.shutdown();self.server.server_close()

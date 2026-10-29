@@ -117,7 +117,7 @@ class ControlAdmission(unittest.TestCase):
         finally:connection.close();owner.close()
 
     def test_capture_is_serialized_with_inputs_and_requires_guest_readiness(self):
-        owner=Control(0,native_mcu=True,native_buttons={'half','menu'},native_modes=True,native_capture=True)
+        owner=Control(0,native_mcu=True,native_buttons={'half','menu'},native_modes=False,native_capture=True)
         connection=http.client.HTTPConnection('127.0.0.1',owner.server.server_address[1],timeout=3)
         def post(path,token=None):
             connection.request('POST',path,headers={'X-Control-Token':token or owner.token})
@@ -139,4 +139,71 @@ class ControlAdmission(unittest.TestCase):
             owner.finish_capture();self.assertEqual(owner.status()['capture_finished'],1)
             self.assertEqual(post('/capture')[0],202);self.assertEqual(owner.capture_serial,2)
             self.assertEqual(post('/stop')[0],200);self.assertFalse(owner.status()['capture_ready'])
+        finally:connection.close();owner.close()
+
+    def test_combined_profile_keeps_mode_commands_outside_capture_lease(self):
+        owner=Control(0,native_mcu=True,native_buttons={'half','menu'},native_modes=True,native_capture=True)
+        connection=http.client.HTTPConnection('127.0.0.1',owner.server.server_address[1],timeout=3)
+        def post(path):
+            connection.request('POST',path,headers={'X-Control-Token':owner.token})
+            reply=connection.getresponse();reply.read();return reply.status
+        try:
+            owner.ready=True;owner.last_publish=time.monotonic();owner.capture_ready=True
+            self.assertTrue(owner.status()['mode_available'])
+            self.assertEqual(post('/capture'),202);owner.next_input()
+            self.assertEqual(post('/mode/movie'),409)
+            owner.finish_capture()
+            self.assertEqual(post('/mode/movie'),202)
+            self.assertEqual(owner.next_input(),('mode','movie'))
+            owner.shooting_mode='movie';self.assertEqual(post('/capture'),503)
+            self.assertEqual(post('/mode/photo'),202);owner.next_input()
+            owner.shooting_mode='photo';owner.capture_ready=False
+            self.assertEqual(post('/capture'),503)
+            owner.capture_ready=True;self.assertEqual(post('/capture'),202)
+        finally:connection.close();owner.close()
+
+    def test_supply_restart_requires_explicit_fixture_and_new_reset(self):
+        import tempfile
+        from pathlib import Path
+        for fixture in (False,True):
+            owner=Control(0,native_mcu=True,native_buttons={'half'},native_supply=fixture)
+            try:
+                with tempfile.TemporaryDirectory() as temp:
+                    frame=Path(temp)/'frame.ppm';frame.write_bytes(b'P6\n1 1\n255\n\x11\x22\x33')
+                    row=dict(raw={'frames':20},lcd={'frames':30},virtual_seconds=20)
+                    owner.publish(frame,row,ready=True)
+                    owner.publish(frame,dict(row,powered_down=True,main_supply=dict(enabled=True,off=True,resets=0)),ready=True)
+                    self.assertFalse(owner.status()['ready'])
+                    for supply in (dict(enabled=True,off=False,resets=0),dict(enabled=False,off=False,resets=0)):
+                        owner.publish(frame,dict(row,main_supply=supply),ready=True)
+                        self.assertFalse(owner.status()['ready'])
+                    resumed=dict(row,main_supply=dict(enabled=True,off=False,resets=1))
+                    owner.publish(frame,resumed,ready=False)
+                    self.assertFalse(owner.status()['ready'])
+                    owner.publish(frame,resumed,ready=True)
+                    self.assertEqual(owner.status()['ready'],fixture)
+                    owner.publish(frame,dict(resumed,powered_down=True),ready=True)
+                    owner.publish(frame,resumed,ready=True)
+                    self.assertFalse(owner.status()['ready'])
+            finally:owner.close()
+
+    def test_wake_admission_uses_supply_off_freshness_and_one_owned_request(self):
+        owner=Control(0,native_mcu=True,native_buttons={'half'},native_supply=True,native_wake=True)
+        connection=http.client.HTTPConnection('127.0.0.1',owner.server.server_address[1],timeout=3)
+        def post(path,token=None):
+            connection.request('POST',path,headers={'X-Control-Token':token or owner.token})
+            reply=connection.getresponse();reply.read();return reply.status
+        try:
+            self.assertEqual(post('/wake','old'),403)
+            self.assertEqual(post('/wake'),503)
+            owner.last_publish=time.monotonic();owner.powered_down=True
+            self.assertEqual(post('/wake'),503)
+            owner.supply_off=True;owner.last_publish=time.monotonic()-6
+            self.assertEqual(post('/wake'),503)
+            owner.last_publish=time.monotonic()
+            self.assertEqual(post('/wake'),202);self.assertEqual(post('/wake'),409)
+            self.assertEqual(owner.next_input(),('wake',None));self.assertIsNone(owner.next_input())
+            self.assertFalse(owner.status()['ready']);self.assertEqual(post('/button/half'),503)
+            owner.finish_wake();owner.native_wake=False
+            self.assertEqual(post('/wake'),409)
         finally:connection.close();owner.close()

@@ -47,7 +47,9 @@ The compatible MCU clock is 180 MHz, timer clocks 90 MHz, RTC starts at
 panel received one clear packet and zero line packets in the native run.
 The donor mechanical shutter is unarmed and its position pins are not driven.
 Exact physical chip identity/clock, remaining Z8 key/lens/power mappings, native
-continuous shooting, encoded recording, idle wake and physical top-panel timing remain unqualified.
+continuous shooting, encoded recording, physical wake wiring and top-panel timing
+remain unqualified. Functional idle wake with the explicit supply fixture is
+qualified below.
 Movie live view, normal Photo recovery and card-backed review have separate
 native acceptance below; the explicit HE profile also qualifies bounded full
 capture and recovery.
@@ -137,7 +139,9 @@ owner; attachment explicitly disables the host controller-GPIO reply model.
 A contact replay completed two 1,396,736-byte review transfers, with an early
 half-shutter return, Menu and a second half-shutter returning to fresh Photo
 frames. A later review entered UI mode 0 after about ten seconds; subsequent
-half/Menu contacts did not wake it. This is a separate idle-wake gap. Zoom, late-idle wake and full native controller parity remain unqualified.
+half/Menu contacts did not wake that unwired session. The explicit supply
+fixture below has separate idle-wake acceptance; review-specific late-idle wake,
+zoom and full native controller parity remain unqualified.
 The explicit HE still profile has separate repeated-capture acceptance below.
 
 Use `tools/native-movie-recovery-contacts.json` for the bounded Movie replay.
@@ -535,10 +539,10 @@ The finite check passes all 210 harness checks, with 429 MAIN / 396 EX frames,
 zero bad frames and clean owned shutdown. Before STOP clock gating, returning PC5 low does not resume
 MAIN, and the candidate wake pulse leaves the retained byte off. The STOP and
 explicit supply-fixture results below supersede that modeled limitation;
-physical power/reset wiring remains under investigation. No Power-on action or inferred reset wire is
-advertised. Use the separately qualified cold Session restart to start another
-workbench session. Electrical wake, fastboot and retained-memory behavior remain
-unqualified.
+physical power/reset wiring remains under investigation. Unwired sessions use
+the separately qualified cold Session restart. The explicit C1 fixture exposes
+a bounded Wake camera action below; it does not infer an electrical reset wire.
+Physical wake, fastboot and full retained-memory behavior remain unqualified.
 
 ## RTC alarm and wake events
 
@@ -614,8 +618,8 @@ PC assignment supplies restart; CPU reset uses the configured reset vector.
 
 The separately qualified cold Session restart remains available without this
 experimental connection. Physical wiring, complete MAIN peripheral-domain
-reset/retention and recording/capture across a power cycle retain separate
-gates.
+reset/retention and recording retain separate gates. Live-profile capture
+across one declared supply cycle is qualified below.
 
 A second original run uses the production CLI fixture for two cut/return cycles.
 Both architectural resets succeed; EX's startup reset count remains one. At
@@ -625,3 +629,44 @@ state responds to Menu after both restarts (6→1), and half returns it to 6 wit
 Photo/RAW recovery. Immediate contact snapshots do not independently qualify
 fully rendered Menu contents. The read-only counters report two supply cuts,
 two resets and four STOP entries/exits.
+
+### Desktop live-profile idle wake and recapture
+
+The desktop now forwards an explicit `experimental_main_supply_pin` through
+the native CLI validator. Only the C1 fixture enables the shared Wake camera
+button and AppKit command. Fresh observed supply-off admits one request:
+`C5=0:G0=1`, then `G0=0` after 0.5 virtual seconds. Ordinary controls remain
+paused until a newer supply reset, firmware readiness and both RAW/LCD frame
+counters advance beyond their pre-wake values. Cancel releases the pulse;
+a 30-virtual-second host deadline reports an unconfirmed outcome without retry.
+Unwired terminal pause remains sticky. Cold Session restart is separate.
+
+A native AppKit run at default timing completes HE★ → Movie → Photo, then
+idles into supply cut at 124.503192775 virtual seconds. Camera → Wake camera
+issues its contact at 141.419851278; original EX returns the supply at
+141.430237427 and MAIN boots through its architectural reset vector. RAW
+advances by 150.33544133 and LCD by 153.335520923 seconds, before the ordinary
+half-shutter contact at 153.734253573. No extra half-key is needed to produce
+those first fresh frames. The initial host gate had unlocked at 147.38605682
+on general firmware readiness; the final gate additionally requires fresh
+RAW/LCD progress so retained counters cannot unlock it early.
+
+Two further HE★ captures surround another Movie/Photo interval after wake.
+The last capture lease completes at 199.897558623 seconds. All three files
+pass complete RAW/three-JPEG, producer and receiver audits, with zero input
+mismatches and the established 26/3.0295569033116294 maximum/mean synthetic
+error. All 1,041 runtime checks pass. At clean native Stop the run retains one
+EX startup reset, one MAIN supply cut/reset, two STOP entries/wakes, zero bad
+frames, 2,946 RAW / 4,401 LCD frames and 362 functional Movie frames. Camera
+menu capture/mode/wake actions, Cmd-1/Cmd-2, the capture button and busy/stop
+control disabling were exercised. Physical power wiring, complete peripheral
+reset retention, recording and physical codec/timing equivalence remain open.
+
+A separate production replay verifies the final fresh-frame gate: idle-off at
+45.441170446 virtual seconds retains 999 RAW / 934 LCD frames. Wake is delivered
+at 45.816677446 and its contact released at 46.31753579. Controls remain paused
+through reset and firmware readiness until fresh counters reach 1,092 RAW /
+936 LCD frames; the lease completes at 57.758548423. All 347 checks pass with
+one supply cut/reset, one EX startup reset, zero bad frames and clean stop.
+This final-gate control makes no exposure and retains separate scope from the
+three audited desktop HE★ files.

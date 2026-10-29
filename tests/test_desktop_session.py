@@ -123,12 +123,19 @@ class DesktopSession(unittest.TestCase):
             for changes in [dict(output=str(source)),dict(seconds=True),dict(seconds=3601),
                             dict(raw='relative'),dict(extra='unowned'),dict(experimental_playback=True),
                             dict(experimental_shared221='yes'),dict(native_controls=True),
-                            dict(experimental_sensor_source_clock=True),dict(experimental_boundary_inputs=True)]:
+                            dict(experimental_sensor_source_clock=True),dict(experimental_boundary_inputs=True),
+                            dict(experimental_main_supply_pin="C1")]:
                 with self.subTest(changes=changes),self.assertRaises(ValueError):desktop.command(dict(config,**changes))
             args=desktop.command(dict(config,card=str(source),experimental_playback=True))
             self.assertIn('--experimental-playback',args)
             args=desktop.command(dict(config,mcu=str(source)))
             self.assertIn('--mcu',args);self.assertTrue(args[2].endswith('run_native.py'))
+            self.assertNotIn('--experimental-main-supply-pin',args)
+            args=desktop.command(dict(config,mcu=str(source),experimental_main_supply_pin='C1'))
+            self.assertEqual(args[args.index('--experimental-main-supply-pin')+1],'C1')
+            for pin in ('C16',True,None,'C1,other=on'):
+                with self.subTest(pin=pin),self.assertRaises(ValueError):
+                    desktop.command(dict(config,mcu=str(source),experimental_main_supply_pin=pin))
             args=desktop.command(dict(config,mcu=str(source),card=str(source)))
             self.assertIn('--card',args)
             with self.assertRaises(ValueError):desktop.command(dict(config,mcu=str(source),card=str(source),experimental_playback=True))

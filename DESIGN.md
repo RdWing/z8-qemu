@@ -129,11 +129,22 @@ native command for the current same-origin, main-frame session; server admission
 remains authoritative. Unsupported profiles retain disabled capture controls.
 No palette, typography, shape, layout token, selector popup or dialog owner changes.
 
-HE preparation and Movie live view have separate capability contracts. An HE
-capture session keeps the selector and native mode commands disabled, with
-“Use a Movie session for Photo/Movie live view.” Capture readiness remains
-independent, so the Camera capture command can be enabled while mode commands
-are disabled. A separate Movie session retains its qualified selector workflow.
+The complete explicit HE live-preview profile shares Photo/Movie controls.
+Legacy HE preparation keeps mode commands disabled with “Use a Movie session
+for Photo/Movie live view.” Partial profiles cannot enable combined controls.
+Capture holds the shared input lease through both completion acknowledgements
+and return to Photo readiness; Movie cannot interleave with capture retirement.
+The existing selector, keyboard and AppKit bridge share that capability gate.
+An explicit MAIN supply fixture may clear terminal pause only after observing a
+new architectural reset. Ordinary later readiness cannot clear a terminal pause
+in an unwired session. Native cold Session restart remains a separate action.
+For the explicit C1 supply fixture, a Wake camera button and AppKit command
+share `z8Workbench.wakeCamera`. The button is hidden in other sessions and
+enabled only for fresh observed supply-off state. It issues one bounded contact
+pulse, then waits for architectural reset, readiness and fresh RAW/LCD frames. Duplicate requests are
+rejected; timeout reports an unconfirmed outcome without retry. Disconnection
+disables the button and native command. The canonical button style and existing
+status/notice regions own its presentation; no new popup or palette is added.
 
 
 ## Photo export

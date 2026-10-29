@@ -47,7 +47,7 @@ class NativeHE(unittest.TestCase):
             self.assertIn('serial5-tx-drain-model=on',guest.command[2])
             self.assertFalse(guest.data['experimental_native_he']['audio_tx_sink']['dac_output'])
             states={name:{} for name in native_he.STATES}
-            states.update({'engine152c-he-still-state':dict(jobs=1,acks=1,pending=False,stop_pending=False),
+            states.update({'engine152c-he-still-state':dict(jobs=1,acks=1,stop_acks=1,pending=False,stop_pending=False),
                 'engine152c-request-state':dict(output=0x800010000,capacity=64,width=8,height=4),
                 'primary-d980-state':dict(submitted={'0x100':32},last_physical=0x800020000)})
             class QMP:
@@ -71,9 +71,12 @@ class NativeHE(unittest.TestCase):
             self.assertFalse(native_he.capture_ready(guest,row))
             guest.read_bytes=lambda address,size:b'\x01'
             he=guest.data['native_he_models']['engine152c-he-still-state']
-            for field,value in [('jobs',16),('pending',True),('stop_pending',True)]:
+            for field,value in [('jobs',16),('acks',0),('stop_acks',0),('pending',True),('stop_pending',True)]:
                 old=he[field];he[field]=value
                 self.assertFalse(native_he.capture_ready(guest,row));he[field]=old
+            he.update(jobs=16,acks=16,stop_acks=16)
+            self.assertTrue(native_he.capture_retired(guest,row))
+            self.assertFalse(native_he.capture_ready(guest,row))
             states['engine152c-he-still-state'].update(jobs=2,acks=2)
             native_he.sample(guest)
             self.assertEqual(guest.data['he_capture_snapshots'][-1]['capture_index'],2)
@@ -103,4 +106,9 @@ class NativeHE(unittest.TestCase):
             self.assertEqual(guest.data['experimental_native_he']['preparation_profile']['value'],0)
             for model in ['primary-d980-live-single-model','raw-pipeline-input-pair-model','backend-program-epoch-model']:
                 self.assertIn(model+'=on',guest.command[2])
-            self.assertFalse(native_he.control_modes_enabled(SimpleNamespace(**values)))
+            self.assertTrue(native_he.control_modes_enabled(SimpleNamespace(**values)))
+
+        for name in native_he.OPTIONS+('experimental_shared221','experimental_boundary_inputs',
+                'experimental_sensor_source_clock','experimental_yuv_channels','experimental_movie_selector16'):
+            with self.subTest(missing=name):
+                self.assertFalse(native_he.control_modes_enabled(SimpleNamespace(**dict(values,**{name:False}))))
