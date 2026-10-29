@@ -109,6 +109,21 @@ int main(void){
  s.event_timing_active=false;programmed_clock_tick(&s);assert(s.event_programmed_clock_ticks[2]==3);
  s.event_timing_active=true;c[7]=0x06011001;assert(!programmed_clock_configured_mask(&s));
  c[7]=0x06011000;c[0]=0;assert(!programmed_clock_configured_mask(&s));
+ uint32_t*d=s.event_active_1508[13];d[7]=0x00011000;
+ d[0]=190712572;d[1]=853;d[4]=d[5]=280;
+ assert(programmed_clock_configured_mask(&s)==0x2000);
+ programmed_clock_tick(&s);assert(!s.event_programmed_clock_events[13]);
+ s.event_control_1508[3]|=0x2000;s.event_output_group_running|=0x2000;
+ programmed_clock_tick(&s);assert(s.event_pending_1508&0x2000);
+ assert(s.event_programmed_clock_events[13]==1);
+ programmed_clock_tick(&s);assert(s.event_programmed_clock_coalesced[13]==1);
+ s.event_pending_1508&=~0x2000u;s.event_output_group_running&=~0x2000u;
+ programmed_clock_tick(&s);assert(!(s.event_pending_1508&0x2000));
+ d[7]=0x00011001;assert(!programmed_clock_configured_mask(&s));
+ d[7]=0x00011020;d[5]=0;assert(!programmed_clock_configured_mask(&s));
+ d[5]=280;s.event_programmed_clock_model=false;
+ s.event_output_group_running|=0x2000;programmed_clock_tick(&s);
+ assert(!(s.event_pending_1508&0x2000));
  assert(!s.event_programmed_clock_events[0]&&!s.event_programmed_clock_events[1]);
  return 0;
 }

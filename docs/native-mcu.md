@@ -721,3 +721,22 @@ seconds, but submit zero pictures and save no movie. Registering RAW-derived
 recording surfaces alone does not change that result. Header completion,
 encoded pictures, Stop/file finalization and native playback are separate
 acceptance boundaries; the latter three remain open.
+
+
+The opt-in `event1508-programmed-clock-model` now also admits the committed
+`0x00011000/0x00011020` waveform class. This uses the explicit source period,
+channel/group enables and independent pending/W1C ownership, just as the
+existing class does. Physical waveform phases remain unverified. Original
+recording uses channel 13; without its event the encoder input count remains
+zero even when recording surfaces exist.
+
+A normal-clock native comparison with this clock and the registered main
+output model reaches 112 actual 3840×2160 HEVC pictures by virtual 37 seconds,
+with 905,387 output bytes and zero codec rejections. The original firmware
+submits the picture requests; the explicit host codec reads the produced
+surfaces and writes its output ring. No file or task state is injected.
+The comparison subsequently stops on a finite preview START with the separate
+`video-preview-ram-model` disabled. Its stopped card has no movie file.
+Picture encoding is therefore a bounded functional result; thumbnail
+preparation, Record/Stop completion, card finalization and saved-file playback
+remain under test.

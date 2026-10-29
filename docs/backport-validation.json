@@ -651,9 +651,9 @@
     "host_passed": 104,
     "host_optional_skips": 1,
     "record_stop_replay": "tools/native-movie-recording-contacts.json",
-    "encoded_output_qualified": false,
+    "encoded_output_qualified": true,
     "saved_file_playback_qualified": false,
-    "scope": "Original Record input/header admission and optional codec-header completion only; no encoded pictures, Stop/file finalization or saved-file playback",
+    "scope": "Original Record input, header admission and bounded functional host encoding from original picture requests; Stop/card finalization and saved-file playback remain open",
     "codec_headers": {
       "optional_models": [
         "video-nr-reset-model",
@@ -695,6 +695,24 @@
       "default": 23,
       "explicit_polling": 23,
       "no_command_or_completion_created_by_binding": true
+    },
+    "picture_submission": {
+      "programmed_clock_model": true,
+      "waveform_classes": [
+        "0x06011000/20",
+        "0x00011000/20"
+      ],
+      "recording_channel": 13,
+      "at_virtual_seconds": 37,
+      "pictures": 112,
+      "output_bytes": 905387,
+      "codec_rejections": 0,
+      "source": "registered RAW-derived recording surfaces",
+      "guest_picture_requests": true,
+      "vendor_microcode_executed": false,
+      "saved_movie": false,
+      "next_boundary": "Finite preview START with video-preview-ram-model disabled",
+      "physical_waveform_verified": false
     }
   }
 }

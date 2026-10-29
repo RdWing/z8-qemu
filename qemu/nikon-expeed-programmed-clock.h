@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Functional programmed-channel waveform from the explicit source clock.
  * Native drivers register fifteen distinct channel callbacks and commit
- * independent configuration. This implements the observed 06011000/20 mode
+ * independent configuration. This implements the observed 06011000/20 and 00011000/20 mode
  * class at one edge per explicit source period. The parameter units, waveform
  * phases and physical timing are not established. No image completion, DMA,
  * application notification or firmware address is selected here.
@@ -17,7 +17,9 @@ static uint32_t programmed_clock_configured_mask(NikonZ8State *s)
         /* Mode bit5 is retained as an opaque variant, not interpreted as an
          * enable. The original MMIO channel/group controls supply enable.
          * Only a fully committed, observed waveform class is admitted. */
-        if ((c[7] & ~UINT32_C(0x20)) == 0x06011000 && c[0] && c[1] && c[4] && c[5]) {
+        uint32_t mode = c[7] & ~UINT32_C(0x20);
+        if ((mode == 0x06011000 || mode == 0x00011000) &&
+            c[0] && c[1] && c[4] && c[5]) {
             mask |= 1u << ch;
         }
     }
