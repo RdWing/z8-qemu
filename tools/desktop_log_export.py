@@ -13,6 +13,7 @@ import zipfile
 
 MAX_TOTAL_BYTES = 512 * 1024**2
 MAX_RECEIPT_BYTES = 64 * 1024**2
+_cancel_requested = False
 LOGS = ('uart-tx.log', 'stderr.log', *(f'ex-usart{i}-tx.log' for i in range(1, 7)), 'plugin-trace.log')
 
 
@@ -32,7 +33,13 @@ def open_regular(directory, name):
         raise
 
 
+def check_cancelled():
+    if _cancel_requested:
+        raise InterruptedError('Diagnostic export cancelled')
+
+
 def export_logs(session, destination):
+    check_cancelled()
     session, destination = Path(session).absolute(), Path(destination).absolute()
     if destination.exists() or destination.is_symlink() or not destination.parent.is_dir():
         raise ValueError('Choose a new ZIP file in an existing directory')
@@ -67,6 +74,7 @@ def export_logs(session, destination):
         # Staging and final publication share a filesystem. A hard link publishes
         # the completed ZIP atomically and cannot replace a raced destination.
         with tempfile.TemporaryDirectory(prefix='.z8-log-export-', dir=destination.parent) as temporary:
+            check_cancelled()
             staging = Path(temporary) / 'diagnostics.zip'
             rows = []
             with zipfile.ZipFile(staging, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
@@ -78,6 +86,7 @@ def export_logs(session, destination):
                     member.external_attr = 0o100600 << 16
                     with archive.open(member, 'w', force_zip64=True) as target:
                         while remaining:
+                            check_cancelled()
                             data = stream.read(min(1024**2, remaining))
                             if not data:
                                 raise ValueError('Diagnostic log changed during export: ' + name)
@@ -93,12 +102,16 @@ def export_logs(session, destination):
                 raise ValueError('Diagnostic logs changed before publication')
             if identity(os.fstat(receipt.fileno())) != identity(receipt_info):
                 raise ValueError('Session receipt changed before publication')
+            check_cancelled()
             os.link(staging, destination, follow_symlinks=False)
         return dict(count=len(rows), bytes=total, destination=str(destination))
 
 
 def cancelled(*_):
-    raise InterruptedError('Diagnostic export cancelled')
+    # A signal can arrive between mkdir and TemporaryDirectory registering
+    # its cleanup. Latch it and raise only inside an owned cleanup scope.
+    global _cancel_requested
+    _cancel_requested = True
 
 
 def main():

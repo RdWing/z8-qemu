@@ -167,3 +167,9 @@ ownership separate from the existing JPEG/NV16 contract.
 `tests/check_video_decode_disabled.py` needs no media generator. Its seven
 checks verify encoder-only advertised capabilities, immutable default-off
 decoding, rejected decoder creation, no instance, no DMA and no completion.
+
+Diagnostic-export cancellation includes the staging-creation window. SIGTERM
+sets a cancellation flag; the exporter checks it after entering the staging
+cleanup scope and between copy chunks, before atomic publication. A test
+requests cancellation immediately after the staging directory is created,
+verifying that it is removed and neither the source log nor destination changes.
