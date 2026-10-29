@@ -789,6 +789,35 @@
       "created_decode_instances": 0,
       "decoded_frames": 0,
       "qualified": false
+    },
+    "hevc_tier_preservation": {
+      "implemented": true,
+      "sequence_fields": "HEVC level bits 3..11, tier bit 12; level/3 maps to x265 level times ten",
+      "native_requested_level": 156,
+      "native_requested_high_tier": true,
+      "actual_vps_sps_test_levels": [
+        153,
+        156
+      ],
+      "actual_vps_sps_test_tiers": [
+        "Main",
+        "High"
+      ],
+      "invalid_level_tier_rejected": true,
+      "native_playback_qualified": false,
+      "native_recording": {
+        "saved_file_bytes": 976632,
+        "hvcC_profile_tier_byte": 33,
+        "level": 156,
+        "decoded_video_frames": 30,
+        "audio_sample_frames": 48048,
+        "both_track_duration_seconds": 1.001,
+        "full_external_decode_exit": 0,
+        "audio_pairs_match_declared_input": true,
+        "read_only_exfat_check_exit": 0,
+        "source_card_unchanged_by_audit": true,
+        "native_playback_qualified": false
+      }
     }
   }
 }

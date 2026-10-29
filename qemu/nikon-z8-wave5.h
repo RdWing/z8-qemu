@@ -18,6 +18,8 @@ typedef struct WlWave5Instance {
     bool created, configured, buffers, result, sequence_result, ring;
     unsigned width, height, depth, fps_n, fps_d;
     unsigned keyframe_period;
+    unsigned hevc_level;
+    bool hevc_high_tier;
     unsigned source_index, bytes, nal_type, output_bus;
     unsigned main_surface;
     unsigned codec_mode;
@@ -420,6 +422,8 @@ static bool wave5_command(WlWave5State *w,unsigned command,bool core_start)
                 crop[1]+crop[3]>=height ||
                 (i->codec_mode!=3 && (r[WL_W5_REG(0x138)] || r[WL_W5_REG(0x134)]))) { return false; }
             memcpy(i->crop,crop,sizeof(crop));
+            i->hevc_level=i->codec_mode==1 ? (r[WL_W5_REG(0x124)]>>3)&0x1ff : 0;
+            i->hevc_high_tier=i->codec_mode==1 && (r[WL_W5_REG(0x124)]&(1U<<12));
             /* Public Wave5 INTRA_PARAM field layout. Native MOV indexing
              * follows the configured intra period; a host default250 GOP
              * cannot substitute for a requested15-frame GOP. */
@@ -451,7 +455,7 @@ static bool wave5_command(WlWave5State *w,unsigned command,bool core_start)
             !wave5_address(w->board,output_bus,capacity,&output) ||
             graphics_spans_overlap(output,capacity,i->work_physical,i->work_capacity)) { return false; }
         if (!i->codec) {
-            i->codec=wl_video_open(i->codec_mode,i->width,i->height,i->depth,i->fps_n,i->fps_d,w->lossless,i->crop,i->keyframe_period);
+            i->codec=wl_video_open(i->codec_mode,i->width,i->height,i->depth,i->fps_n,i->fps_d,w->lossless,i->crop,i->keyframe_period,i->hevc_level,i->hevc_high_tier);
             if (!i->codec) { return false; }
         }
         unsigned option=r[WL_W5_REG(0x164)],source=r[WL_W5_REG(0x144)];
@@ -692,11 +696,11 @@ static char *get_wave5_state(Object *obj,Error **errp)
         WlWave5Instance *i=&w->instance[n];
         g_string_append_printf(j,"%s{\"created\":%s,\"configured\":%s,\"width\":%u,\"height\":%u,\"depth\":%u,\"pictures\":%" PRIu64 ",\"result\":%s,\"bytes\":%u,"
             "\"ring\":%s,\"ring_bus\":%u,\"ring_capacity\":%u,\"ring_written\":%u,"
-            "\"codec_mode\":%u,\"display_width\":%u,\"display_height\":%u,\"crop\":[%u,%u,%u,%u],\"fps_n\":%u,\"fps_d\":%u,\"keyframe_period\":%u}",
+            "\"codec_mode\":%u,\"display_width\":%u,\"display_height\":%u,\"crop\":[%u,%u,%u,%u],\"fps_n\":%u,\"fps_d\":%u,\"keyframe_period\":%u,\"hevc_level\":%u,\"hevc_high_tier\":%s}",
             n ? "," : "",i->created ? "true" : "false",i->configured ? "true" : "false",i->width,i->height,i->depth,i->pictures,i->result ? "true" : "false",i->bytes,
             i->ring ? "true" : "false",i->ring_bus,i->ring_capacity,i->ring_written,
             i->codec_mode,i->width-i->crop[0]-i->crop[2],i->height-i->crop[1]-i->crop[3],
-            i->crop[0],i->crop[1],i->crop[2],i->crop[3],i->fps_n,i->fps_d,i->keyframe_period);
+            i->crop[0],i->crop[1],i->crop[2],i->crop[3],i->fps_n,i->fps_d,i->keyframe_period,i->hevc_level,i->hevc_high_tier ? "true" : "false");
     }
     g_string_append(j,"],\"fio_configuration\":{");
     for (unsigned n=0;n<G_N_ELEMENTS(wave5_fio_offsets);n++) {

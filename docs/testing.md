@@ -121,3 +121,9 @@ Sparse-card tests compare complete cloned/derived partition bytes and reject
 buffered extent scans. Extent queries change the underlying descriptor offset,
 so all sparse source reads use unbuffered files. A filesystem audit and media
 decoding are separate checks; neither implies the other.
+
+The source suite also compiles `tests/verify_hevc_tier.c` against the installed
+GLib, x264 and x265 development libraries. It checks actual VPS/SPS bytes for
+both HEVC tiers at levels 5.1 and 5.2, including the emulation-prevention bytes, and
+rejects invalid level/tier combinations. This covers encoder header signaling;
+native Movie parser admission and decoded playback require separate runs.

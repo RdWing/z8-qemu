@@ -788,8 +788,18 @@ This qualifies two short functional recordings, with synthetic image/audio and
 host codec/conversion backends. Longer/repeated recording, physical codec
 behavior and microphone/audio-output integration remain separate checks.
 
-Native Playback recognizes the saved MOV and its duration. Its current
-picture is black: the VPU trace reaches boot and capability query, with no
+Playback checks of the earlier Main-tier files recognize the MOV and its
+duration. The picture is black: the VPU trace reaches boot and capability query, with no
 created decode instance or decoded frame. The model advertises its implemented
 encoders only. Independent file decoding does not qualify native Movie
 playback; the decoder/display and audio-output paths remain open.
+
+HEVC sequence configuration now preserves the requested tier and level in
+the host encoder's actual VPS/SPS. Earlier saved files used the host's Main-tier
+default, which the native Movie configuration parser rejects. The native
+recording request uses High tier at level 5.2. A fresh original Record/Stop
+saves a 976,632-byte MOV with that header, 30 decoded HEVC frames and 48,048
+stereo PCM sample frames. Both tracks last 1.001 seconds, full external
+decoding passes, every audio pair matches its declared input, and read-only
+exFAT checking passes. Native parser, decoder, display and audio-output
+qualification remain separate.

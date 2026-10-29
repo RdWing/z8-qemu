@@ -32,12 +32,16 @@ static void wl_hevc_close(WlHevcCodec *codec)
 
 static WlHevcCodec *wl_hevc_open(unsigned width, unsigned height, unsigned depth,
                                unsigned fps_n, unsigned fps_d, bool lossless,
-                               unsigned keyframe_period)
+                               unsigned keyframe_period, unsigned level, bool high_tier)
 {
     if (!width || !height || (width | height) & 1 || width > 8192 || height > 8192 ||
-        (depth != 8 && depth != 10) || !fps_n || !fps_d) { return NULL; }
+        (depth != 8 && depth != 10) || !fps_n || !fps_d ||
+        (level && level != 30 && level != 60 && level != 63 && level != 90 &&
+         level != 93 && level != 120 && level != 123 && level != 150 &&
+         level != 153 && level != 156 && level != 180 && level != 183 && level != 186) ||
+        (high_tier && level < 120)) { return NULL; }
     const x265_api *api = x265_api_get(depth);
-    if (!api || api->bit_depth != depth || api->sizeof_param != sizeof(x265_param) ||
+    if (!api || (unsigned)api->bit_depth != depth || api->sizeof_param != sizeof(x265_param) ||
         api->sizeof_picture != sizeof(x265_picture)) { return NULL; }
     WlHevcCodec *codec = g_new0(WlHevcCodec, 1);
     codec->api = api;
@@ -49,6 +53,9 @@ static WlHevcCodec *wl_hevc_open(unsigned width, unsigned height, unsigned depth
     p->sourceWidth = width; p->sourceHeight = height;
     p->internalCsp = X265_CSP_I420; p->internalBitDepth = depth;
     p->fpsNum = fps_n; p->fpsDenom = fps_d;
+    /* Wave5/HEVC uses general_level_idc (three times level * 10).
+     * Preserve the requested tier in actual VPS/SPS and muxed hvcC. */
+    p->levelIdc = level / 3; p->bHighTier = high_tier;
     p->frameNumThreads = 1;
     p->bframes = 0; p->lookaheadDepth = 0;
     p->bRepeatHeaders = 0; p->bAnnexB = 1;
@@ -75,9 +82,10 @@ static WlHevcCodec *wl_hevc_open(unsigned width, unsigned height, unsigned depth
 
 static WlHevcCodec *wl_video_open(unsigned mode, unsigned width, unsigned height, unsigned depth,
                                 unsigned fps_n, unsigned fps_d, bool lossless,
-                                const unsigned crop[4], unsigned keyframe_period)
+                                const unsigned crop[4], unsigned keyframe_period,
+                                unsigned level, bool high_tier)
 {
-    if (mode == 1) { return wl_hevc_open(width, height, depth, fps_n, fps_d, lossless, keyframe_period); }
+    if (mode == 1) { return wl_hevc_open(width, height, depth, fps_n, fps_d, lossless, keyframe_period, level, high_tier); }
     if (mode != 3 || !width || !height || (width | height) & 1 ||
         width > 8192 || height > 8192 || (depth != 8 && depth != 10) || !fps_n || !fps_d) {
         return NULL;

@@ -6,6 +6,7 @@ import ast
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,13 @@ def main():
                      else [node.module] if isinstance(node, ast.ImportFrom) and node.module else [])
             assert all(n.split('.')[0] in allowed for n in names), (p.name, names)
     with tempfile.TemporaryDirectory(prefix='z8-tests-') as temp:
+        codec_flags = shlex.split(subprocess.check_output(
+            ['pkg-config', '--cflags', '--libs', 'glib-2.0', 'x264', 'x265'], text=True))
+        codec_test = str(Path(temp)/'hevc-tier')
+        subprocess.run([os.environ.get('CC', 'cc'), '-Wall', '-Wextra', '-Werror',
+            '-Wno-unused-function', str(ROOT/'tests/verify_hevc_tier.c'),
+            *codec_flags, '-o', codec_test], check=True)
+        subprocess.run([codec_test], check=True)
         for name in ['region', 'serial', 'lossless']:
             exe = Path(temp)/name
             flags = ['-fsanitize=address,undefined'] if name == 'lossless' else []
