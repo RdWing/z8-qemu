@@ -19,7 +19,9 @@ starting QEMU. Use a new output directory for each run. Result receipts record
 synthetic inputs, firmware and QEMU hashes, checks and process shutdown.
 
 The main launcher exposes photo and menu controls. Selected movie configuration
-registers are modeled, but movie recording is not implemented.
+registers are modeled. The explicit experimental Movie profile additionally
+supports bounded native recording and saved video/stereo PCM playback; see
+[recording and playback qualification](native-mcu.md#movie-recording-and-saved-file-playback).
 
 Use `--card /path/to/card.raw` to keep an existing virtual exFAT card attached
 across runs. Guest writes update that supplied file directly; use a copy for

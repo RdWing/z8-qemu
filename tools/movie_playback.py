@@ -24,7 +24,7 @@ def attach(guest, audio_output="auto"):
                               ',out.frequency=48000,out.channels=2,out.format=s16']
     guest.data['experimental_movie_playback'] = {
         'host_decoder': 'libavcodec', 'linear_8bit_output': True,
-        'properties': list(PROPERTIES), 'audio_output': audio_output, 'audio_tx_qualified': False,
+        'properties': list(PROPERTIES), 'audio_output': audio_output, 'audio_tx_qualified': True, 'audio_format': '48000 Hz stereo LE32',
         'vendor_microcode_executed': False, 'physical_timing_verified': False,
     }
 

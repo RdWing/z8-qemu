@@ -602,14 +602,26 @@ LE32 duration. STOP resets phase/prefill ownership. Invalid, duplicate,
 missing-phase or unmapped descriptors produce no completion. This is a
 functional output clock, not measured silicon timing or FIFO capacity.
 
-The one-second saved-file control transmits all 384,384 decoded audio bytes
-bit-exact. A fresh Record/Stop/save/play/Photo cycle also delivers every saved
-audio sample unchanged; the original player zero-pads its final DMA block.
-Its host WAV contains all nonzero saved samples in the original stereo order.
-Repeated recording exposed an unrelated cumulative program-inspection buffer;
-the Movie profile now enables the existing bounded reset/replacement model
-instead of appending programs across resets. Full repeated-cycle acceptance
-is being rerun before merge.
+The public launcher plays the one-second saved file with all 384,384 decoded
+audio bytes bit-exact, complete host WAV output and 237 native checks. A fresh
+public-profile run then completes two Record → Stop → save → play with audio →
+Photo cycles: 650 checks, no runtime error, zero VPU rejects and clean owned
+shutdown at virtual 122.033573934 seconds. The final Photo display was checked.
+
+Both original-writer MOVs have fully initialized file lengths and independently
+decode in full: 57 and 54 HEVC 3840×2160 frames, with 91,288 and 86,480 stereo
+48-kHz PCM24 sample frames. Native playback matches every decoded audio byte;
+the original player supplies only zeros after each final sample to fill its
+last DMA block. All eight DMA blocks reach the host backend, whose queue drains
+fully. The host WAV preserves all 177,768 saved stereo sample frames in order
+after QEMU's PCM16 mixer conversion. Read-only exFAT checking passes and leaves
+the source card unchanged.
+
+Repeated recording initially exposed a cumulative program-inspection buffer.
+The recording and playback profiles now enable the existing bounded
+reset/replacement model, retaining one 14-word program across successive
+resets rather than increasing the old inspection cap. These short functional
+cycles do not qualify long recordings or arbitrary Movie formats.
 
 `--movie-audio-output auto` selects QEMU's default host backend. Use `none` for
 peripheral-only checks, or a new `.wav` path in an existing directory for

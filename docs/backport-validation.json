@@ -871,7 +871,7 @@
       "clean_owned_stop_virtual_seconds": 48.019474778,
       "public_cli_profile_verified": true
     },
-    "native_audio_tx_qualified": false,
+    "native_audio_tx_qualified": true,
     "arbitrary_movie_formats_qualified": false,
     "vendor_microcode_executed": false,
     "physical_timing_verified": false,
@@ -902,8 +902,51 @@
     "saved_file_audio_bytes_exact": 384384,
     "native_new_recording_audio_prefix_exact": true,
     "native_final_dma_padding": "original player supplies zero padding",
-    "repeated_record_play_photo_cycles_qualified": false,
-    "remaining_gate": "public-profile fresh-card repeated cycles running",
-    "physical_audio_verified": false
+    "repeated_record_play_photo_cycles_qualified": true,
+    "physical_audio_verified": false,
+    "public_cli_audio": {
+      "checks": 237,
+      "peripheral_bytes": 384384,
+      "matches_saved_audio": true,
+      "host_wav_sample_frames": 48048,
+      "host_sample_order_matches": true,
+      "host_queue_drained": true,
+      "read_only_card_check": true
+    },
+    "native_repeated_cycles": {
+      "cycles": 2,
+      "checks": 650,
+      "runtime_error": null,
+      "owned_shutdown": true,
+      "virtual_seconds": 122.033573934,
+      "photo_ui_mode": 6,
+      "photo_raw_frames": 1812,
+      "vpu_rejects": 0,
+      "audio_dma_jobs": 8,
+      "audio_dma_bytes": 1537536,
+      "host_queue_bytes": 0,
+      "host_sample_frames_matching_saved_files": 177768,
+      "saved_video_frames": [
+        57,
+        54
+      ],
+      "saved_audio_sample_frames": [
+        91288,
+        86480
+      ],
+      "saved_file_bytes": [
+        1482853,
+        1453480
+      ],
+      "complete_independent_decode": true,
+      "native_audio_matches_both_files": true,
+      "final_dma_padding_zero_bytes": [
+        38464,
+        76928
+      ],
+      "host_wav_matches_after_mixer": true,
+      "read_only_exfat_exit": 0,
+      "card_unchanged_by_audit": true
+    }
   }
 }
