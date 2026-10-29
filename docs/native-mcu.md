@@ -740,3 +740,21 @@ The comparison subsequently stops on a finite preview START with the separate
 Picture encoding is therefore a bounded functional result; thumbnail
 preparation, Record/Stop completion, card finalization and saved-file playback
 remain under test.
+
+
+Enabling the existing `video-preview-ram-model` passes that finite transfer
+boundary. A repeated-contact control completes two preview jobs and the
+original writer creates two fully initialized 524,304-byte MOV containers.
+Read-only extraction and independent `ffprobe` find zero media streams in
+both files. A shorter control sends Stop at virtual 34.5/34.9 seconds,
+encodes 58 pictures, completes one preview transfer and returns to Photo
+before a clean owned stop at 58 seconds; its saved MOV also has zero streams.
+These are original card writes, but neither file is playable.
+
+Tracing distinguishes video groups reaching the synchronization worker from
+its empty audio-source queue. The original source-miss limit remains intact
+and is reached during drain even in the shorter control. The on-chip LPCM
+conversion path has an earlier initialization failure; its core currently
+retains setup registers without executing its program. Further boot and
+conversion experiments remain private diagnostics. Playable recording still
+requires actual synchronized samples, finalization and saved-file playback.

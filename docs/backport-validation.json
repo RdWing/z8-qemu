@@ -713,6 +713,27 @@
       "saved_movie": false,
       "next_boundary": "Finite preview START with video-preview-ram-model disabled",
       "physical_waveform_verified": false
+    },
+    "finite_preview_and_card": {
+      "preview_model": true,
+      "preview_jobs": 2,
+      "preview_input_bytes": 24883200,
+      "preview_output_bytes": 42393600,
+      "saved_containers": 2,
+      "each_file_bytes": 524304,
+      "each_file_fully_initialized": true,
+      "ffprobe_media_streams": 0,
+      "playable": false,
+      "short_stop_control": {
+        "stop_press_virtual_seconds": 34.5,
+        "stop_release_virtual_seconds": 34.9,
+        "encoded_pictures": 58,
+        "preview_jobs": 1,
+        "owned_clean_end_virtual_seconds": 58,
+        "saved_containers": 1,
+        "ffprobe_media_streams": 0
+      },
+      "remaining_boundary": "Audio-source initialization/conversion and synchronized samples to the original writer; later repeated program upload and native saved-file playback remain unqualified"
     }
   }
 }
