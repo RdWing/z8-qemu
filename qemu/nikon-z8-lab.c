@@ -336,7 +336,7 @@ struct NikonZ8State {
      * dump; the mechanism and its one-instruction scope are documented at
      * z8_ramdmp_load() below. */
     bool ramdmp_load_model;
-    uint64_t ramdmp_reads, ramdmp_last_addr;
+    uint64_t ramdmp_reads, ramdmp_last_addr, ramdmp_untracked_reads;
     uint32_t ramdmp_pages_entered;
     struct { uint64_t page; uint32_t reads; } ramdmp_pages[16];
     uint32_t zr_display_shared_config[5];
@@ -1818,12 +1818,17 @@ static bool z8_ramdmp_load(NikonZ8State *s, hwaddr addr, unsigned size)
         error_report("Z8_RAMDMP: the register dump reads page 0x%" PRIx64
                      " -- unmodelled words read 0 (DECLARED)", page << 12);
     }
+    bool tracked = false;
     for (unsigned i = 0; i < 16; i++) {
         if (!s->ramdmp_pages[i].reads || s->ramdmp_pages[i].page == page) {
             s->ramdmp_pages[i].page = page;
             s->ramdmp_pages[i].reads++;
+            tracked = true;
             break;
         }
+    }
+    if (!tracked) {
+        s->ramdmp_untracked_reads++;
     }
     s->ramdmp_reads++;
     s->ramdmp_last_addr = addr;
@@ -22832,10 +22837,10 @@ static char *get_ramdmp_load_state(Object *obj, Error **errp)
     GString *out = g_string_new(NULL);
     g_string_append_printf(out, "{\"enabled\":%s,\"load_pc\":\"0x%llx\","
         "\"declared_reads\":%" PRIu64 ",\"last_address\":%" PRIu64
-        ",\"pages_entered\":%u,\"pages\":[",
+        ",\"pages_entered\":%u,\"untracked_reads\":%" PRIu64 ",\"pages\":[",
         s->ramdmp_load_model ? "true" : "false",
         (unsigned long long)Z8_RAMDMP_LOAD_PC, s->ramdmp_reads,
-        s->ramdmp_last_addr, s->ramdmp_pages_entered);
+        s->ramdmp_last_addr, s->ramdmp_pages_entered, s->ramdmp_untracked_reads);
     bool first = true;
     for (unsigned i = 0; i < 16; i++) {
         if (s->ramdmp_pages[i].reads) {
