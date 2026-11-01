@@ -332,6 +332,13 @@ struct NikonZ8State {
     uint32_t usb_soc_config[4];
     uint32_t zr_control1782_config[10];
     bool zr_sd_empty_fixture;
+    /* Optional, default-off read-through for the camera's own register
+     * dump; the mechanism and its one-instruction scope are documented at
+     * z8_ramdmp_load() below. */
+    bool ramdmp_load_model;
+    uint64_t ramdmp_reads, ramdmp_last_addr;
+    uint32_t ramdmp_pages_entered;
+    struct { uint64_t page; uint32_t reads; } ramdmp_pages[16];
     uint32_t zr_display_shared_config[5];
     uint32_t zr_display_output_config[0x414 / 4];
     bool zr_dsi_command_model;
@@ -1772,9 +1779,63 @@ static uint64_t *bus_control(NikonZ8State *s, hwaddr addr, unsigned size)
     return NULL;
 }
 
+/* The one reader that may read anything: the camera's own register dump.
+ * Power-down and several error paths save a diagnostic snapshot (the
+ * standby-timer trigger is measured on the same-family Z63; on the Z8 the
+ * verified triggers are the install/error paths): 0x40c079cc appends
+ * regions registered by drivers, and 0x40c07b30 copies every region into
+ * a 128KiB record that only ever reaches the card (the A:\RAMDMP_N.BIN /
+ * A:\LDATA_C.BIN family). Regions measured on stock C3.11 (descriptor
+ * table at 0xa02b2e030, header "Ver.03.11.b0"): SIF_TOP 0x15080000+0x3c4,
+ * SDES0 +0x1000+0x490, TG_REG +0x3000+0x554, SDES1 +0x4000+0x148,
+ * SLVSEC0 +0x5000+0x300, SLVSEC1 +0x5400+0x300, TM_REG 0x15280000+0xfd0,
+ * plus DRAM blocks at dynamic bases. Device regions are copied a word at
+ * a time by the one load at 0x40c07c24; drivers register whole pages, not
+ * the registers they use.
+ *
+ * Nothing reads the record back but that copy to the card, so a word the
+ * dump reads decides nothing, and stopping there would end every run at
+ * its first power-down or error path. With ramdmp-load-model on, that
+ * load -- and no other instruction -- reads 0 where a model would stop,
+ * and says once per 4KiB page that it did. DECLARED: an unmodelled word
+ * reads 0 into the dump. Known models keep answering first; every other
+ * instruction still stops. Qualification runs keep this OFF so
+ * unmodelled device access stays observable. */
+#define Z8_RAMDMP_LOAD_PC 0x40c07c24ULL
+
+static bool z8_ramdmp_load(NikonZ8State *s, hwaddr addr, unsigned size)
+{
+    CPUState *cs = current_cpu;
+
+    if (!s->ramdmp_load_model || size != 4 || !cs ||
+        ARM_CPU(cs)->env.pc != Z8_RAMDMP_LOAD_PC) {
+        return false;
+    }
+    uint64_t page = addr >> 12;
+    if (!s->ramdmp_reads || page != (s->ramdmp_last_addr >> 12) ||
+        addr < s->ramdmp_last_addr) {
+        s->ramdmp_pages_entered++;
+        error_report("Z8_RAMDMP: the register dump reads page 0x%" PRIx64
+                     " -- unmodelled words read 0 (DECLARED)", page << 12);
+    }
+    for (unsigned i = 0; i < 16; i++) {
+        if (!s->ramdmp_pages[i].reads || s->ramdmp_pages[i].page == page) {
+            s->ramdmp_pages[i].page = page;
+            s->ramdmp_pages[i].reads++;
+            break;
+        }
+    }
+    s->ramdmp_reads++;
+    s->ramdmp_last_addr = addr;
+    return true;
+}
+
 static void unknown_access(NikonZ8State *s, hwaddr addr, uint64_t value,
                            unsigned size, bool write)
 {
+    if (!write && z8_ramdmp_load(s, addr, size)) {
+        return; /* DECLARED: the register dump load reads 0. */
+    }
     if (!s->stopped_unknown) {
         CPUState *cs = current_cpu;
         fprintf(stderr, "Z8_UNKNOWN cpu=%d pc=0x%" PRIx64
@@ -22755,6 +22816,43 @@ static void set_nor_model(Object *obj, bool value, Error **errp)
     s->nor_model = value;
 }
 
+static bool get_ramdmp_load_model(Object *obj, Error **errp)
+{
+    return NIKON_Z8_LAB(obj)->ramdmp_load_model;
+}
+
+static void set_ramdmp_load_model(Object *obj, bool value, Error **errp)
+{
+    NIKON_Z8_LAB(obj)->ramdmp_load_model = value;
+}
+
+static char *get_ramdmp_load_state(Object *obj, Error **errp)
+{
+    NikonZ8State *s = NIKON_Z8_LAB(obj);
+    GString *out = g_string_new(NULL);
+    g_string_append_printf(out, "{\"enabled\":%s,\"load_pc\":\"0x%llx\","
+        "\"declared_reads\":%" PRIu64 ",\"last_address\":%" PRIu64
+        ",\"pages_entered\":%u,\"pages\":[",
+        s->ramdmp_load_model ? "true" : "false",
+        (unsigned long long)Z8_RAMDMP_LOAD_PC, s->ramdmp_reads,
+        s->ramdmp_last_addr, s->ramdmp_pages_entered);
+    bool first = true;
+    for (unsigned i = 0; i < 16; i++) {
+        if (s->ramdmp_pages[i].reads) {
+            g_string_append_printf(out, "%s{\"address\":\"0x%llx\",\"reads\":%u}",
+                first ? "" : ",",
+                (unsigned long long)(s->ramdmp_pages[i].page << 12),
+                s->ramdmp_pages[i].reads);
+            first = false;
+        }
+    }
+    g_string_append(out, "],\"physical_values_verified\":false,"
+        "\"scope\":\"default-off PC-gated read-through for the camera power-down/error "
+        "register-dump load at 0x40c07c24; known models keep answering; "
+        "every other instruction still stops; DECLARED unmodelled words read 0\"}");
+    return g_string_free(out, false);
+}
+
 static bool get_image_bank_model(Object *obj, Error **errp)
 {
     return NIKON_Z8_LAB(obj)->image_bank_model;
@@ -23255,6 +23353,8 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "zr-lcd-control-state", get_zr_lcd_control_state, NULL);
     object_class_property_add_bool(oc, "nor-model", get_nor_model, set_nor_model);
     object_class_property_add_str(oc, "nor-state", get_nor_state, NULL);
+    object_class_property_add_bool(oc, "ramdmp-load-model", get_ramdmp_load_model, set_ramdmp_load_model);
+    object_class_property_add_str(oc, "ramdmp-load-state", get_ramdmp_load_state, NULL);
     object_class_property_add_bool(oc, "serial-fixture", get_serial_fixture, set_serial_fixture);
     object_class_property_add_bool(oc, "i2c-fixture", get_i2c_fixture, set_i2c_fixture);
     object_class_property_add_bool(oc, "orientation-fixture", get_orientation_fixture, set_orientation_fixture);

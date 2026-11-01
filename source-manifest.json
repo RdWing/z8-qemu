@@ -1,7 +1,4 @@
 {
-  "schema": 1,
-  "scope": "Z8 emulator sources, tools, tests and documentation",
-  "upstream_commit": "deb3a75df1795924e9be8f814d9a24ce6b439a67",
   "files": {
     ".gitattributes": "095c42e5d9e137db21cb8b8cf3181ae1a25c95678918cc9c1f97bf9852f75cea",
     ".github/workflows/ci.yml": "16754534ea8be3ff98ae24ea4859079225f8cac6fe77bb09fa2120ad740cacda",
@@ -90,7 +87,7 @@
     "qemu/nikon-z8-jpeg-reset.h": "e324caeb0a830dec5c2c0782ac981cda57f0125aa0b42a04ddcfe310c037a2ae",
     "qemu/nikon-z8-jpeg.h": "3a650668b2abb1e61c9ae8b898747cddc00ab2eaab6ddcc22ad8fd15f7ef456d",
     "qemu/nikon-z8-jpegdec.h": "a2e848863e056272945faac6ecaa0a0b375659042c6b058aefeaf3be28d391b8",
-    "qemu/nikon-z8-lab.c": "d06b3af783e46217ed3466241f48d18e7eda188a490bede45be5ebcf99b4604e",
+    "qemu/nikon-z8-lab.c": "a20ab3bf2656b108ef3ff78aa9cbaa6ee588fffa6ea738784fa5396d3611cc44",
     "qemu/nikon-z8-liveview-buffers.h": "db5aaab1fa55134de3d42baa6d8b5cc11953e89177c369300410aa2d416b6c8e",
     "qemu/nikon-z8-liveview-jpeg.h": "04d08bd5b9be7fecf85f2c0ca495cbbf5eb2339c726cac933ab4c7fc27e81957",
     "qemu/nikon-z8-lossless.h": "6f6ef0da9d01571dcf3470ccf1b160fb1c50c5859b6b70ef78d63b4bc97e9100",
@@ -277,5 +274,8 @@
     "tools/z8_global1_boundary_input.py": "df028d999089395ed30832caf2b9835c9a9611c6bbef7c313c143b19660fea95",
     "tools/z8_navigation_input.py": "817bb0d5b7ff10785cf938288ddb589a0ba19bda83bb7635f49f306e2d844173"
   },
+  "schema": 1,
+  "scope": "Z8 emulator sources, tools, tests and documentation",
+  "upstream_commit": "ce348de2459e8e769de3db3625a2f9e9f99c9388",
   "z63_backport_commit": "5c3b47c6428310e923520d81df74eff86fe1451c"
 }
