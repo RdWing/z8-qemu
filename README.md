@@ -1,6 +1,6 @@
-# RdWing Z8 QEMU
+# WonderLantern Z8 QEMU
 
-[Build](docs/build.md) · [Firmware](docs/firmware.md) · [Usage](docs/usage.md) · [RAW capture](docs/capture.md) · [Architecture](docs/architecture.md) · [Testing](docs/testing.md) · [Z63 backport](docs/z63-backport.md)
+[Build](docs/build.md) · [Firmware](docs/firmware.md) · [Usage](docs/usage.md) · [RAW capture](docs/capture.md) · [Architecture](docs/architecture.md) · [Testing](docs/testing.md) · [Native controls](docs/native-mcu.md)
 
 An experimental **QEMU 11.1.1** machine for **Nikon Z8 C3.11**, adapted from
 [WonderLantern’s Z9 emulator](https://github.com/WonderLantern/z9-qemu) at
@@ -22,7 +22,7 @@ Compared with the upstream revision linked above, this adaptation adds:
 - **Boot and controls:** Z8 C3.11 [hardware mappings](qemu/nikon-z8-lab.c), [boot sequence](tools/boot_z8.py#L38) and [controller/menu bindings](tools/z8_navigation_input.py#L11).
 - **Display:** [framebuffer-bank switching](qemu/nikon-z8-lab.c#L4679), [active-bank acknowledgement](qemu/nikon-z8-lab.c#L15411) and [indexed palette overlays](qemu/nikon-z8-lab.c#L4628).
 - **Capture:** Z8 [preparation inputs](tools/capture.py#L36), [display-region](qemu/nikon-z8-lab.c#L4004)/[serial register retention](qemu/nikon-z8-lab.c#L7127) and [timed single-frame completion fixes](qemu/nikon-z8-d980.h#L179) enabling full NEF capture, with [Nikon lossless14 encoding](qemu/nikon-z8-lossless.h) of the guest-produced Bayer data.
-- **Movie mode:** additional [configuration-register retention and initialization handling](qemu/nikon-z8-lab.c#L6975); bounded native recording and saved-Movie video/audio playback now work through explicit functional models; remaining target gaps are listed in the backport scope.
+- **Movie mode:** additional [configuration-register retention and initialization handling](qemu/nikon-z8-lab.c#L6975); bounded native recording and saved-Movie video/audio playback now work through explicit functional models; remaining limits are listed below.
 - **Tooling:** [QEMU 11 compatibility](qemu/prepare_source.py), [portable Z8 launchers](tools/run.py), [macOS builds](tools/build.py#L28)/[card creation](tools/virtual_recording_card.py#L65) and [adapted NEF auditing](tools/audit_nef.py).
 
 The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
@@ -33,39 +33,22 @@ The underlying RAW/JPEG and NVMe capture infrastructure is inherited from Z9.
 | --- | --- |
 | Original menus, shooting HUD, controller input and four AArch64 CPU contexts | Synthetic boot and peripheral inputs; selected paths tested. |
 | Selected native graphics, four framebuffer banks and indexed palette overlays | Functional rendering; physical AF and display color accuracy remain open. |
-| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP, HE/HE* and physical codec hardware are not reproduced. Functional HE/HE★ single captures now have native Z8 synthetic-input acceptance; three consecutive original-EX HE★ captures pass, while physical codec equivalence remains open. |
-| Firmware-written 8280 × 5520, 14-bit NEFs on virtual NVMe/exFAT | LibRaw and Adobe decoding checked all 45,705,600 samples. Capture requires three explicit experimental options and the Lossless menu setting. |
+| Synthetic RGGB input, functional Bayer/NV16 processing and JPEG previews | Generic processing; Nikon ISP and physical codec hardware are not reproduced. |
+| Firmware-written 8280 × 5520, 14-bit lossless NEFs on virtual NVMe/exFAT | LibRaw and Adobe independently decoded all 45,705,600 samples with zero mismatches; all three JPEG previews decoded. Capture requires three explicit experimental options and the Lossless menu setting. Host-peer repeated lossless capture remains unqualified. |
+| Functional HE/HE★ capture with original EX controller execution | [Contact replay](docs/native-he-stills.md#reproduce-original-ex-capture) qualifies single HE/HE★ captures and three consecutive HE★ captures with return to Photo. The opt-in ordinary-HE [live-preview profile](docs/native-he-stills.md#source-readiness-after-capture-cleanup) passes eight captures and a four-capture default-timing replay. A long-idle control captures again with an extra EX reset; controller continuity, idle power integration and physical codec equivalence remain open. |
 | Picture Control metadata and Camera Raw defaults | Metadata inspected for Auto and Standard; lossless decoding checked with Auto. |
-| Movie configuration registers and selector handling | Explicit experimental Movie live view and two-cycle Photo recovery work; short original-writer Movies and saved video/stereo audio playback pass bounded checks; two Record/save/play-with-audio/Photo cycles pass; long recordings and physical AF/lens drive remain separate gates. |
+| Experimental Movie live view, recording and saved video/stereo audio playback | Movie live view and Photo recovery pass two cycles. Short original-writer Movies and saved video/stereo audio playback pass bounded checks, including two Record/save/play-with-audio/Photo cycles. Long recordings and physical AF/lens drive remain separate gates. |
+| Saved-photo and preview playback | Bounded saved-preview playback and two normal playback/Photo recovery cycles pass. Playback idle-wake and zoom remain incomplete. |
+| [Native controller inputs](docs/native-mcu.md) and shared browser/macOS controls | Qualified original EX Menu/navigation/half, Movie/Photo and card-backed Play contacts use the guarded input queue. Native Camera commands independently complete Movie/Photo recovery; remaining native MCU controls require separate qualification. |
+| [macOS desktop workbench](desktop/README.md), display saving and stopped-card photo export | Initialized DCIM photos export through an AppKit dialog with writer exclusion and cancellation. Full desktop parity remains incomplete. |
+| Firmware power-down and desktop cold restart | Terminal power-down disables controls and retains the last display. Desktop cold restart reopens the same card and returns to Photo; this does not establish physical wake behavior. |
 
-A complete QEMU build, native menu navigation and single NEF capture have
-passed on macOS. LibRaw and Adobe DNG Converter independently decoded every
-RAW sample with zero mismatches; all three JPEG previews also decoded. Source
-and model-contract checks cover the display renderer and selected peripheral
-behavior. Original-EX HE★ now also passes three consecutive captures and
-returns to Photo; host-peer repeated lossless capture remains unqualified.
-
-The cumulative Z63 C2.00/C2.01 shared-device changes are adapted through
-`5c3b47c`, including functional HE, JPEG provenance/cancellation, playback resize,
-capture ownership and video-domain models. This is a **partial feature backport**:
-Native HE/HE★ single captures and saved-preview playback are accepted in bounded
-virtual runs. Experimental Movie live view and Photo recovery now pass two cycles. Normal two-cycle playback/Photo recovery also passes. Native stopped-card photo export now copies initialized DCIM photos through an AppKit dialog with writer exclusion and cancellation. Playback idle-wake/zoom, remaining native MCU controls and full desktop parity remain incomplete.
-An initial [macOS desktop workbench](desktop/README.md) now supports the shared
-controls, display saving, saved-photo playback and qualified native EX Menu/navigation/half, Movie/Photo and card-backed Play contacts. Native Camera commands independently complete Movie/Photo recovery. Terminal
-firmware power-down now disables controls and retains the last display; native desktop
-cold restart reopens the same card and returns to Photo. An optional original EX attachment reaches the
-shooting display and writes audited functional HE/HE★ files through a declared
-[original-EX contact replay](docs/native-he-stills.md#reproduce-original-ex-capture).
-Its explicit HE profile now returns to Photo without the reset error and
-passes three consecutive HE★ captures. A separate opt-in ordinary-HE
-[live-preview profile](docs/native-he-stills.md#source-readiness-after-capture-cleanup)
-passes eight consecutive captures and a four-capture default-timing replay.
-Its long-idle control captures again, but an extra EX reset leaves controller
-continuity and idle power integration open. Shared browser/native capture controls
-use the same guarded contact queue; see [native MCU scope](docs/native-mcu.md). Existing lossless capture is
-preserved and freshly accepted by LibRaw and Adobe. See the
-[feature disposition and checks](docs/z63-backport.md) before enabling the
-experimental profile.
+The QEMU build, native menu navigation and the named capture workflows have
+passed on macOS. Source and model-contract checks cover the display renderer
+and selected peripherals. These results use synthetic inputs and explicit
+functional models; see [testing](docs/testing.md),
+[native controller scope](docs/native-mcu.md) and
+[capture profiles](docs/native-he-stills.md) for reproduction and limits.
 
 ## Quick start
 

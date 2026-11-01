@@ -6,8 +6,9 @@ functional hardware models and synthetic inputs. Register retention alone
 does not establish completion; indicator rendering does not establish autofocus.
 
 Use Z8 filenames and symbols. Preserve existing copyright notices, SPDX
-identifiers, attribution and licenses. Add `Copyright (C) 2026 RdWing` for
-RdWing’s modifications alongside prior notices, using the file’s comment style.
+identifiers, attribution and licenses. Attribute new contributions to their
+actual copyright holders alongside prior notices, using the file’s comment style.
+Existing RdWing notices remain in place after the repository transfer.
 
 Run the source and affected contract checks. Keep firmware and runtime outputs
 outside tracked source. Refresh the source manifest for intentional edits.
