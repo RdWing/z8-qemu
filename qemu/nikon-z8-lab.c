@@ -1,6 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2026 RdWing
+ * Copyright (C) 2026 GoldJohnKing: syscon semaphore model and service trace logs.
  * Nikon Z8 C3.11 functional board. Experimental, not a hardware specification.
  * Z8 scope and synthetic-input assumptions: ../README.md.
  * Upstream model attribution and retained licensing: ../NOTICE.md.
@@ -293,6 +294,8 @@ struct NikonZ8State {
     uint64_t service_cluster_reads[3];
     uint32_t service_cluster_regs[6];
     uint64_t service_cluster_writes[7];
+    bool syscon_semaphore_model;
+    uint64_t semaphore1404_reads;
     MemoryRegion helper_sram;
     MemoryRegion dsp_load_ram[ARRAY_SIZE(dsp_load_ram)];
     MemoryRegion unknown;
@@ -10884,6 +10887,24 @@ static void set_service_controller_model(Object *obj, bool value, Error **errp)
     NIKON_Z8_LAB(obj)->service_controller_model = value;
 }
 
+static bool get_syscon_semaphore_model(Object *obj, Error **errp)
+{
+    return NIKON_Z8_LAB(obj)->syscon_semaphore_model;
+}
+
+static void set_syscon_semaphore_model(Object *obj, bool value, Error **errp)
+{
+    NIKON_Z8_LAB(obj)->syscon_semaphore_model = value;
+}
+
+static char *get_syscon_semaphore_state(Object *obj, Error **errp)
+{
+    NikonZ8State *s = NIKON_Z8_LAB(obj);
+    return g_strdup_printf("{\"enabled\":%s,\"reads\":%" PRIu64
+        ",\"address\":\"0x0d151404\",\"camera_measured\":false}",
+        s->syscon_semaphore_model ? "true" : "false", s->semaphore1404_reads);
+}
+
 static void set_service_controller_status_input(Object *obj, const char *value,
                                                 Error **errp)
 {
@@ -20249,6 +20270,41 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
                 addr, value);
         return value;
     }
+    /* Service-SRAM helpers (original boot stages them at 0x082013c8/e8)
+     * implement a hardware semaphore on 0x0d151404: acquire WFE-spins
+     * (the ldr sits at exactly 0x082013d4) while bit0 reads 0 and then
+     * stores the owner tag in bit16; release stores bit0|bit16 and SEVs.
+     * The retained syscon word alone never grants (no grant logic is
+     * modeled) and callers park forever on that one load. Grant bit0
+     * ONLY to the acquire load itself (program-counter-gated, the
+     * ramdmp-load-model precedent): boot-time write/read-back
+     * verification and every other reader keep the retained value. */
+    if (s->bootstrap_fixtures && s->syscon_semaphore_model &&
+        size == 4 && addr == 0x0d151404 && current_cpu &&
+        ARM_CPU(current_cpu)->env.pc == UINT64_C(0x082013d4)) {
+        ARMCPU *cpu = ARM_CPU(current_cpu);
+        uint64_t lr = cpu->env.regs[30], sp = cpu->env.regs[31];
+        uint64_t x16 = cpu->env.regs[16], x17 = cpu->env.regs[17];
+        uint64_t fp = cpu->env.regs[29];
+        uint64_t caller = 0;
+        int caller_ok = 0;
+        /* The module function's prologue saved ITS caller's return address
+         * at [sp]; cpu_memory_rw_debug walks the guest MMU (the host-side
+         * forensic channels cannot -- qtest sees physical-only, the gdbstub
+         * wedges in qmp-heavy phases). */
+        if (sp >= UINT64_C(0xa00000000) && sp < UINT64_C(0xa40000000) - 8) {
+            caller_ok = cpu_memory_rw_debug(current_cpu, sp, (void *)&caller,
+                                            8, false) == 0;
+        }
+        fprintf(stderr, "Z8_SEMAPHORE_GRANT ns=%" PRId64 " cpu=%u pc=%" PRIx64
+            " lr=%" PRIx64 " sp=%" PRIx64 " x16=%" PRIx64 " x17=%" PRIx64
+            " fp=%" PRIx64 " caller=%" PRIx64 "%s reads=%" PRIu64 "\n",
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), current_cpu->cpu_index,
+            cpu->env.pc, lr, sp, x16, x17, fp, caller,
+            caller_ok ? "" : "(unmapped)", s->semaphore1404_reads);
+        s->semaphore1404_reads++;
+        return s->syscon[(addr - 0x0d150000) / 4] | 1u;
+    }
     if (s->bootstrap_fixtures && size == 4 && syscon_retention(s, addr)) {
         return z8_mcu_gpio_read(s,addr,s->syscon[(addr - 0x0d150000) / 4]);
     }
@@ -23422,6 +23478,8 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "low-service-ram-model", get_low_service_ram_model, set_low_service_ram_model);
     object_class_property_add_str(oc, "low-service-status-input", NULL, set_low_service_status_input);
     object_class_property_add_str(oc, "low-service-status-state", get_low_service_status_state, NULL);
+    object_class_property_add_bool(oc, "syscon-semaphore-model", get_syscon_semaphore_model, set_syscon_semaphore_model);
+    object_class_property_add_str(oc, "syscon-semaphore-state", get_syscon_semaphore_state, NULL);
     object_class_property_add_bool(oc, "service-controller-model", get_service_controller_model, set_service_controller_model);
     object_class_property_add_str(oc, "service-controller-status-input", NULL, set_service_controller_status_input);
     object_class_property_add_str(oc, "service-controller-state", get_service_controller_state, NULL);
