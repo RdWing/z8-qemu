@@ -419,6 +419,25 @@ active card safe. Stopped-card export keeps its existing gate.
 Twenty-four firmware-free actual-board checks cover present/absent boot,
 repeated removal/reinsertion, unchanged endpoint/backing-file/adapter ownership,
 neighbor isolation, read-only observation and rejection without the adapter.
+
+
+## Whitelisted card-detect pin alias
+
+`mcu-card-detect` / `mcu-card-detect-pin` form a default-off semantic alias
+over the generic `mcu-pins` drive, restricted to six dual-evidence EX
+card-detect candidates: PB11 (default when the pin property is unset), PC2,
+PF6, PG2, PC5 and PG14. `mcu-card-detect=true` drives the selected pin to its
+measured assert level, `false` returns it to its idle level; switching the pin
+releases the previous candidate first. Both properties require native MCU
+attachment, and non-whitelisted pins are rejected.
+
+Measured on stock EX, driving each candidate reaches the MAIN switch cache
+with the next SPI4 switch report, but none of the six is the real CFe/SD
+in-slot detect: MAIN samples the EXS MMIO poller instead (see the External
+CFexpress detect input section). The alias is a whitelisted UI switch-cache
+drive with slot semantics left open, not a card-presence model. The
+thirty-five firmware-free checks in `tests/check_mcu_card_detect.py` cover
+the alias wiring on synthetic A53/M4 programs.
 A disposable-card original MAIN/EX run toggles false/true at virtual 19/23 seconds, then completes review and returns to Photo: 300 harness checks, 633 RAW frames, 761 MAIN/698 EX frames, zero checksum failures and clean shutdown. The backend stays identical. No absent-period filesystem event was independently observed, so complete native hot-plug remains unqualified.
 
 

@@ -8,7 +8,9 @@ import native_adc
 
 PATTERNS={'mcu-adc-inputs':r'[0-9]+\.[0-9]+=[0-9]+','mcu-pins':r'[A-K](?:[0-9]|1[0-5])=[01]',
           'mcu-contacts':r'(?:22|23)\.(?:[0-9]|1[0-9]|2[0-3])=[01]',
-          'capture-gpio-input':r'[0-3]'}
+          'capture-gpio-input':r'[0-3]',
+          'mcu-card-detect':r'(?:true|false)',
+          'mcu-card-detect-pin':r'[Pp]?[A-K](?:[0-9]|1[0-5])'}
 
 class ContactReplay:
     def __init__(self,path):
@@ -31,6 +33,8 @@ class ContactReplay:
         sent=[]
         while self.next<len(self.actions) and self.actions[self.next]['at']<=virtual_seconds:
             row=self.actions[self.next]
-            qmp.command('qom-set',path='/machine',property=row['property'],value=row['value'])
+            value=row['value']
+            if row['property']=='mcu-card-detect':value=(value=='true')
+            qmp.command('qom-set',path='/machine',property=row['property'],value=value)
             sent.append(dict(row,delivered_at=virtual_seconds));self.next+=1
         return sent

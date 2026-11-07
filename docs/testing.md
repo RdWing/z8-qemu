@@ -108,6 +108,21 @@ host scheduling to establish clock isolation. The twenty-two supply checks
 include two cycles and the default unconnected negative control. Neither suite
 qualifies physical pin-to-rail wiring or original-firmware operation by itself.
 
+The whitelisted card-detect pin alias has its own actual-board suite:
+
+```sh
+python3 tests/check_mcu_card_detect.py --qemu /path/to/qemu-system-aarch64 \
+  --output .local/new-card-detect-check
+```
+
+The thirty-five checks configure the measured stock-EX pull pattern, then
+drive every whitelisted candidate through `mcu-card-detect` /
+`mcu-card-detect-pin` and read it back through the EX IDR: assert and idle
+levels for all six candidates, the default-pin path (detect on without an
+explicit pin), release on switch, spelling canonicalization, whitelist
+rejection, default-off and the native-MCU-attachment requirement. The suite establishes the alias wiring
+only; which candidate carries which slot or door meaning stays unresolved.
+
 
 `tests/check_lpcm.py --qemu /path/to/qemu-system-aarch64 --output .local/new-lpcm-check`
 uses only synthetic data on the actual board. Its 190 assertions cover the
