@@ -20205,7 +20205,20 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
      * then 402b542c reads the halfword offset table a02808508. Port2
      * consumes bit1 of 17a00044. Explicit no-link input;
      * other status bits are unmeasured zero, not a trained PCIe controller.
-     * Link training, config accesses, BARs, DMA and all writes stay unknown. */
+     * Link training, config accesses, BARs, DMA and all writes stay unknown.
+     *
+     * E2b measured (stock MAIN/EX native boot, virtual exFAT card, port2
+     * diagnostic mask 4): bit1 here is the live card-detect source of
+     * MAIN's 50 ms storage-slot poller (task loop 0x4031b2d8, enable byte
+     * 0xa02f28da0=1 set once at service init via 0x4031b374; per-slot
+     * presence byte 0xa02f28da5+slot*0xc). Slot0/CFe reads this register
+     * every 50.18 ms median from pc 0x402b5458; runtime toggling of
+     * cfexpress-card-present flips the presence byte and the poller
+     * delivers the natural events: ring 0xa0341f2e0 receives id 23
+     * (CardRemove) on card-out and ids 22 (CardInsert) + 24
+     * (CardMountComplete) on card-in. Slot1/SD reads 0x17a0000c bit0 the
+     * same way (forced empty by zr-sd-empty-fixture). No model change was
+     * needed for this chain; runs e2b-run3/4/5 (see the E2b report). */
     if (s->pcie_empty_fixture && size == 4 &&
         addr >= 0x17a00034 && addr <= 0x17a0004c && (addr & 7) == 4) {
         /* Explicit diagnostic link input only. Config/BAR/DMA remain
@@ -22997,7 +23010,11 @@ static void set_exs_trace(Object *obj, bool value, Error **errp)
 
 /* External detect input only: keep the NVMe endpoint, backing-file lock,
  * PCIe wrapper and DMA ownership unchanged. Original firmware must poll
- * and perform its own removal/insertion work. No IRQ is fabricated. */
+ * and perform its own removal/insertion work. No IRQ is fabricated.
+ * E2b measured: with a virtual card and port2 diagnostic mask 4 the
+ * runtime toggle lands on exactly what the 50 ms slot poller reads
+ * (0x17a00044 bit1) and natural events 22/23/24 follow; see the fixture
+ * comment at the read site. */
 static bool get_cfexpress_card_present(Object *obj, Error **errp)
 {
     return !NIKON_Z8_LAB(obj)->cfexpress_card_out;
