@@ -87,7 +87,7 @@
     "qemu/nikon-z8-jpeg-reset.h": "e324caeb0a830dec5c2c0782ac981cda57f0125aa0b42a04ddcfe310c037a2ae",
     "qemu/nikon-z8-jpeg.h": "3a650668b2abb1e61c9ae8b898747cddc00ab2eaab6ddcc22ad8fd15f7ef456d",
     "qemu/nikon-z8-jpegdec.h": "a2e848863e056272945faac6ecaa0a0b375659042c6b058aefeaf3be28d391b8",
-    "qemu/nikon-z8-lab.c": "b2876a752ef57af8bcf489163024630e0c0d5f10967b9352d72bce32264e3228",
+    "qemu/nikon-z8-lab.c": "c9bbee898a44e6e32a18a9bcba7e4535daf1e643b3338638f287f8964decae2f",
     "qemu/nikon-z8-liveview-buffers.h": "db5aaab1fa55134de3d42baa6d8b5cc11953e89177c369300410aa2d416b6c8e",
     "qemu/nikon-z8-liveview-jpeg.h": "04d08bd5b9be7fecf85f2c0ca495cbbf5eb2339c726cac933ab4c7fc27e81957",
     "qemu/nikon-z8-lossless.h": "6f6ef0da9d01571dcf3470ccf1b160fb1c50c5859b6b70ef78d63b4bc97e9100",

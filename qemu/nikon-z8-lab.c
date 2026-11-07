@@ -10917,7 +10917,7 @@ static char *get_syscon_semaphore_state(Object *obj, Error **errp)
 }
 
 /* Default-off access logs for the service-protocol investigation; see
- * z8_semaphore1404_trace() above for the rationale. */
+ * z8_semaphore1404_trace() below for the rationale. */
 static bool get_syscon_semaphore_trace(Object *obj, Error **errp)
 {
     return NIKON_Z8_LAB(obj)->syscon_semaphore_trace;
@@ -19725,7 +19725,7 @@ static char *get_engine1540_control_state(Object *obj, Error **errp)
 /* Service-protocol forensics (default off). 0x0d151404 is the hardware
  * semaphore word the service-SRAM acquire/release helpers spin on, and
  * 0x15595b00-0x15595bff is the mailbox register family the driver module
- * at virtual 0xa02ab000 drives once the semaphore is granted. Both ranges
+ * at virtual 0x0a02ab0000 drives once the semaphore is granted. Both ranges
  * stay unmodeled; these logs exist so the module-side caller chain (pc/lr
  * of the live register file) and the request shape can be recovered
  * without the host-side forensic channels: qtest is physical-only over
@@ -19814,8 +19814,8 @@ static void z8_semaphore1404_trace(NikonZ8State *s, hwaddr addr,
      * per 100M ns of virtual time, 8 dumps per run. */
     if (cs && !write && addr == 0x0d151404 &&
         ARM_CPU(cs)->env.pc == UINT64_C(0x082013d4) &&
-        ARM_CPU(cs)->env.xregs[30] >= UINT64_C(0xa02ab000) &&
-        ARM_CPU(cs)->env.xregs[30] < UINT64_C(0xa02af000) &&
+        ARM_CPU(cs)->env.xregs[30] >= UINT64_C(0xa02ab0000) &&
+        ARM_CPU(cs)->env.xregs[30] < UINT64_C(0xa02af0000) &&
         s->semaphore1404_module_dumps < 8) {
         int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         if (s->semaphore1404_last_dump_ns == 0 ||
@@ -19826,7 +19826,11 @@ static void z8_semaphore1404_trace(NikonZ8State *s, hwaddr addr,
             fprintf(stderr, "Z8_SEM1404_DUMP ns=%" PRId64 " #%" PRIu64
                     " lr=0x%" PRIx64 " sp=0x%" PRIx64 "\n", ns,
                     s->semaphore1404_module_dumps, ARM_CPU(cs)->env.xregs[30], sp);
-            z8_service_trace_vdump(cs, "module", 0xa02ab000, 0x4000);
+            z8_service_trace_vdump(cs, "module", 0xa02ab0000, 0x4000);
+            /* The mailbox words the module reads at VA 0xa15595b00-ff:
+             * whatever page that VA maps to (DRAM work window) is what
+             * the reads return, so capture it too. */
+            z8_service_trace_vdump(cs, "mailbox", 0xa15595000, 0x1000);
             if (sp >= UINT64_C(0xa00000000) && sp < UINT64_C(0xa40000000)) {
                 z8_service_trace_vdump(cs, "taskstack",
                                        (sp - 0x1000) & ~UINT64_C(0xfff), 0x2000);
@@ -20494,6 +20498,29 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
             caller_ok ? "" : "(unmapped)", cpu->env.pstate,
             s->semaphore1404_reads);
         z8_service_trace_regs(current_cpu, "Z8_SEMAPHORE_GRANT_REGS");
+        /* Same forensic dump as the trace path, at the grant moment: the
+         * grant resumes the parked invocation during the tab walk, so
+         * this captures walk-time module/mailbox/stack state (the boot-
+         * time dump from syscon-semaphore-trace shows the same regions
+         * before any of it can be freed). */
+        if (s->semaphore1404_module_dumps < 8) {
+            int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            if (s->semaphore1404_last_dump_ns == 0 ||
+                ns - s->semaphore1404_last_dump_ns >= 100000000) {
+                uint64_t dsp = cpu->env.xregs[31];
+                s->semaphore1404_module_dumps++;
+                s->semaphore1404_last_dump_ns = ns;
+                fprintf(stderr, "Z8_SEM1404_DUMP ns=%" PRId64 " #%" PRIu64
+                        " lr=0x%" PRIx64 " sp=0x%" PRIx64 "\n", ns,
+                        s->semaphore1404_module_dumps, cpu->env.xregs[30], dsp);
+                z8_service_trace_vdump(current_cpu, "module", 0xa02ab0000, 0x4000);
+                z8_service_trace_vdump(current_cpu, "mailbox", 0xa15595000, 0x1000);
+                if (dsp >= UINT64_C(0xa00000000) && dsp < UINT64_C(0xa40000000)) {
+                    z8_service_trace_vdump(current_cpu, "taskstack",
+                                           (dsp - 0x1000) & ~UINT64_C(0xfff), 0x2000);
+                }
+            }
+        }
         s->semaphore1404_reads++;
         return s->syscon[(addr - 0x0d150000) / 4] | 1u;
     }
