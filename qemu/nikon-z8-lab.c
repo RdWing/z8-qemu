@@ -1,6 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2026 RdWing
+ * Copyright (C) 2026 GoldJohnKing: EXS glue-block access trace.
  * Nikon Z8 C3.11 functional board. Experimental, not a hardware specification.
  * Z8 scope and synthetic-input assumptions: ../README.md.
  * Upstream model attribution and retained licensing: ../NOTICE.md.
@@ -332,6 +333,10 @@ struct NikonZ8State {
     uint32_t usb_soc_config[4];
     uint32_t zr_control1782_config[10];
     bool zr_sd_empty_fixture;
+    /* Optional runtime-toggled access log for the 0x17a00000 glue block
+     * (card-detect channel discrimination, 2026-11-05). Diagnostic only:
+     * changes no modelled value. */
+    bool exs_trace;
     /* Optional, default-off read-through for the camera's own register
      * dump; the mechanism and its one-instruction scope are documented at
      * z8_ramdmp_load() below. */
@@ -19663,6 +19668,12 @@ static char *get_engine1540_control_state(Object *obj, Error **errp)
 static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
 {
     NikonZ8State *s = opaque;
+    if (s->exs_trace && addr >= 0x17a00000 && addr < 0x17a00800) {
+        fprintf(stderr, "Z8_EXS_READ ns=%" PRId64 " addr=0x%" PRIx64
+            " size=%u pc=0x%" PRIx64 "\n",
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), addr, size,
+            current_cpu ? ARM_CPU(current_cpu)->env.pc : 0);
+    }
     uint64_t task_global_value=0;
     if (task1500_global_pulse_access(s,addr,&task_global_value,size,false)) { return task_global_value; }
     unsigned task_ch;
@@ -20282,6 +20293,12 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size)
 {
     NikonZ8State *s = opaque;
+    if (s->exs_trace && addr >= 0x17a00000 && addr < 0x17a00800) {
+        fprintf(stderr, "Z8_EXS_WRITE ns=%" PRId64 " addr=0x%" PRIx64
+            " size=%u value=0x%" PRIx64 " pc=0x%" PRIx64 "\n",
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), addr, size, value,
+            current_cpu ? ARM_CPU(current_cpu)->env.pc : 0);
+    }
     if (engine15e2_config_write(s, addr, value, size)) { return; }
     if (engine152c_config_write(s, addr, value, size)) { return; }
     if (engine1544_copy_write(s, addr, value, size)) { return; }
@@ -22964,6 +22981,20 @@ static void set_zr_orientation_fixture(Object *obj, bool value, Error **errp)
     s->zr_orientation_fixture = value;
 }
 
+/* Runtime-toggled diagnostic log for the 0x17a00000 glue block: which
+ * accesses the firmware makes, at what cadence, from which PC. Changes
+ * no modelled value; the firmware's card-detect sampling path (APcieDriver
+ * 0x4028fc8c / ZR 0x40291648 families) is the investigation target. */
+static bool get_exs_trace(Object *obj, Error **errp)
+{
+    return NIKON_Z8_LAB(obj)->exs_trace;
+}
+
+static void set_exs_trace(Object *obj, bool value, Error **errp)
+{
+    NIKON_Z8_LAB(obj)->exs_trace = value;
+}
+
 /* External detect input only: keep the NVMe endpoint, backing-file lock,
  * PCIe wrapper and DMA ownership unchanged. Original firmware must poll
  * and perform its own removal/insertion work. No IRQ is fabricated. */
@@ -23372,6 +23403,11 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "pcie-empty-fixture", get_pcie_empty_fixture, set_pcie_empty_fixture);
     object_class_property_add_str(oc, "pcie-link-diagnostic-mask", get_pcie_link_diagnostic_mask, set_pcie_link_diagnostic_mask);
     object_class_property_add_bool(oc, "cfexpress-card-present", get_cfexpress_card_present, set_cfexpress_card_present);
+    object_class_property_add_bool(oc, "exs-trace", get_exs_trace, set_exs_trace);
+    object_class_property_set_description(oc, "exs-trace",
+        "Diagnostic access log for the 0x17a00000 glue block (stderr,"
+        " Z8_EXS_READ/Z8_EXS_WRITE lines). Off by default; toggle at run"
+        " time with qom-set while investigating the card-detect channel.");
     object_class_property_add_bool(oc, "pcie-dbi-model", get_pcie_dbi_model, set_pcie_dbi_model);
     object_class_property_add_str(oc, "pcie-dbi-state", get_pcie_dbi_state, NULL);
     object_class_property_add_bool(oc, "pcie-ram-dma-input", get_pcie_ram_dma_input, set_pcie_ram_dma_input);
