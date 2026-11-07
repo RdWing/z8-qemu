@@ -296,6 +296,17 @@ struct NikonZ8State {
     uint64_t service_cluster_writes[7];
     bool syscon_semaphore_model;
     uint64_t semaphore1404_reads;
+    /* Default-off forensics for the service-request protocol investigation:
+     * every 0x0d151404 access (read and write, any pc) with the live
+     * AArch64 register file, plus the 0x15595b00-ff mailbox family the
+     * driver module drives. See z8_semaphore1404_trace() below. */
+    bool syscon_semaphore_trace;
+    uint64_t semaphore1404_trace_reads;
+    uint64_t semaphore1404_trace_writes;
+    uint64_t semaphore1404_module_dumps;
+    int64_t semaphore1404_last_dump_ns;
+    bool mailbox_trace;
+    uint64_t mailbox_trace_accesses;
     MemoryRegion helper_sram;
     MemoryRegion dsp_load_ram[ARRAY_SIZE(dsp_load_ram)];
     MemoryRegion unknown;
@@ -10905,6 +10916,36 @@ static char *get_syscon_semaphore_state(Object *obj, Error **errp)
         s->syscon_semaphore_model ? "true" : "false", s->semaphore1404_reads);
 }
 
+/* Default-off access logs for the service-protocol investigation; see
+ * z8_semaphore1404_trace() above for the rationale. */
+static bool get_syscon_semaphore_trace(Object *obj, Error **errp)
+{
+    return NIKON_Z8_LAB(obj)->syscon_semaphore_trace;
+}
+
+static void set_syscon_semaphore_trace(Object *obj, bool value, Error **errp)
+{
+    NIKON_Z8_LAB(obj)->syscon_semaphore_trace = value;
+}
+
+static bool get_mailbox_trace(Object *obj, Error **errp)
+{
+    return NIKON_Z8_LAB(obj)->mailbox_trace;
+}
+
+static void set_mailbox_trace(Object *obj, bool value, Error **errp)
+{
+    NIKON_Z8_LAB(obj)->mailbox_trace = value;
+}
+
+static char *get_mailbox_trace_state(Object *obj, Error **errp)
+{
+    NikonZ8State *s = NIKON_Z8_LAB(obj);
+    return g_strdup_printf("{\"enabled\":%s,\"accesses\":%" PRIu64
+        ",\"range\":\"0x15595b00-0x15595bff\"}",
+        s->mailbox_trace ? "true" : "false", s->mailbox_trace_accesses);
+}
+
 static void set_service_controller_status_input(Object *obj, const char *value,
                                                 Error **errp)
 {
@@ -19681,9 +19722,154 @@ static char *get_engine1540_control_state(Object *obj, Error **errp)
         s->raw_transport[1].frame_pending, s->raw_transport[1].control_writes, s->raw_transport[1].empty_w1cs);
 }
 
+/* Service-protocol forensics (default off). 0x0d151404 is the hardware
+ * semaphore word the service-SRAM acquire/release helpers spin on, and
+ * 0x15595b00-0x15595bff is the mailbox register family the driver module
+ * at virtual 0xa02ab000 drives once the semaphore is granted. Both ranges
+ * stay unmodeled; these logs exist so the module-side caller chain (pc/lr
+ * of the live register file) and the request shape can be recovered
+ * without the host-side forensic channels: qtest is physical-only over
+ * the module range, the gdbstub wedges in qmp-heavy phases, and both the
+ * module image and the faulting task's stack are freed within seconds of
+ * a park.
+ *
+ * NOTE: the AArch64 register file is env->xregs[]. An earlier revision
+ * of the grant log read env->regs[] -- the AArch32 banked view, out of
+ * bounds past r15 -- which produced the "live register file reads zeroed
+ * at the MMIO boundary" artifact; the live file was intact all along. */
+static void z8_service_trace_regs(CPUState *cs, const char *tag)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    uint64_t sp = env->xregs[31];
+    uint64_t caller = 0;
+    bool caller_ok = false;
+    if (sp >= UINT64_C(0xa00000000) && sp < UINT64_C(0xa40000000) - 8) {
+        caller_ok = cpu_memory_rw_debug(cs, sp, (void *)&caller, 8, false) == 0;
+    }
+    fprintf(stderr, "%s sp=%" PRIx64 " lr=%" PRIx64 " [sp]=%" PRIx64 "%s",
+            tag, sp, env->xregs[30], caller, caller_ok ? "" : "(unmapped)");
+    for (unsigned i = 0; i <= 28; i += 4) {
+        fprintf(stderr, " x%u=%" PRIx64 " x%u=%" PRIx64 " x%u=%" PRIx64
+                " x%u=%" PRIx64, i, env->xregs[i], i + 1, env->xregs[i + 1],
+                i + 2, env->xregs[i + 2], i + 3, env->xregs[i + 3]);
+    }
+    fprintf(stderr, "\n");
+}
+
+/* Dump guest-VIRTUAL memory through cpu_memory_rw_debug (QEMU walks the
+ * guest MMU; the physical qtest channel cannot see the module window).
+ * 32 bytes per line, each line tagged with its translation success so
+ * holes stay visible. */
+static void z8_service_trace_vdump(CPUState *cs, const char *label,
+                                   uint64_t vaddr, unsigned size)
+{
+    uint8_t chunk[32];
+    fprintf(stderr, "Z8_VDUMP %s vaddr=0x%" PRIx64 " size=0x%x\n",
+            label, vaddr, size);
+    for (unsigned off = 0; off < size; off += sizeof(chunk)) {
+        unsigned n = MIN(sizeof(chunk), size - off);
+        int ok = cpu_memory_rw_debug(cs, vaddr + off, chunk, n, false) == 0;
+        fprintf(stderr, "Z8_VDUMP %s +0x%x %s ", label, off, ok ? "ok" : "FAIL");
+        for (unsigned i = 0; i < n; i++) {
+            fprintf(stderr, "%02x", chunk[i]);
+        }
+        fprintf(stderr, "\n");
+    }
+}
+
+static void z8_semaphore1404_trace(NikonZ8State *s, hwaddr addr,
+                                   unsigned size, uint64_t value, bool write)
+{
+    CPUState *cs = current_cpu;
+    uint64_t *budget = write ? &s->semaphore1404_trace_writes
+                             : &s->semaphore1404_trace_reads;
+    if (*budget >= 64) {
+        return;
+    }
+    (*budget)++;
+    if (cs) {
+        ARMCPU *cpu = ARM_CPU(cs);
+        fprintf(stderr, "Z8_SEM1404 ns=%" PRId64 " cpu=%u %s addr=0x%"
+                HWADDR_PRIx " size=%u value=0x%" PRIx64
+                " retained=0x%x reads=%" PRIu64 " writes=%" PRIu64
+                " pc=0x%" PRIx64 " pstate=0x%" PRIx64 "\n",
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), cs->cpu_index,
+                write ? "write" : "read", addr, size, value,
+                s->syscon[(addr - 0x0d150000) / 4],
+                s->semaphore1404_trace_reads, s->semaphore1404_trace_writes,
+                cpu->env.pc, cpu->env.pstate);
+        z8_service_trace_regs(cs, "Z8_SEM1404_REGS");
+    } else {
+        fprintf(stderr, "Z8_SEM1404 ns=%" PRId64 " cpu=-1 %s addr=0x%"
+                HWADDR_PRIx " size=%u value=0x%" PRIx64 " retained=0x%x\n",
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                write ? "write" : "read", addr, size, value,
+                s->syscon[(addr - 0x0d150000) / 4]);
+    }
+    /* At the acquire load itself (pc 0x082013d4), when the caller lives in
+     * the driver module window (lr = the module return address), capture
+     * the module image and the acquiring task's stack through the MMU:
+     * this is the one moment both are guaranteed live. Bounded to one dump
+     * per 100M ns of virtual time, 8 dumps per run. */
+    if (cs && !write && addr == 0x0d151404 &&
+        ARM_CPU(cs)->env.pc == UINT64_C(0x082013d4) &&
+        ARM_CPU(cs)->env.xregs[30] >= UINT64_C(0xa02ab000) &&
+        ARM_CPU(cs)->env.xregs[30] < UINT64_C(0xa02af000) &&
+        s->semaphore1404_module_dumps < 8) {
+        int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        if (s->semaphore1404_last_dump_ns == 0 ||
+            ns - s->semaphore1404_last_dump_ns >= 100000000) {
+            s->semaphore1404_module_dumps++;
+            s->semaphore1404_last_dump_ns = ns;
+            uint64_t sp = ARM_CPU(cs)->env.xregs[31];
+            fprintf(stderr, "Z8_SEM1404_DUMP ns=%" PRId64 " #%" PRIu64
+                    " lr=0x%" PRIx64 " sp=0x%" PRIx64 "\n", ns,
+                    s->semaphore1404_module_dumps, ARM_CPU(cs)->env.xregs[30], sp);
+            z8_service_trace_vdump(cs, "module", 0xa02ab000, 0x4000);
+            if (sp >= UINT64_C(0xa00000000) && sp < UINT64_C(0xa40000000)) {
+                z8_service_trace_vdump(cs, "taskstack",
+                                       (sp - 0x1000) & ~UINT64_C(0xfff), 0x2000);
+            }
+        }
+    }
+}
+
+static void z8_mailbox_trace(NikonZ8State *s, hwaddr addr, unsigned size,
+                             uint64_t value, bool write)
+{
+    if (s->mailbox_trace_accesses >= 256) {
+        return;
+    }
+    s->mailbox_trace_accesses++;
+    CPUState *cs = current_cpu;
+    if (cs) {
+        ARMCPU *cpu = ARM_CPU(cs);
+        CPUARMState *env = &cpu->env;
+        fprintf(stderr, "Z8_MAILBOX ns=%" PRId64 " cpu=%u %s addr=0x%"
+                HWADDR_PRIx " size=%u value=0x%" PRIx64 " pc=0x%" PRIx64
+                " lr=0x%" PRIx64 " sp=0x%" PRIx64 " x0=0x%" PRIx64
+                " x1=0x%" PRIx64 " x2=0x%" PRIx64 " x3=0x%" PRIx64 "\n",
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), cs->cpu_index,
+                write ? "write" : "read", addr, size, value, env->pc,
+                env->xregs[30], env->xregs[31], env->xregs[0], env->xregs[1],
+                env->xregs[2], env->xregs[3]);
+    } else {
+        fprintf(stderr, "Z8_MAILBOX ns=%" PRId64 " cpu=-1 %s addr=0x%"
+                HWADDR_PRIx " size=%u value=0x%" PRIx64 "\n",
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                write ? "write" : "read", addr, size, value);
+    }
+}
+
 static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
 {
     NikonZ8State *s = opaque;
+    if (s->syscon_semaphore_trace && addr == 0x0d151404) {
+        z8_semaphore1404_trace(s, addr, size, 0, false);
+    } else if (s->mailbox_trace && addr >= 0x15595b00 && addr < 0x15595c00) {
+        z8_mailbox_trace(s, addr, size, 0, false);
+    }
     uint64_t task_global_value=0;
     if (task1500_global_pulse_access(s,addr,&task_global_value,size,false)) { return task_global_value; }
     unsigned task_ch;
@@ -20283,9 +20469,12 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
         size == 4 && addr == 0x0d151404 && current_cpu &&
         ARM_CPU(current_cpu)->env.pc == UINT64_C(0x082013d4)) {
         ARMCPU *cpu = ARM_CPU(current_cpu);
-        uint64_t lr = cpu->env.regs[30], sp = cpu->env.regs[31];
-        uint64_t x16 = cpu->env.regs[16], x17 = cpu->env.regs[17];
-        uint64_t fp = cpu->env.regs[29];
+        /* The AArch64 register file is env->xregs[] (env->regs[] is the
+         * AArch32 banked view; reading it past r15 produced the earlier
+         * "zeroed live registers" artifact). */
+        uint64_t lr = cpu->env.xregs[30], sp = cpu->env.xregs[31];
+        uint64_t x16 = cpu->env.xregs[16], x17 = cpu->env.xregs[17];
+        uint64_t fp = cpu->env.xregs[29];
         uint64_t caller = 0;
         int caller_ok = 0;
         /* The module function's prologue saved ITS caller's return address
@@ -20298,10 +20487,13 @@ static uint64_t unknown_read(void *opaque, hwaddr addr, unsigned size)
         }
         fprintf(stderr, "Z8_SEMAPHORE_GRANT ns=%" PRId64 " cpu=%u pc=%" PRIx64
             " lr=%" PRIx64 " sp=%" PRIx64 " x16=%" PRIx64 " x17=%" PRIx64
-            " fp=%" PRIx64 " caller=%" PRIx64 "%s reads=%" PRIu64 "\n",
+            " fp=%" PRIx64 " caller=%" PRIx64 "%s pstate=%" PRIx64
+            " reads=%" PRIu64 "\n",
             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), current_cpu->cpu_index,
             cpu->env.pc, lr, sp, x16, x17, fp, caller,
-            caller_ok ? "" : "(unmapped)", s->semaphore1404_reads);
+            caller_ok ? "" : "(unmapped)", cpu->env.pstate,
+            s->semaphore1404_reads);
+        z8_service_trace_regs(current_cpu, "Z8_SEMAPHORE_GRANT_REGS");
         s->semaphore1404_reads++;
         return s->syscon[(addr - 0x0d150000) / 4] | 1u;
     }
@@ -20338,6 +20530,11 @@ static void unknown_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size)
 {
     NikonZ8State *s = opaque;
+    if (s->syscon_semaphore_trace && addr == 0x0d151404) {
+        z8_semaphore1404_trace(s, addr, size, value, true);
+    } else if (s->mailbox_trace && addr >= 0x15595b00 && addr < 0x15595c00) {
+        z8_mailbox_trace(s, addr, size, value, true);
+    }
     if (engine15e2_config_write(s, addr, value, size)) { return; }
     if (engine152c_config_write(s, addr, value, size)) { return; }
     if (engine1544_copy_write(s, addr, value, size)) { return; }
@@ -23480,6 +23677,9 @@ static void nikon_z8_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "low-service-status-state", get_low_service_status_state, NULL);
     object_class_property_add_bool(oc, "syscon-semaphore-model", get_syscon_semaphore_model, set_syscon_semaphore_model);
     object_class_property_add_str(oc, "syscon-semaphore-state", get_syscon_semaphore_state, NULL);
+    object_class_property_add_bool(oc, "syscon-semaphore-trace", get_syscon_semaphore_trace, set_syscon_semaphore_trace);
+    object_class_property_add_bool(oc, "mailbox-trace", get_mailbox_trace, set_mailbox_trace);
+    object_class_property_add_str(oc, "mailbox-trace-state", get_mailbox_trace_state, NULL);
     object_class_property_add_bool(oc, "service-controller-model", get_service_controller_model, set_service_controller_model);
     object_class_property_add_str(oc, "service-controller-status-input", NULL, set_service_controller_status_input);
     object_class_property_add_str(oc, "service-controller-state", get_service_controller_state, NULL);
